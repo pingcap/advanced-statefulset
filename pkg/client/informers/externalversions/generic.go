@@ -53,8 +53,10 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=pingcap.com, Version=v1alpha1
-	case v1alpha1.SchemeGroupVersion.WithResource("advancedstatefulsets"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Pingcap().V1alpha1().AdvancedStatefulSets().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("controllerrevisions"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Pingcap().V1alpha1().ControllerRevisions().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("statefulsets"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Pingcap().V1alpha1().StatefulSets().Informer()}, nil
 
 	}
 

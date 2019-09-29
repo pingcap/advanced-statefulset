@@ -31,59 +31,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// AdvancedStatefulSetInformer provides access to a shared informer and lister for
-// AdvancedStatefulSets.
-type AdvancedStatefulSetInformer interface {
+// ControllerRevisionInformer provides access to a shared informer and lister for
+// ControllerRevisions.
+type ControllerRevisionInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.AdvancedStatefulSetLister
+	Lister() v1alpha1.ControllerRevisionLister
 }
 
-type advancedStatefulSetInformer struct {
+type controllerRevisionInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewAdvancedStatefulSetInformer constructs a new informer for AdvancedStatefulSet type.
+// NewControllerRevisionInformer constructs a new informer for ControllerRevision type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewAdvancedStatefulSetInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredAdvancedStatefulSetInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewControllerRevisionInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredControllerRevisionInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredAdvancedStatefulSetInformer constructs a new informer for AdvancedStatefulSet type.
+// NewFilteredControllerRevisionInformer constructs a new informer for ControllerRevision type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredAdvancedStatefulSetInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredControllerRevisionInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.PingcapV1alpha1().AdvancedStatefulSets(namespace).List(options)
+				return client.PingcapV1alpha1().ControllerRevisions(namespace).List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.PingcapV1alpha1().AdvancedStatefulSets(namespace).Watch(options)
+				return client.PingcapV1alpha1().ControllerRevisions(namespace).Watch(options)
 			},
 		},
-		&pingcapv1alpha1.AdvancedStatefulSet{},
+		&pingcapv1alpha1.ControllerRevision{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *advancedStatefulSetInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredAdvancedStatefulSetInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *controllerRevisionInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredControllerRevisionInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *advancedStatefulSetInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&pingcapv1alpha1.AdvancedStatefulSet{}, f.defaultInformer)
+func (f *controllerRevisionInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&pingcapv1alpha1.ControllerRevision{}, f.defaultInformer)
 }
 
-func (f *advancedStatefulSetInformer) Lister() v1alpha1.AdvancedStatefulSetLister {
-	return v1alpha1.NewAdvancedStatefulSetLister(f.Informer().GetIndexer())
+func (f *controllerRevisionInformer) Lister() v1alpha1.ControllerRevisionLister {
+	return v1alpha1.NewControllerRevisionLister(f.Informer().GetIndexer())
 }

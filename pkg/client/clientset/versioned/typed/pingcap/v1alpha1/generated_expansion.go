@@ -18,4 +18,6 @@ limitations under the License.
 
 package v1alpha1
 
-type AdvancedStatefulSetExpansion interface{}
+type ControllerRevisionExpansion interface{}
+
+type StatefulSetExpansion interface{}

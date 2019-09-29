@@ -18,10 +18,18 @@ limitations under the License.
 
 package v1alpha1
 
-// AdvancedStatefulSetListerExpansion allows custom methods to be added to
-// AdvancedStatefulSetLister.
-type AdvancedStatefulSetListerExpansion interface{}
+// ControllerRevisionListerExpansion allows custom methods to be added to
+// ControllerRevisionLister.
+type ControllerRevisionListerExpansion interface{}
 
-// AdvancedStatefulSetNamespaceListerExpansion allows custom methods to be added to
-// AdvancedStatefulSetNamespaceLister.
-type AdvancedStatefulSetNamespaceListerExpansion interface{}
+// ControllerRevisionNamespaceListerExpansion allows custom methods to be added to
+// ControllerRevisionNamespaceLister.
+type ControllerRevisionNamespaceListerExpansion interface{}
+
+// StatefulSetListerExpansion allows custom methods to be added to
+// StatefulSetLister.
+type StatefulSetListerExpansion interface{}
+
+// StatefulSetNamespaceListerExpansion allows custom methods to be added to
+// StatefulSetNamespaceLister.
+type StatefulSetNamespaceListerExpansion interface{}

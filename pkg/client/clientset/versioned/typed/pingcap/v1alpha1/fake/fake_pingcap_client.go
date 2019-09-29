@@ -28,8 +28,12 @@ type FakePingcapV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakePingcapV1alpha1) AdvancedStatefulSets(namespace string) v1alpha1.AdvancedStatefulSetInterface {
-	return &FakeAdvancedStatefulSets{c, namespace}
+func (c *FakePingcapV1alpha1) ControllerRevisions(namespace string) v1alpha1.ControllerRevisionInterface {
+	return &FakeControllerRevisions{c, namespace}
+}
+
+func (c *FakePingcapV1alpha1) StatefulSets(namespace string) v1alpha1.StatefulSetInterface {
+	return &FakeStatefulSets{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

@@ -24,8 +24,10 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// AdvancedStatefulSets returns a AdvancedStatefulSetInformer.
-	AdvancedStatefulSets() AdvancedStatefulSetInformer
+	// ControllerRevisions returns a ControllerRevisionInformer.
+	ControllerRevisions() ControllerRevisionInformer
+	// StatefulSets returns a StatefulSetInformer.
+	StatefulSets() StatefulSetInformer
 }
 
 type version struct {
@@ -39,7 +41,12 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// AdvancedStatefulSets returns a AdvancedStatefulSetInformer.
-func (v *version) AdvancedStatefulSets() AdvancedStatefulSetInformer {
-	return &advancedStatefulSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// ControllerRevisions returns a ControllerRevisionInformer.
+func (v *version) ControllerRevisions() ControllerRevisionInformer {
+	return &controllerRevisionInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// StatefulSets returns a StatefulSetInformer.
+func (v *version) StatefulSets() StatefulSetInformer {
+	return &statefulSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

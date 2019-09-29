@@ -18,13 +18,40 @@ package v1alpha1
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type AdvancedStatefulSet appsv1.StatefulSet
+type StatefulSet struct {
+	metav1.TypeMeta `json:",inline"`
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+
+	// Spec defines the desired identities of pods in this set.
+	// +optional
+	Spec StatefulSetSpec `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
+
+	// Status is the current status of Pods in this StatefulSet. This data
+	// may be out of date by some window of time.
+	// +optional
+	Status StatefulSetStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+}
+
+type StatefulSetSpec appsv1.StatefulSetSpec
+
+type StatefulSetStatus appsv1.StatefulSetStatus
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type AdvancedStatefulSetList appsv1.StatefulSetList
+type StatefulSetList appsv1.StatefulSetList
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type ControllerRevision appsv1.ControllerRevision
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type ControllerRevisionList appsv1.ControllerRevisionList
