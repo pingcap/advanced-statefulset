@@ -1,6 +1,7 @@
 package config
 
 import (
+	pcclientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
 	"github.com/cofyc/advanced-statefulset/pkg/component/config"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -13,6 +14,9 @@ type Config struct {
 
 	// the general kube client
 	Client *clientset.Clientset
+
+	// the general pingcap client
+	PCClient *pcclientset.Clientset
 
 	// the client only used for leader election
 	LeaderElectionClient *clientset.Clientset

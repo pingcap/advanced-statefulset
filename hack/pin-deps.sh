@@ -1,6 +1,11 @@
 #!/bin/bash
-
+#
 # Pin all k8s.io dependencies to a specified verison.
+#
+
+set -o errexit
+set -o nounset
+set -o pipefail
 
 VERSION=1.16.0
 

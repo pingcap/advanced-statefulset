@@ -1,0 +1,35 @@
+kind: Cluster
+apiVersion: kind.sigs.k8s.io/v1alpha3
+nodes:
+- role: control-plane
+# Uncomment if you want more workers to test your workloads
+# - role: worker
+# - role: worker
+# - role: worker
+# patch the generated kubeadm config with some extra settings
+# CustomResourceDefaulting is avaiable in 1.16+.
+# Uncomment when node images for 1.16 is avaiable:
+# https://github.com/kubernetes-sigs/kind/issues/887
+# kubeadmConfigPatches:
+# - |
+  # apiVersion: kubeadm.k8s.io/v1beta2
+  # kind: ClusterConfiguration
+  # metadata:
+    # name: config
+  # apiServer:
+    # extraArgs:
+      # "features-gates": "CustomResourceDefaulting=true"
+  # scheduler:
+    # extraArgs:
+      # "features-gates": "CustomResourceDefaulting=true"
+  # controllerManager:
+    # extraArgs:
+      # "features-gates": "CustomResourceDefaulting=true"
+# - |
+  # apiVersion: kubeadm.k8s.io/v1beta2
+  # kind: InitConfiguration
+  # metadata:
+    # name: config
+  # nodeRegistration:
+    # kubeletExtraArgs:
+      # "features-gates": "CustomResourceDefaulting=true"

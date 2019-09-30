@@ -276,10 +276,11 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 	status.CollisionCount = new(int32)
 	*status.CollisionCount = collisionCount
 
-	replicaCount := int(*set.Spec.Replicas)
-	// slice that will contain all Pods such that 0 <= getOrdinal(pod) < set.Spec.Replicas
+	deleteSlots := getDeleteSlots(set)
+	replicaCount := int(*set.Spec.Replicas) + deleteSlots.Len()
+	// slice that will contain all Pods such that 0 <= getOrdinal(pod) < set.Spec.Replicas and not in deleteSlots
 	replicas := make([]*v1.Pod, replicaCount)
-	// slice that will contain all Pods such that set.Spec.Replicas <= getOrdinal(pod)
+	// slice that will contain all Pods such that set.Spec.Replicas <= getOrdinal(pod) or exist in deleteSlots
 	condemned := make([]*v1.Pod, 0, len(pods))
 	unhealthy := 0
 	firstUnhealthyOrdinal := math.MaxInt32
@@ -304,20 +305,23 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 			}
 		}
 
-		if ord := getOrdinal(pods[i]); 0 <= ord && ord < replicaCount {
+		if ord := getOrdinal(pods[i]); 0 <= ord && ord < replicaCount && !deleteSlots.Has(ord) {
 			// if the ordinal of the pod is within the range of the current number of replicas,
 			// insert it at the indirection of its ordinal
 			replicas[ord] = pods[i]
 
-		} else if ord >= replicaCount {
+		} else if ord >= replicaCount || deleteSlots.Has(ord) {
 			// if the ordinal is greater than the number of replicas add it to the condemned list
 			condemned = append(condemned, pods[i])
 		}
 		// If the ordinal could not be parsed (ord < 0), ignore the Pod.
 	}
 
-	// for any empty indices in the sequence [0,set.Spec.Replicas) create a new Pod at the correct revision
+	// for any empty indices in the sequence [0,set.Spec.Replicas) and do not exist in deleteSlots create a new Pod at the correct revision
 	for ord := 0; ord < replicaCount; ord++ {
+		if deleteSlots.Has(ord) {
+			continue
+		}
 		if replicas[ord] == nil {
 			replicas[ord] = newVersionedStatefulSetPod(
 				currentSet,
@@ -332,6 +336,9 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 
 	// find the first unhealthy Pod
 	for i := range replicas {
+		if replicas[i] == nil {
+			continue
+		}
 		if !isHealthy(replicas[i]) {
 			unhealthy++
 			if ord := getOrdinal(replicas[i]); ord < firstUnhealthyOrdinal {
@@ -369,6 +376,9 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 
 	// Examine each replica with respect to its ordinal
 	for i := range replicas {
+		if replicas[i] == nil {
+			continue
+		}
 		// delete and recreate failed pods
 		if isFailed(replicas[i]) {
 			ssc.recorder.Eventf(set, v1.EventTypeWarning, "RecreatingFailedPod",
@@ -504,7 +514,9 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 	}
 	// we terminate the Pod with the largest ordinal that does not match the update revision.
 	for target := len(replicas) - 1; target >= updateMin; target-- {
-
+		if replicas[target] == nil {
+			continue
+		}
 		// delete the Pod if it is not already terminating and does not match the update revision.
 		if getPodRevision(replicas[target]) != updateRevision.Name && !isTerminating(replicas[target]) {
 			klog.V(2).Infof("StatefulSet %s/%s terminating Pod %s for update",

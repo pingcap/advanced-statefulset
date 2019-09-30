@@ -1,11 +1,12 @@
 package options
 
 import (
-	k8srebalancerconfig "github.com/cofyc/advanced-statefulset/cmd/controller-manager/config"
+	controllermanagerconfig "github.com/cofyc/advanced-statefulset/cmd/controller-manager/config"
+	pcclientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
 	"github.com/cofyc/advanced-statefulset/pkg/component/config"
 	"github.com/cofyc/advanced-statefulset/pkg/component/options"
 	"github.com/spf13/pflag"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -43,7 +44,7 @@ func (s *K8sRebalancerOptions) AddFlags(fs *pflag.FlagSet) {
 }
 
 // ApplyTo fills up controller manager config with options.
-func (s *K8sRebalancerOptions) ApplyTo(c *k8srebalancerconfig.Config, userAgent string) error {
+func (s *K8sRebalancerOptions) ApplyTo(c *controllermanagerconfig.Config, userAgent string) error {
 	if err := s.GenericComponent.ApplyTo(&c.GenericComponent); err != nil {
 		return err
 	}
@@ -62,6 +63,13 @@ func (s *K8sRebalancerOptions) ApplyTo(c *k8srebalancerconfig.Config, userAgent 
 		return err
 	}
 
+	// FIXME: use protobuf?
+	c.Kubeconfig.ContentConfig.ContentType = "application/json"
+	c.PCClient, err = pcclientset.NewForConfig(rest.AddUserAgent(c.Kubeconfig, userAgent))
+	if err != nil {
+		return err
+	}
+
 	c.LeaderElectionClient = clientset.NewForConfigOrDie(rest.AddUserAgent(c.Kubeconfig, "leader-election"))
 
 	c.EventRecorder = createRecorder(c.Client, userAgent)
@@ -76,9 +84,9 @@ func (s *K8sRebalancerOptions) Validate() error {
 }
 
 // Config configures configuration.
-func (s *K8sRebalancerOptions) Config() (*k8srebalancerconfig.Config, error) {
-	c := &k8srebalancerconfig.Config{}
-	if err := s.ApplyTo(c, "k8s-rebalance"); err != nil {
+func (s *K8sRebalancerOptions) Config() (*controllermanagerconfig.Config, error) {
+	c := &controllermanagerconfig.Config{}
+	if err := s.ApplyTo(c, "advanced-statefulset"); err != nil {
 		return nil, err
 	}
 

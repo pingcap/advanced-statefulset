@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/cofyc/advanced-statefulset/cmd/controller-manager/config"
 	"github.com/cofyc/advanced-statefulset/cmd/controller-manager/options"
+	pcinformers "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions"
+	"github.com/cofyc/advanced-statefulset/pkg/controller/statefulset"
 	flag "github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/informers"
@@ -34,13 +37,19 @@ func ResyncPeriod(c *config.CompletedConfig) func() time.Duration {
 func Run(c *config.CompletedConfig) error {
 	run := func(ctx context.Context) {
 		informerFactory := informers.NewSharedInformerFactory(c.Client, c.GenericComponent.MinResyncPeriod.Duration)
-		// r, err := rebalancer.NewRebalancer(c.Client, informerFactory)
-		// if err != nil {
-		// klog.Fatal(err)
-		// }
-		// go r.Run(ctx.Done())
+		pcInformerFactory := pcinformers.NewSharedInformerFactory(c.PCClient, c.GenericComponent.MinResyncPeriod.Duration)
+		stsCtrl := statefulset.NewStatefulSetController(
+			informerFactory.Core().V1().Pods(),
+			pcInformerFactory.Pingcap().V1alpha1().StatefulSets(),
+			informerFactory.Core().V1().PersistentVolumeClaims(),
+			pcInformerFactory.Pingcap().V1alpha1().ControllerRevisions(),
+			c.Client,
+			c.PCClient,
+		)
+		go stsCtrl.Run(runtime.NumCPU(), ctx.Done())
 		// Start informers after all event listeners are registered.
 		informerFactory.Start(ctx.Done())
+		pcInformerFactory.Start(ctx.Done())
 		select {}
 	}
 
