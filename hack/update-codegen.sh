@@ -25,3 +25,6 @@ bash "${CODEGEN_PKG}"/generate-groups.sh "deepcopy,client,informer,lister" \
   github.com/cofyc/advanced-statefulset/pkg/client github.com/cofyc/advanced-statefulset/pkg/apis \
   pingcap:v1alpha1 \
   --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate.go.txt
+
+# work around for https://github.com/kubernetes/code-generator/issues/84
+git checkout pkg/client/listers/pingcap/v1alpha1/expansion_generated.go

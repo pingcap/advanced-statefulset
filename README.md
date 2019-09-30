@@ -8,3 +8,8 @@ StatefulSet in Kubernetes.
 In addition to official StatefulSet, it adds one feature:
 
 - Scale in at an arbitrary position: https://github.com/kubernetes/kubernetes/issues/83224
+
+## Test it out
+
+```
+```
