@@ -6,6 +6,8 @@
 This is an Advanced StatefulSet CRD implementation based on official
 StatefulSet in Kubernetes 1.16.0.
 
+For demonstration only. Do not use in production!
+
 ## Features
 
 In addition to official StatefulSet, it adds one feature:
