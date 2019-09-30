@@ -1,0 +1,12 @@
+dist: xenial
+language: go
+go:
+  - 1.11.2
+go_import_path: github.com/cofyc/advanced-statefulset
+services: docker
+install: true
+script:
+  - make ${TARGET}
+jobs:
+  include:
+  - env: TARGET=all
