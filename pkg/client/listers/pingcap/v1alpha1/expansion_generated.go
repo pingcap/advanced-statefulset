@@ -19,14 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-    "fmt"
+	"fmt"
 
 	apps "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
-    "k8s.io/api/core/v1"
-    metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-    "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
-
 
 // ControllerRevisionListerExpansion allows custom methods to be added to
 // ControllerRevisionLister.
@@ -38,7 +37,7 @@ type ControllerRevisionNamespaceListerExpansion interface{}
 
 // StatefulSetListerExpansion allows custom methods to be added to
 // StatefulSetLister.
-type StatefulSetListerExpansion interface{
+type StatefulSetListerExpansion interface {
 	GetPodStatefulSets(pod *v1.Pod) ([]*apps.StatefulSet, error)
 }
 
@@ -50,39 +49,39 @@ type StatefulSetNamespaceListerExpansion interface{}
 // Only the one specified in the Pod's ControllerRef will actually manage it.
 // Returns an error only if no matching StatefulSets are found.
 func (s *statefulSetLister) GetPodStatefulSets(pod *v1.Pod) ([]*apps.StatefulSet, error) {
-    var selector labels.Selector
-    var ps *apps.StatefulSet
+	var selector labels.Selector
+	var ps *apps.StatefulSet
 
-    if len(pod.Labels) == 0 { 
-        return nil, fmt.Errorf("no StatefulSets found for pod %v because it has no labels", pod.Name)
-    }
+	if len(pod.Labels) == 0 {
+		return nil, fmt.Errorf("no StatefulSets found for pod %v because it has no labels", pod.Name)
+	}
 
-    list, err := s.StatefulSets(pod.Namespace).List(labels.Everything())
-    if err != nil {
-        return nil, err
-    }
+	list, err := s.StatefulSets(pod.Namespace).List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
 
-    var psList []*apps.StatefulSet
-    for i := range list {
-        ps = list[i]
-        if ps.Namespace != pod.Namespace {
-            continue
-        }
-        selector, err = metav1.LabelSelectorAsSelector(ps.Spec.Selector)
-        if err != nil {
-            return nil, fmt.Errorf("invalid selector: %v", err)
-        }
+	var psList []*apps.StatefulSet
+	for i := range list {
+		ps = list[i]
+		if ps.Namespace != pod.Namespace {
+			continue
+		}
+		selector, err = metav1.LabelSelectorAsSelector(ps.Spec.Selector)
+		if err != nil {
+			return nil, fmt.Errorf("invalid selector: %v", err)
+		}
 
-        // If a StatefulSet with a nil or empty selector creeps in, it should match nothing, not everything.
-        if selector.Empty() || !selector.Matches(labels.Set(pod.Labels)) {
-            continue
-        }
-        psList = append(psList, ps)
-    }
+		// If a StatefulSet with a nil or empty selector creeps in, it should match nothing, not everything.
+		if selector.Empty() || !selector.Matches(labels.Set(pod.Labels)) {
+			continue
+		}
+		psList = append(psList, ps)
+	}
 
-    if len(psList) == 0 {
-        return nil, fmt.Errorf("could not find StatefulSet for pod %s in namespace %s with labels: %v", pod.Name, pod.Namespace, pod.        Labels)
-    }
+	if len(psList) == 0 {
+		return nil, fmt.Errorf("could not find StatefulSet for pod %s in namespace %s with labels: %v", pod.Name, pod.Namespace, pod.Labels)
+	}
 
-    return psList, nil
+	return psList, nil
 }

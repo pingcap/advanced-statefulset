@@ -11,8 +11,12 @@ OS ?= $(shell go env GOOS)
 ALL_TARGETS := cmd/controller-manager
 SRC_PREFIX := github.com/cofyc/advanced-statefulset
 
-all: build test
+all: verify build test
 .PHONY: all
+
+verify:
+	./hack/verify-all.sh 
+.PHONY: verify
 
 build: $(ALL_TARGETS)
 .PHONY: all
