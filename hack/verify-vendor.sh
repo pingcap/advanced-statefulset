@@ -31,4 +31,4 @@ mv vendor $tmpdir/vendor
 
 hack/update-vendor.sh
 
-diff -r --no-dereference --exclude "*.pyc" $tmpdir/vendor vendor
+diff -r --no-dereference $tmpdir/vendor vendor
