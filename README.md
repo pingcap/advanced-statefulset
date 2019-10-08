@@ -23,14 +23,14 @@ kind `v0.5.1` is required.
 ```
 curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/v0.5.1/kind-$(uname)-amd64
 chmod +x ./kind
-./kind create cluster --image kindest/node:v1.15.3 --config hack/kindconfig.yaml
+./kind create cluster --image kindest/node:v1.16.1 --config hack/kindconfig.yaml
 export KUBECONFIG=$(kind get kubeconfig-path --name kind)
 ```
 
 ### install CRD
 
 ```
-kubectl apply -f deployment/crd.yaml
+kubectl apply -f deployment/crd.v1.yaml
 ```
 
 ### run advanced statefulset controller locally
