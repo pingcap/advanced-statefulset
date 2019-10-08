@@ -28,6 +28,10 @@ trap "rm -rf $TMP_DIR" EXIT
 
 go mod vendor
 
+# Ensure sort order doesn't depend on locale
+export LANG=C
+export LC_ALL=C
+
 # sort recorded packages for a given vendored dependency in modules.txt.
 # `go mod vendor` outputs in imported order, which means slight go changes (or different platforms) can result in a differently ordered modules.txt.
 # scan                 | prefix comment lines with the module name       | sort field 1  | strip leading text on comment lines
