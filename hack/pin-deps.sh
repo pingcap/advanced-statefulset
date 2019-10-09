@@ -11,7 +11,7 @@ STAGING_REPOS=($(curl -sS https://raw.githubusercontent.com/kubernetes/kubernete
 
 edit_args=()
 for repo in ${STAGING_REPOS[@]}; do
-    edit_args+=(-replace $repo=$repo@kubernetes-1.16.0)
+    edit_args+=(-replace $repo=$repo@kubernetes-$VERSION)
 done
 
 go mod edit ${edit_args[@]}
