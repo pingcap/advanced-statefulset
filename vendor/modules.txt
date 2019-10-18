@@ -11,9 +11,9 @@ github.com/Azure/go-ansiterm
 github.com/Azure/go-ansiterm/winterm
 # github.com/Azure/go-autorest/autorest v0.9.0
 github.com/Azure/go-autorest/autorest
-github.com/Azure/go-autorest/autorest/azure
 # github.com/Azure/go-autorest/autorest/adal v0.5.0
 github.com/Azure/go-autorest/autorest/adal
+github.com/Azure/go-autorest/autorest/azure
 # github.com/Azure/go-autorest/autorest/date v0.1.0
 github.com/Azure/go-autorest/autorest/date
 # github.com/Azure/go-autorest/autorest/to v0.2.0
@@ -88,6 +88,7 @@ github.com/coreos/etcd/clientv3/balancer
 github.com/coreos/etcd/clientv3/balancer/connectivity
 github.com/coreos/etcd/clientv3/balancer/picker
 github.com/coreos/etcd/clientv3/balancer/resolver/endpoint
+github.com/coreos/etcd/clientv3/concurrency
 github.com/coreos/etcd/clientv3/credentials
 github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes
 github.com/coreos/etcd/etcdserver/etcdserverpb
@@ -1305,11 +1306,9 @@ k8s.io/kubernetes/pkg/client/conditions
 k8s.io/kubernetes/pkg/cloudprovider/providers
 k8s.io/kubernetes/pkg/controller
 k8s.io/kubernetes/pkg/controller/deployment/util
-k8s.io/kubernetes/pkg/controller/history
 k8s.io/kubernetes/pkg/controller/nodelifecycle
 k8s.io/kubernetes/pkg/controller/nodelifecycle/scheduler
 k8s.io/kubernetes/pkg/controller/serviceaccount
-k8s.io/kubernetes/pkg/controller/statefulset
 k8s.io/kubernetes/pkg/controller/util/node
 k8s.io/kubernetes/pkg/controller/volume/persistentvolume/util
 k8s.io/kubernetes/pkg/controller/volume/scheduling
@@ -1602,6 +1601,8 @@ k8s.io/kubernetes/test/e2e/framework/testfiles
 k8s.io/kubernetes/test/e2e/manifest
 k8s.io/kubernetes/test/e2e/perftype
 k8s.io/kubernetes/test/e2e/system
+k8s.io/kubernetes/test/integration
+k8s.io/kubernetes/test/integration/etcd
 k8s.io/kubernetes/test/integration/framework
 k8s.io/kubernetes/test/utils
 k8s.io/kubernetes/test/utils/image

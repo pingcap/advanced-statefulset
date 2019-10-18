@@ -23,6 +23,9 @@ cd $ROOT
 
 source "${ROOT}/hack/lib.sh"
 
+# Explicitly opt into go modules, even though we're inside a GOPATH directory
+export GO111MODULE=on
+
 TMP_DIR="${TMP_DIR:-$(mktemp -d /tmp/update-vendor.XXXX)}"
 trap "rm -rf $TMP_DIR" EXIT
 

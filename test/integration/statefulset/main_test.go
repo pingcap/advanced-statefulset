@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Kubernetes Authors.
+Copyright 2018 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,9 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +groupName=pingcap.com
-// +k8s:deepcopy-gen=package
-// +k8s:defaulter-gen=TypeMeta
-// +k8s:openapi-gen=true
+package statefulset
 
-package v1alpha1
+import (
+	"testing"
+
+	"k8s.io/kubernetes/test/integration/framework"
+)
+
+func TestMain(m *testing.M) {
+	framework.EtcdMain(m.Run)
+}
