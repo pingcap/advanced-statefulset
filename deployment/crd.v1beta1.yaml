@@ -1,3 +1,4 @@
+# For Kubernetes before 1.16.
 # TODO more validations, etc.
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -12,7 +13,7 @@ spec:
     singular: statefulset
     kind: StatefulSet
     shortNames:
-    - sts
+    - asts
   validation:
     openAPIV3Schema:
       type: object
@@ -23,7 +24,6 @@ spec:
             replicas:
               type: integer
               minimum: 1
-              # default: 1
             selector:
               type: object
             serviceName:
@@ -33,7 +33,6 @@ spec:
             revisionHistoryLimit:
               type: integer
               minimum: 1
-              # default: 10
   versions:
     - name: v1alpha1
       served: true

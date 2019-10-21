@@ -1,16 +1,16 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: nginx
+  name: web
   labels:
-    app: nginx
+    app: web
 spec:
   ports:
   - port: 80
     name: web
   clusterIP: None
   selector:
-    app: nginx
+    app: web
 ---
 apiVersion: pingcap.com/v1alpha1
 kind: StatefulSet
@@ -19,13 +19,13 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: nginx
-  serviceName: "nginx"
+      app: web
+  serviceName: "web"
   replicas: 1
   template:
     metadata:
       labels:
-        app: nginx
+        app: web
     spec:
       terminationGracePeriodSeconds: 10
       containers:
