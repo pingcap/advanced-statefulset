@@ -9,4 +9,7 @@ script:
   - make ${TARGET}
 jobs:
   include:
-  - env: TARGET=all
+  - env: TARGET=verify
+  - env: TARGET=build
+  - env: TARGET=test
+  - env: TARGET=test-integration

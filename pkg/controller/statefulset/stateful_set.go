@@ -424,6 +424,7 @@ func (ssc *StatefulSetController) sync(key string) error {
 		klog.Infof("StatefulSet has been deleted %v", key)
 		return nil
 	}
+	klog.Infof("sts %q found\n", set.Name)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("unable to retrieve StatefulSet %v from store: %v", key, err))
 		return err
@@ -437,11 +438,13 @@ func (ssc *StatefulSetController) sync(key string) error {
 	}
 
 	if err := ssc.adoptOrphanRevisions(set); err != nil {
+		klog.Errorf("adoptOrphanRevisions: %v\n", err)
 		return err
 	}
 
 	pods, err := ssc.getPodsForStatefulSet(set, selector)
 	if err != nil {
+		klog.Errorf("getPodsForStatefulSet: %v\n", err)
 		return err
 	}
 
