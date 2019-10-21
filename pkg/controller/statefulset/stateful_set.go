@@ -26,13 +26,13 @@ import (
 	asscheme "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/scheme"
 	appsinformers "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions/pingcap/v1alpha1"
 	appslisters "github.com/cofyc/advanced-statefulset/pkg/client/listers/pingcap/v1alpha1"
-	"github.com/cofyc/advanced-statefulset/pkg/controller/history"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	kubeappsinformers "k8s.io/client-go/informers/apps/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -42,6 +42,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/kubernetes/pkg/controller/history"
 
 	"k8s.io/klog"
 )
@@ -84,7 +85,7 @@ func NewStatefulSetController(
 	podInformer coreinformers.PodInformer,
 	setInformer appsinformers.StatefulSetInformer,
 	pvcInformer coreinformers.PersistentVolumeClaimInformer,
-	revInformer appsinformers.ControllerRevisionInformer,
+	revInformer kubeappsinformers.ControllerRevisionInformer,
 	kubeClient kubernetes.Interface,
 	pcClient clientset.Interface,
 ) *StatefulSetController {
@@ -104,7 +105,7 @@ func NewStatefulSetController(
 				pvcInformer.Lister(),
 				recorder),
 			NewRealStatefulSetStatusUpdater(pcClient, setInformer.Lister()),
-			history.NewHistory(pcClient, revInformer.Lister()),
+			history.NewHistory(kubeClient, revInformer.Lister()),
 			recorder,
 		),
 		pvcListerSynced: pvcInformer.Informer().HasSynced,

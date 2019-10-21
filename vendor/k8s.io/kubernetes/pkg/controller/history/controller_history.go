@@ -23,10 +23,10 @@ import (
 	"sort"
 	"strconv"
 
-	apps "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
-	clientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
-	statefulsetinformers "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions/pingcap/v1alpha1"
-	statefulsetlisters "github.com/cofyc/advanced-statefulset/pkg/client/listers/pingcap/v1alpha1"
+	apps "k8s.io/api/apps/v1"
+	appsinformers "k8s.io/client-go/informers/apps/v1"
+	clientset "k8s.io/client-go/kubernetes"
+	appslisters "k8s.io/client-go/listers/apps/v1"
 	hashutil "k8s.io/kubernetes/pkg/util/hash"
 
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -201,19 +201,19 @@ type Interface interface {
 
 // NewHistory returns an instance of Interface that uses client to communicate with the API Server and lister to list
 // ControllerRevisions. This method should be used to create an Interface for all scenarios other than testing.
-func NewHistory(client clientset.Interface, lister statefulsetlisters.ControllerRevisionLister) Interface {
+func NewHistory(client clientset.Interface, lister appslisters.ControllerRevisionLister) Interface {
 	return &realHistory{client, lister}
 }
 
 // NewFakeHistory returns an instance of Interface that uses informer to create, update, list, and delete
 // ControllerRevisions. This method should be used to create an Interface for testing purposes.
-func NewFakeHistory(informer statefulsetinformers.ControllerRevisionInformer) Interface {
+func NewFakeHistory(informer appsinformers.ControllerRevisionInformer) Interface {
 	return &fakeHistory{informer.Informer().GetIndexer(), informer.Lister()}
 }
 
 type realHistory struct {
 	client clientset.Interface
-	lister statefulsetlisters.ControllerRevisionLister
+	lister appslisters.ControllerRevisionLister
 }
 
 func (rh *realHistory) ListControllerRevisions(parent metav1.Object, selector labels.Selector) ([]*apps.ControllerRevision, error) {
@@ -247,9 +247,9 @@ func (rh *realHistory) CreateControllerRevision(parent metav1.Object, revision *
 		// Update the revisions name
 		clone.Name = ControllerRevisionName(parent.GetName(), hash)
 		ns := parent.GetNamespace()
-		created, err := rh.client.PingcapV1alpha1().ControllerRevisions(ns).Create(clone)
+		created, err := rh.client.AppsV1().ControllerRevisions(ns).Create(clone)
 		if errors.IsAlreadyExists(err) {
-			exists, err := rh.client.PingcapV1alpha1().ControllerRevisions(ns).Get(clone.Name, metav1.GetOptions{})
+			exists, err := rh.client.AppsV1().ControllerRevisions(ns).Get(clone.Name, metav1.GetOptions{})
 			if err != nil {
 				return nil, err
 			}
@@ -270,7 +270,7 @@ func (rh *realHistory) UpdateControllerRevision(revision *apps.ControllerRevisio
 			return nil
 		}
 		clone.Revision = newRevision
-		updated, updateErr := rh.client.PingcapV1alpha1().ControllerRevisions(clone.Namespace).Update(clone)
+		updated, updateErr := rh.client.AppsV1().ControllerRevisions(clone.Namespace).Update(clone)
 		if updateErr == nil {
 			return nil
 		}
@@ -287,7 +287,7 @@ func (rh *realHistory) UpdateControllerRevision(revision *apps.ControllerRevisio
 }
 
 func (rh *realHistory) DeleteControllerRevision(revision *apps.ControllerRevision) error {
-	return rh.client.PingcapV1alpha1().ControllerRevisions(revision.Namespace).Delete(revision.Name, nil)
+	return rh.client.AppsV1().ControllerRevisions(revision.Namespace).Delete(revision.Name, nil)
 }
 
 func (rh *realHistory) AdoptControllerRevision(parent metav1.Object, parentKind schema.GroupVersionKind, revision *apps.ControllerRevision) (*apps.ControllerRevision, error) {
@@ -296,7 +296,7 @@ func (rh *realHistory) AdoptControllerRevision(parent metav1.Object, parentKind 
 		return nil, fmt.Errorf("attempt to adopt revision owned by %v", owner)
 	}
 	// Use strategic merge patch to add an owner reference indicating a controller ref
-	return rh.client.PingcapV1alpha1().ControllerRevisions(parent.GetNamespace()).Patch(revision.GetName(),
+	return rh.client.AppsV1().ControllerRevisions(parent.GetNamespace()).Patch(revision.GetName(),
 		types.StrategicMergePatchType, []byte(fmt.Sprintf(
 			`{"metadata":{"ownerReferences":[{"apiVersion":"%s","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
 			parentKind.GroupVersion().String(), parentKind.Kind,
@@ -305,7 +305,7 @@ func (rh *realHistory) AdoptControllerRevision(parent metav1.Object, parentKind 
 
 func (rh *realHistory) ReleaseControllerRevision(parent metav1.Object, revision *apps.ControllerRevision) (*apps.ControllerRevision, error) {
 	// Use strategic merge patch to add an owner reference indicating a controller ref
-	released, err := rh.client.PingcapV1alpha1().ControllerRevisions(revision.GetNamespace()).Patch(revision.GetName(),
+	released, err := rh.client.AppsV1().ControllerRevisions(revision.GetNamespace()).Patch(revision.GetName(),
 		types.StrategicMergePatchType,
 		[]byte(fmt.Sprintf(`{"metadata":{"ownerReferences":[{"$patch":"delete","uid":"%s"}],"uid":"%s"}}`, parent.GetUID(), revision.UID)))
 
@@ -325,7 +325,7 @@ func (rh *realHistory) ReleaseControllerRevision(parent metav1.Object, revision 
 
 type fakeHistory struct {
 	indexer cache.Indexer
-	lister  statefulsetlisters.ControllerRevisionLister
+	lister  appslisters.ControllerRevisionLister
 }
 
 func (fh *fakeHistory) ListControllerRevisions(parent metav1.Object, selector labels.Selector) ([]*apps.ControllerRevision, error) {

@@ -42,7 +42,7 @@ func Run(c *config.CompletedConfig) error {
 			informerFactory.Core().V1().Pods(),
 			pcInformerFactory.Pingcap().V1alpha1().StatefulSets(),
 			informerFactory.Core().V1().PersistentVolumeClaims(),
-			pcInformerFactory.Pingcap().V1alpha1().ControllerRevisions(),
+			informerFactory.Apps().V1().ControllerRevisions(),
 			c.Client,
 			c.PCClient,
 		)

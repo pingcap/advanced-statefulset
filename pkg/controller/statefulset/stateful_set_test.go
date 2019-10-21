@@ -23,7 +23,6 @@ import (
 	apps "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
 	"github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/fake"
 	informers "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions"
-	"github.com/cofyc/advanced-statefulset/pkg/controller/history"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,6 +32,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/kubernetes/pkg/controller/history"
 )
 
 func alwaysReady() bool { return true }
@@ -594,11 +594,11 @@ func newFakeStatefulSetController(initialObjects ...runtime.Object) (*StatefulSe
 		kubeInformerFactory.Core().V1().Pods(),
 		informerFactory.Pingcap().V1alpha1().StatefulSets(),
 		kubeInformerFactory.Core().V1().PersistentVolumeClaims(),
-		informerFactory.Pingcap().V1alpha1().ControllerRevisions(),
+		kubeInformerFactory.Apps().V1().ControllerRevisions(),
 		kubeClient,
 		client,
 	)
-	ssh := history.NewFakeHistory(informerFactory.Pingcap().V1alpha1().ControllerRevisions())
+	ssh := history.NewFakeHistory(kubeInformerFactory.Apps().V1().ControllerRevisions())
 	ssc.podListerSynced = alwaysReady
 	ssc.setListerSynced = alwaysReady
 	recorder := record.NewFakeRecorder(10)
