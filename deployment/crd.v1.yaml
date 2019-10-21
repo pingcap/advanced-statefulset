@@ -1,3 +1,4 @@
+# For Kubernetes 1.16+.
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -21,14 +22,34 @@ spec:
                 default: 1
               selector:
                 type: object
-              serviceName:
-                type: string
+                # TODO validate all fields
+                x-kubernetes-preserve-unknown-fields: true
               template:
                 type: object
+                # TODO validate all fields
+                x-kubernetes-preserve-unknown-fields: true
+              volumeClaimTemplates:
+                type: object
+                # TODO validate all fields
+                x-kubernetes-preserve-unknown-fields: true
+              serviceName:
+                type: string
+              podManagementPolicy:
+                type: object
+                # TODO validate all fields
+                x-kubernetes-preserve-unknown-fields: true
+              updateStrategy:
+                type: object
+                # TODO validate all fields
+                x-kubernetes-preserve-unknown-fields: true
               revisionHistoryLimit:
                 type: integer
                 minimum: 1
                 default: 10
+          status:
+            type: object
+            # TODO validate all fields
+            x-kubernetes-preserve-unknown-fields: true
     # subresources describes the subresources for custom resources.
     subresources:
       # status enables the status subresource.
@@ -47,7 +68,7 @@ spec:
     singular: statefulset
     kind: StatefulSet
     shortNames:
-    - sts
+    - asts
     categories:
     - all
 ---
@@ -61,6 +82,11 @@ spec:
   - name: v1alpha1
     served: true
     storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        # TODO validate all fields
+        x-kubernetes-preserve-unknown-fields: true
   scope: Namespaced
   names:
     plural: controllerrevisions

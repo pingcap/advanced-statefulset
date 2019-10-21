@@ -23,6 +23,7 @@ import (
 
 	apps "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
 	clientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
+	asscheme "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/scheme"
 	appsinformers "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions/pingcap/v1alpha1"
 	appslisters "github.com/cofyc/advanced-statefulset/pkg/client/listers/pingcap/v1alpha1"
 	"github.com/cofyc/advanced-statefulset/pkg/controller/history"
@@ -74,6 +75,10 @@ type StatefulSetController struct {
 	queue workqueue.RateLimitingInterface
 }
 
+func init() {
+	scheme.AddToScheme(asscheme.Scheme)
+}
+
 // NewStatefulSetController creates a new statefulset controller.
 func NewStatefulSetController(
 	podInformer coreinformers.PodInformer,
@@ -86,7 +91,7 @@ func NewStatefulSetController(
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(klog.Infof)
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
-	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "statefulset-controller"})
+	recorder := eventBroadcaster.NewRecorder(asscheme.Scheme, v1.EventSource{Component: "statefulset-controller"})
 
 	ssc := &StatefulSetController{
 		kubeClient: kubeClient,
