@@ -190,7 +190,7 @@ func scSetup(t *testing.T) (framework.CloseFunc, *statefulset.StatefulSetControl
 		informers.Core().V1().Pods(),
 		pcinformers.Pingcap().V1alpha1().StatefulSets(),
 		informers.Core().V1().PersistentVolumeClaims(),
-		pcinformers.Pingcap().V1alpha1().ControllerRevisions(),
+		informers.Apps().V1().ControllerRevisions(),
 		clientset.NewForConfigOrDie(restclient.AddUserAgent(&config, "statefulset-controller")),
 		pcclientset.NewForConfigOrDie(restclient.AddUserAgent(&pcConfig, "statefulset-controller")),
 	)

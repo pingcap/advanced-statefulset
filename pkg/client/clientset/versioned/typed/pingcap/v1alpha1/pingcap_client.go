@@ -26,17 +26,12 @@ import (
 
 type PingcapV1alpha1Interface interface {
 	RESTClient() rest.Interface
-	ControllerRevisionsGetter
 	StatefulSetsGetter
 }
 
 // PingcapV1alpha1Client is used to interact with features provided by the pingcap.com group.
 type PingcapV1alpha1Client struct {
 	restClient rest.Interface
-}
-
-func (c *PingcapV1alpha1Client) ControllerRevisions(namespace string) ControllerRevisionInterface {
-	return newControllerRevisions(c, namespace)
 }
 
 func (c *PingcapV1alpha1Client) StatefulSets(namespace string) StatefulSetInterface {

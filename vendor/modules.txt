@@ -1180,7 +1180,6 @@ k8s.io/kubernetes/pkg/api/pod
 k8s.io/kubernetes/pkg/api/podsecuritypolicy
 k8s.io/kubernetes/pkg/api/resourcequota
 k8s.io/kubernetes/pkg/api/service
-k8s.io/kubernetes/pkg/api/testapi
 k8s.io/kubernetes/pkg/api/v1/endpoints
 k8s.io/kubernetes/pkg/api/v1/persistentvolume
 k8s.io/kubernetes/pkg/api/v1/pod
@@ -1306,6 +1305,7 @@ k8s.io/kubernetes/pkg/client/conditions
 k8s.io/kubernetes/pkg/cloudprovider/providers
 k8s.io/kubernetes/pkg/controller
 k8s.io/kubernetes/pkg/controller/deployment/util
+k8s.io/kubernetes/pkg/controller/history
 k8s.io/kubernetes/pkg/controller/nodelifecycle
 k8s.io/kubernetes/pkg/controller/nodelifecycle/scheduler
 k8s.io/kubernetes/pkg/controller/serviceaccount

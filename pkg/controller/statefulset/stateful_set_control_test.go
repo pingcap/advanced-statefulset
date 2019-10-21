@@ -34,7 +34,7 @@ import (
 	pcinformers "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions"
 	appsinformers "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions/pingcap/v1alpha1"
 	appslisters "github.com/cofyc/advanced-statefulset/pkg/client/listers/pingcap/v1alpha1"
-	"github.com/cofyc/advanced-statefulset/pkg/controller/history"
+	kubeapps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,6 +48,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/kubernetes/pkg/controller/history"
 )
 
 type invariantFunc func(set *apps.StatefulSet, spc *fakeStatefulPodControl) error
@@ -58,7 +59,7 @@ func setupController(client clientset.Interface, kubeClient kubernetes.Interface
 	spc := newFakeStatefulPodControl(kubeInformerFactory.Core().V1().Pods(), informerFactory.Pingcap().V1alpha1().StatefulSets())
 	ssu := newFakeStatefulSetStatusUpdater(informerFactory.Pingcap().V1alpha1().StatefulSets())
 	recorder := record.NewFakeRecorder(10)
-	ssc := NewDefaultStatefulSetControl(spc, ssu, history.NewFakeHistory(informerFactory.Pingcap().V1alpha1().ControllerRevisions()), recorder)
+	ssc := NewDefaultStatefulSetControl(spc, ssu, history.NewFakeHistory(kubeInformerFactory.Apps().V1().ControllerRevisions()), recorder)
 
 	stop := make(chan struct{})
 	informerFactory.Start(stop)
@@ -67,7 +68,7 @@ func setupController(client clientset.Interface, kubeClient kubernetes.Interface
 		stop,
 		informerFactory.Pingcap().V1alpha1().StatefulSets().Informer().HasSynced,
 		kubeInformerFactory.Core().V1().Pods().Informer().HasSynced,
-		informerFactory.Pingcap().V1alpha1().ControllerRevisions().Informer().HasSynced,
+		kubeInformerFactory.Apps().V1().ControllerRevisions().Informer().HasSynced,
 	)
 	return spc, ssu, ssc, stop
 }
@@ -498,11 +499,11 @@ func TestStatefulSetControlScaleDownDeleteError(t *testing.T) {
 func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 	type testcase struct {
 		name            string
-		existing        []*apps.ControllerRevision
+		existing        []*kubeapps.ControllerRevision
 		set             *apps.StatefulSet
 		expectedCount   int
-		expectedCurrent *apps.ControllerRevision
-		expectedUpdate  *apps.ControllerRevision
+		expectedCurrent *kubeapps.ControllerRevision
+		expectedUpdate  *kubeapps.ControllerRevision
 		err             bool
 	}
 
@@ -514,7 +515,7 @@ func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 		spc := newFakeStatefulPodControl(kubeInformerFactory.Core().V1().Pods(), informerFactory.Pingcap().V1alpha1().StatefulSets())
 		ssu := newFakeStatefulSetStatusUpdater(informerFactory.Pingcap().V1alpha1().StatefulSets())
 		recorder := record.NewFakeRecorder(10)
-		ssc := defaultStatefulSetControl{spc, ssu, history.NewFakeHistory(informerFactory.Pingcap().V1alpha1().ControllerRevisions()), recorder}
+		ssc := defaultStatefulSetControl{spc, ssu, history.NewFakeHistory(kubeInformerFactory.Apps().V1().ControllerRevisions()), recorder}
 
 		stop := make(chan struct{})
 		defer close(stop)
@@ -524,7 +525,7 @@ func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 			stop,
 			informerFactory.Pingcap().V1alpha1().StatefulSets().Informer().HasSynced,
 			kubeInformerFactory.Core().V1().Pods().Informer().HasSynced,
-			informerFactory.Pingcap().V1alpha1().ControllerRevisions().Informer().HasSynced,
+			kubeInformerFactory.Apps().V1().ControllerRevisions().Informer().HasSynced,
 		)
 		test.set.Status.CollisionCount = new(int32)
 		for i := range test.existing {
@@ -562,7 +563,7 @@ func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 		}
 	}
 
-	updateRevision := func(cr *apps.ControllerRevision, revision int64) *apps.ControllerRevision {
+	updateRevision := func(cr *kubeapps.ControllerRevision, revision int64) *kubeapps.ControllerRevision {
 		clone := cr.DeepCopy()
 		clone.Revision = revision
 		return clone
@@ -593,7 +594,7 @@ func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 		},
 		{
 			name:            "creates revision on update",
-			existing:        []*apps.ControllerRevision{rev0},
+			existing:        []*kubeapps.ControllerRevision{rev0},
 			set:             set1,
 			expectedCount:   2,
 			expectedCurrent: rev0,
@@ -602,7 +603,7 @@ func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 		},
 		{
 			name:            "must not recreate a new revision of same set",
-			existing:        []*apps.ControllerRevision{rev0, rev1},
+			existing:        []*kubeapps.ControllerRevision{rev0, rev1},
 			set:             set1,
 			expectedCount:   2,
 			expectedCurrent: rev0,
@@ -611,7 +612,7 @@ func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 		},
 		{
 			name:            "must rollback to a previous revision",
-			existing:        []*apps.ControllerRevision{rev0, rev1, rev2},
+			existing:        []*kubeapps.ControllerRevision{rev0, rev1, rev2},
 			set:             set1,
 			expectedCount:   3,
 			expectedCurrent: rev0,
@@ -2149,7 +2150,7 @@ func updateStatefulSetControl(set *apps.StatefulSet,
 	return invariants(set, spc)
 }
 
-func newRevisionOrDie(set *apps.StatefulSet, revision int64) *apps.ControllerRevision {
+func newRevisionOrDie(set *apps.StatefulSet, revision int64) *kubeapps.ControllerRevision {
 	rev, err := newRevision(set, revision, set.Status.CollisionCount)
 	if err != nil {
 		panic(err)

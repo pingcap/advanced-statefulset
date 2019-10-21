@@ -20,13 +20,14 @@ import (
 	"math"
 	"sort"
 
+	kubeapps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 
 	apps "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
-	"github.com/cofyc/advanced-statefulset/pkg/controller/history"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/kubernetes/pkg/controller/history"
 )
 
 // StatefulSetControl implements the control logic for updating StatefulSets and their children Pods. It is implemented
@@ -40,10 +41,10 @@ type StatefulSetControlInterface interface {
 	UpdateStatefulSet(set *apps.StatefulSet, pods []*v1.Pod) error
 	// ListRevisions returns a array of the ControllerRevisions that represent the revisions of set. If the returned
 	// error is nil, the returns slice of ControllerRevisions is valid.
-	ListRevisions(set *apps.StatefulSet) ([]*apps.ControllerRevision, error)
+	ListRevisions(set *apps.StatefulSet) ([]*kubeapps.ControllerRevision, error)
 	// AdoptOrphanRevisions adopts any orphaned ControllerRevisions that match set's Selector. If all adoptions are
 	// successful the returned error is nil.
-	AdoptOrphanRevisions(set *apps.StatefulSet, revisions []*apps.ControllerRevision) error
+	AdoptOrphanRevisions(set *apps.StatefulSet, revisions []*kubeapps.ControllerRevision) error
 }
 
 // NewDefaultStatefulSetControl returns a new instance of the default implementation StatefulSetControlInterface that
@@ -117,7 +118,7 @@ func (ssc *defaultStatefulSetControl) UpdateStatefulSet(set *apps.StatefulSet, p
 	return ssc.truncateHistory(set, pods, revisions, currentRevision, updateRevision)
 }
 
-func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*apps.ControllerRevision, error) {
+func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*kubeapps.ControllerRevision, error) {
 	selector, err := metav1.LabelSelectorAsSelector(set.Spec.Selector)
 	if err != nil {
 		return nil, err
@@ -127,7 +128,7 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*a
 
 func (ssc *defaultStatefulSetControl) AdoptOrphanRevisions(
 	set *apps.StatefulSet,
-	revisions []*apps.ControllerRevision) error {
+	revisions []*kubeapps.ControllerRevision) error {
 	for i := range revisions {
 		adopted, err := ssc.controllerHistory.AdoptControllerRevision(set, controllerKind, revisions[i])
 		if err != nil {
@@ -146,10 +147,10 @@ func (ssc *defaultStatefulSetControl) AdoptOrphanRevisions(
 func (ssc *defaultStatefulSetControl) truncateHistory(
 	set *apps.StatefulSet,
 	pods []*v1.Pod,
-	revisions []*apps.ControllerRevision,
-	current *apps.ControllerRevision,
-	update *apps.ControllerRevision) error {
-	history := make([]*apps.ControllerRevision, 0, len(revisions))
+	revisions []*kubeapps.ControllerRevision,
+	current *kubeapps.ControllerRevision,
+	update *kubeapps.ControllerRevision) error {
+	history := make([]*kubeapps.ControllerRevision, 0, len(revisions))
 	// mark all live revisions
 	live := map[string]bool{current.Name: true, update.Name: true}
 	for i := range pods {
@@ -184,8 +185,8 @@ func (ssc *defaultStatefulSetControl) truncateHistory(
 // This method expects that revisions is sorted when supplied.
 func (ssc *defaultStatefulSetControl) getStatefulSetRevisions(
 	set *apps.StatefulSet,
-	revisions []*apps.ControllerRevision) (*apps.ControllerRevision, *apps.ControllerRevision, int32, error) {
-	var currentRevision, updateRevision *apps.ControllerRevision
+	revisions []*kubeapps.ControllerRevision) (*kubeapps.ControllerRevision, *kubeapps.ControllerRevision, int32, error) {
+	var currentRevision, updateRevision *kubeapps.ControllerRevision
 
 	revisionCount := len(revisions)
 	history.SortControllerRevisions(revisions)
@@ -254,8 +255,8 @@ func (ssc *defaultStatefulSetControl) getStatefulSetRevisions(
 // update must be recorded. If the error is not nil, the method should be retried until successful.
 func (ssc *defaultStatefulSetControl) updateStatefulSet(
 	set *apps.StatefulSet,
-	currentRevision *apps.ControllerRevision,
-	updateRevision *apps.ControllerRevision,
+	currentRevision *kubeapps.ControllerRevision,
+	updateRevision *kubeapps.ControllerRevision,
 	collisionCount int32,
 	pods []*v1.Pod) (*apps.StatefulSetStatus, error) {
 	// get the current and update revisions of the set.

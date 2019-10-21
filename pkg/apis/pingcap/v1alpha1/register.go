@@ -47,8 +47,6 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&StatefulSet{},
 		&StatefulSetList{},
-		&ControllerRevision{},
-		&ControllerRevisionList{},
 	)
 
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)

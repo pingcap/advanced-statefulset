@@ -25,13 +25,14 @@ import (
 
 	apps "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
 	"github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/scheme"
-	"github.com/cofyc/advanced-statefulset/pkg/controller/history"
+	kubeapps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
 	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/kubernetes/pkg/controller/history"
 )
 
 // maxUpdateRetries is the maximum number of retries used for update conflict resolution prior to failure
@@ -240,7 +241,7 @@ func setPodRevision(pod *v1.Pod, revision string) {
 	if pod.Labels == nil {
 		pod.Labels = make(map[string]string)
 	}
-	pod.Labels[apps.StatefulSetRevisionLabel] = revision
+	pod.Labels[kubeapps.StatefulSetRevisionLabel] = revision
 }
 
 // getPodRevision gets the revision of Pod by inspecting the StatefulSetRevisionLabel. If pod has no revision the empty
@@ -249,7 +250,7 @@ func getPodRevision(pod *v1.Pod) string {
 	if pod.Labels == nil {
 		return ""
 	}
-	return pod.Labels[apps.StatefulSetRevisionLabel]
+	return pod.Labels[kubeapps.StatefulSetRevisionLabel]
 }
 
 // newStatefulSetPod returns a new Pod conforming to the set's Spec with an identity generated from ordinal.
@@ -279,7 +280,7 @@ func newVersionedStatefulSetPod(currentSet, updateSet *apps.StatefulSet, current
 }
 
 // Match check if the given StatefulSet's template matches the template stored in the given history.
-func Match(ss *apps.StatefulSet, history *apps.ControllerRevision) (bool, error) {
+func Match(ss *apps.StatefulSet, history *kubeapps.ControllerRevision) (bool, error) {
 	patch, err := getPatch(ss)
 	if err != nil {
 		return false, err
@@ -313,7 +314,7 @@ func getPatch(set *apps.StatefulSet) ([]byte, error) {
 // The Revision of the returned ControllerRevision is set to revision. If the returned error is nil, the returned
 // ControllerRevision is valid. StatefulSet revisions are stored as patches that re-apply the current state of set
 // to a new StatefulSet using a strategic merge patch to replace the saved state of the new StatefulSet.
-func newRevision(set *apps.StatefulSet, revision int64, collisionCount *int32) (*apps.ControllerRevision, error) {
+func newRevision(set *apps.StatefulSet, revision int64, collisionCount *int32) (*kubeapps.ControllerRevision, error) {
 	patch, err := getPatch(set)
 	if err != nil {
 		return nil, err
@@ -338,7 +339,7 @@ func newRevision(set *apps.StatefulSet, revision int64, collisionCount *int32) (
 
 // ApplyRevision returns a new StatefulSet constructed by restoring the state in revision to set. If the returned error
 // is nil, the returned StatefulSet is valid.
-func ApplyRevision(set *apps.StatefulSet, revision *apps.ControllerRevision) (*apps.StatefulSet, error) {
+func ApplyRevision(set *apps.StatefulSet, revision *kubeapps.ControllerRevision) (*apps.StatefulSet, error) {
 	clone := set.DeepCopy()
 	patched, err := strategicpatch.StrategicMergePatch([]byte(runtime.EncodeOrDie(patchCodec, clone)), revision.Data.Raw, clone)
 	if err != nil {
@@ -355,7 +356,7 @@ func ApplyRevision(set *apps.StatefulSet, revision *apps.ControllerRevision) (*a
 // nextRevision finds the next valid revision number based on revisions. If the length of revisions
 // is 0 this is 1. Otherwise, it is 1 greater than the largest revision's Revision. This method
 // assumes that revisions has been sorted by Revision.
-func nextRevision(revisions []*apps.ControllerRevision) int64 {
+func nextRevision(revisions []*kubeapps.ControllerRevision) int64 {
 	count := len(revisions)
 	if count <= 0 {
 		return 1
