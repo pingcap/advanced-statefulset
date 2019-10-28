@@ -3,6 +3,8 @@ module github.com/cofyc/advanced-statefulset
 go 1.13
 
 require (
+	github.com/onsi/ginkgo v1.8.0
+	github.com/onsi/gomega v1.5.0
 	github.com/spf13/pflag v1.0.5
 	golang.org/x/time v0.0.0-20190921001708-c4c64cad1fd0 // indirect
 	k8s.io/api v0.0.0
