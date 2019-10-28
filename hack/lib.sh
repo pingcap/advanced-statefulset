@@ -5,66 +5,15 @@ if [ -z "$ROOT" ]; then
     exit 1
 fi
 
-cd $ROOT
-
-test -d output || mkdir output
-
+OS=$(go env GOOS)
+ARCH=$(go env GOARCH)
+OUTPUT=${ROOT}/output
+OUTPUT_BIN=${OUTPUT}/bin/${OS}
 ETCD_VERSION=${ETCD_VERSION:-3.3.17}
+KIND_VERSION=0.5.1
+KIND_BIN=$OUTPUT_BIN/kind
 
-hack::host_os() {
-  local host_os
-  case "$(uname -s)" in
-    Darwin)
-      host_os=darwin
-      ;;
-    Linux)
-      host_os=linux
-      ;;
-    *)
-      echo "error: Unsupported host OS.  Must be Linux or Mac OS X."
-      exit 1
-      ;;
-  esac
-  echo "${host_os}"
-}
-
-hack::host_arch() {
-  local host_arch
-  case "$(uname -m)" in
-    x86_64*)
-      host_arch=amd64
-      ;;
-    i?86_64*)
-      host_arch=amd64
-      ;;
-    amd64*)
-      host_arch=amd64
-      ;;
-    aarch64*)
-      host_arch=arm64
-      ;;
-    arm64*)
-      host_arch=arm64
-      ;;
-    arm*)
-      host_arch=arm
-      ;;
-    i?86*)
-      host_arch=x86
-      ;;
-    s390x*)
-      host_arch=s390x
-      ;;
-    ppc64le*)
-      host_arch=ppc64le
-      ;;
-    *)
-      echo "error: Unsupported host arch. Must be x86_64, 386, arm, arm64, s390x or ppc64le."
-      exit 1
-      ;;
-  esac
-  echo "${host_arch}"
-}
+test -d "$OUTPUT_BIN" || mkdir -p "$OUTPUT_BIN"
 
 hack::download_file() {
   local -r url=$1
@@ -90,8 +39,8 @@ hack::install_etcd() {
     local os
     local arch
 
-    os=$(hack::host_os)
-    arch=$(hack::host_arch)
+    os=$(go env GOOS)
+    arch=$(go env GOARCH)
 
 	cd output || return 1
     if [[ ${os} == "darwin" ]]; then
@@ -112,4 +61,24 @@ hack::install_etcd() {
     echo "info: etcd v${ETCD_VERSION} installed. To use:"
     echo "info: export PATH=\"$(pwd)/etcd:\${PATH}\""
   )
+}
+
+function hack::verify_kind() {
+    if test -x "$KIND_BIN"; then
+        [[ "$($KIND_BIN --version | cut -d ' ' -f 3)" == "v$KIND_VERSION" ]]
+        return
+    fi
+    return 1
+}
+
+function hack::ensure_kind() {
+    if hack::verify_kind; then
+        return 0
+    fi
+    echo "Installing kind v$KIND_VERSION..."
+    tmpfile=$(mktemp)
+    trap "test -f $tmpfile && rm $tmpfile" RETURN
+    curl -Lo $tmpfile https://github.com/kubernetes-sigs/kind/releases/download/v${KIND_VERSION}/kind-$(uname)-amd64
+    mv $tmpfile $KIND_BIN
+    chmod +x $KIND_BIN
 }

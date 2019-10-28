@@ -31,6 +31,10 @@ test-integration: vendor/k8s.io/kubernetes/pkg/generated/openapi/zz_generated.op
 	hack/make-rules/test-integration.sh $(WHAT)
 .PHONY: test-integration
 
+e2e:
+	hack/e2e.sh
+.PHONY: e2e
+
 vendor/k8s.io/kubernetes/pkg/generated/openapi/zz_generated.openapi.go:
 	hack/generate-kube-openapi.sh
 .PHONY: vendor/k8s.io/kubernetes/pkg/generated/openapi/zz_generated.openapi.go
