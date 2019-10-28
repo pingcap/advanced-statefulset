@@ -14,7 +14,6 @@ require (
 	k8s.io/code-generator v0.0.0
 	k8s.io/component-base v0.0.0
 	k8s.io/klog v0.4.0
-	k8s.io/kubectl v0.0.0
 	k8s.io/kubernetes v1.16.0
 )
 

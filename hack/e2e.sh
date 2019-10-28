@@ -13,6 +13,7 @@ KEEP_CLUSTER=${KEEP_CLUSTER:-}
 REUSE_CLUSTER=${REUSE_CLUSTER:-}
 
 hack::ensure_kind
+hack::ensure_kubectl
 
 CLUSTER=advanced-statefulset
 
@@ -42,6 +43,8 @@ if ! $KIND_BIN get clusters | grep $CLUSTER; then
 fi
 
 export KUBECONFIG="$($KIND_BIN get kubeconfig-path --name="$CLUSTER")"
-kubectl cluster-info
+$KUBECTL_BIN cluster-info
 
-hack/run-e2e.sh --ginkgo.focus='\[sig-apps\]\sStatefulSet\s' "$@"
+hack/run-e2e.sh --kubectl-path=$KUBECTL_BIN \
+    --ginkgo.focus='\[sig-apps\]\sStatefulSet\s' \
+    "$@"

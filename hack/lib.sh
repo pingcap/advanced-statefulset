@@ -12,6 +12,8 @@ OUTPUT_BIN=${OUTPUT}/bin/${OS}
 ETCD_VERSION=${ETCD_VERSION:-3.3.17}
 KIND_VERSION=0.5.1
 KIND_BIN=$OUTPUT_BIN/kind
+KUBECTL_VERSION=1.16.0
+KUBECTL_BIN=$OUTPUT_BIN/kubectl
 
 test -d "$OUTPUT_BIN" || mkdir -p "$OUTPUT_BIN"
 
@@ -81,4 +83,24 @@ function hack::ensure_kind() {
     curl -Lo $tmpfile https://github.com/kubernetes-sigs/kind/releases/download/v${KIND_VERSION}/kind-$(uname)-amd64
     mv $tmpfile $KIND_BIN
     chmod +x $KIND_BIN
+}
+
+function hack::verify_kubectl() {
+    if test -x "$KUBECTL_BIN"; then
+        [[ "$($KUBECTL_BIN version --client --short | grep -o -P '\d+\.\d+\.\d+')" == "$KUBECTL_VERSION" ]]
+        return
+    fi
+    return 1
+}
+
+function hack::ensure_kubectl() {
+    if hack::verify_kubectl; then
+        return 0
+    fi
+    echo "Installing kubectl v$KUBECTL_VERSION..."
+    tmpfile=$(mktemp)
+    trap "test -f $tmpfile && rm $tmpfile" RETURN
+    curl -Lo $tmpfile https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl
+    mv $tmpfile $KUBECTL_BIN
+    chmod +x $KUBECTL_BIN
 }
