@@ -47,6 +47,13 @@ func getDeleteSlots(set *apps.StatefulSet) (deleteSlots sets.Int) {
 }
 
 func setDeleteSlot(set *apps.StatefulSet, deleteSlots sets.Int) (err error) {
+	if deleteSlots == nil || deleteSlots.Len() == 0 {
+		// clear the annotation
+		if set.ObjectMeta.Annotations != nil {
+			delete(set.ObjectMeta.Annotations, deletedSlotsAnnotation)
+		}
+		return
+	}
 	b, err := json.Marshal(deleteSlots.List())
 	if err != nil {
 		return
