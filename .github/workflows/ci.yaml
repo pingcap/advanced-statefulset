@@ -1,0 +1,33 @@
+name: ci
+
+on:
+  pull_request:
+    branches:
+    - master
+
+jobs:
+
+  pull:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [verify, build, test, test-integration, e2e]
+    steps:
+    - name: Set up Go 1.13.4
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.13.4
+      id: go
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v1
+      with:
+        fetch-depth: 1
+        path: go/src/github.com/cofyc/advanced-statefulset
+    - name: make ${{ matrix.target }}
+      run: |
+        export GOPATH=/home/runner/work/advanced-statefulset/go
+        if [ "$target" == "test-integration" ]; then export GOFLAGS="-v"; fi
+        make $target
+      env:
+        target: ${{ matrix.target }}
