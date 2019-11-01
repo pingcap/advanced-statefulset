@@ -25,6 +25,7 @@ import (
 	"k8s.io/klog"
 
 	apps "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
+	"github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1/helper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/controller/history"
@@ -277,7 +278,7 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 	status.CollisionCount = new(int32)
 	*status.CollisionCount = collisionCount
 
-	deleteSlots := getDeleteSlots(set)
+	deleteSlots := helper.GetDeleteSlots(set)
 	replicaCount := int(*set.Spec.Replicas) + deleteSlots.Len()
 	// slice that will contain all Pods such that 0 <= getOrdinal(pod) < set.Spec.Replicas and not in deleteSlots
 	replicas := make([]*v1.Pod, replicaCount)

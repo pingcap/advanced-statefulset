@@ -45,6 +45,12 @@ hack::install_etcd() {
     arch=$(go env GOARCH)
 
 	cd output || return 1
+    if [[ $(readlink etcd) == etcd-v${ETCD_VERSION}-${os}-* ]]; then
+      echo "info: etcd v${ETCD_VERSION} already installed. To use:"
+      echo "info: export PATH=\"$(pwd)/etcd:\${PATH}\""
+      return
+    fi
+
     if [[ ${os} == "darwin" ]]; then
       download_file="etcd-v${ETCD_VERSION}-darwin-amd64.zip"
       url="https://github.com/coreos/etcd/releases/download/v${ETCD_VERSION}/${download_file}"

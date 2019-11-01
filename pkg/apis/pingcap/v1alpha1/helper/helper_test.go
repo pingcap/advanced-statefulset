@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package statefulset
+package helper
 
 import (
 	"testing"
@@ -97,9 +97,9 @@ func TestGetDeleteSlots(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := getDeleteSlots(&tt.sts)
+			got := GetDeleteSlots(&tt.sts)
 			if !got.Equal(tt.want) {
-				t.Errorf("getDeleteSlots want %v got %v", tt.want, got)
+				t.Errorf("GetDeleteSlots want %v got %v", tt.want, got)
 			}
 		})
 	}
@@ -176,7 +176,7 @@ func TestSetDeleteSlots(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_ = setDeleteSlot(&tt.sts, tt.set)
+			_ = SetDeleteSlots(&tt.sts, tt.set)
 			if diff := cmp.Diff(tt.want, tt.sts); diff != "" {
 				t.Errorf("unexpected result (-want, +got): %s", diff)
 			}
