@@ -9,7 +9,7 @@ cd $ROOT
 
 export GO111MODULE=off
 
-TIMEOUT=${TIMEOUT:--timeout=120s}
+TIMEOUT=${TIMEOUT:--timeout=600s}
 GO_RACE=${GO_RACE:-}   # use GO_RACE="-race" to enable race testing
 readonly GO_PACKAGE=github.com/cofyc/advanced-statefulset
 

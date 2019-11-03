@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package statefulset
+package helper
 
 import (
 	"encoding/json"
@@ -28,7 +28,7 @@ const (
 	deletedSlotsAnnotation = "delete-slots"
 )
 
-func getDeleteSlots(set *apps.StatefulSet) (deleteSlots sets.Int) {
+func GetDeleteSlots(set *apps.StatefulSet) (deleteSlots sets.Int) {
 	deleteSlots = sets.NewInt()
 	if set.Annotations == nil {
 		return
@@ -46,7 +46,7 @@ func getDeleteSlots(set *apps.StatefulSet) (deleteSlots sets.Int) {
 	return
 }
 
-func setDeleteSlot(set *apps.StatefulSet, deleteSlots sets.Int) (err error) {
+func SetDeleteSlots(set *apps.StatefulSet, deleteSlots sets.Int) (err error) {
 	if deleteSlots == nil || deleteSlots.Len() == 0 {
 		// clear the annotation
 		if set.ObjectMeta.Annotations != nil {
@@ -60,4 +60,9 @@ func setDeleteSlot(set *apps.StatefulSet, deleteSlots sets.Int) (err error) {
 	}
 	metav1.SetMetaDataAnnotation(&set.ObjectMeta, deletedSlotsAnnotation, string(b))
 	return
+}
+
+func AddDeleteSlots(set *apps.StatefulSet, deleteSlots sets.Int) (err error) {
+	currentDeleteSlots := GetDeleteSlots(set)
+	return SetDeleteSlots(set, currentDeleteSlots.Union(deleteSlots))
 }

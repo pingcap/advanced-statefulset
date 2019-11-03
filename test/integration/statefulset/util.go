@@ -18,10 +18,13 @@ package statefulset
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	appsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
+	"github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1/helper"
 	pcclientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
 	typedappsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/typed/pingcap/v1alpha1"
 	pcinformers "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions"
@@ -31,12 +34,14 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
 	typedv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/klog"
 	integrationetcd "k8s.io/kubernetes/test/integration/etcd"
 	"k8s.io/kubernetes/test/integration/framework"
 )
@@ -326,4 +331,68 @@ func scaleSTS(t *testing.T, c pcclientset.Interface, sts *appsv1alpha1.StatefulS
 		t.Fatalf("failed to update .Spec.Replicas to %d for sts %s: %v", replicas, sts.Name, err)
 	}
 	waitSTSStable(t, c, sts)
+}
+
+func scaleSTSWithDeleteSlots(t *testing.T, c pcclientset.Interface, sts *appsv1alpha1.StatefulSet, replicas int32, deleteSlots sets.Int) {
+	stsClient := c.PingcapV1alpha1().StatefulSets(sts.Namespace)
+	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		helper.SetDeleteSlots(newSTS, deleteSlots)
+		*newSTS.Spec.Replicas = replicas
+		sts, err = stsClient.Update(newSTS)
+		return err
+	}); err != nil {
+		t.Fatalf("failed to update .Spec.Replicas to %d for sts %s: %v", replicas, sts.Name, err)
+	}
+	waitSTSStable(t, c, sts)
+}
+
+func scaleInSTSByDeletingSlots(t *testing.T, c pcclientset.Interface, sts *appsv1alpha1.StatefulSet, ids ...int) {
+	set := sets.NewInt(ids...)
+	if set.Len() <= 0 {
+		t.Fatalf("no slots")
+	}
+	stsClient := c.PingcapV1alpha1().StatefulSets(sts.Namespace)
+	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		helper.AddDeleteSlots(newSTS, set)
+		replicas := *newSTS.Spec.Replicas - int32(set.Len())
+		if replicas < 0 {
+			t.Fatalf("replicas should not be less than 0: %v", replicas)
+		}
+		*newSTS.Spec.Replicas = replicas
+		sts, err = stsClient.Update(newSTS)
+		return err
+	}); err != nil {
+		t.Fatalf("failed to mark %d deleted for sts %s: %v", set, sts.Name, err)
+	}
+	waitSTSStable(t, c, sts)
+}
+
+func checkPodIdentifiers(t *testing.T, c clientset.Interface, sts *appsv1alpha1.StatefulSet, ids ...int) {
+	expectedIDs := sets.NewInt(ids...)
+	podClient := c.CoreV1().Pods(sts.Namespace)
+	pods := getPods(t, podClient, labelMap())
+	if len(pods.Items) != expectedIDs.Len() {
+		t.Fatalf("len(pods) = %d, want %d", len(pods.Items), expectedIDs.Len())
+	}
+	gotIDs := sets.NewInt()
+	for _, pod := range pods.Items {
+		klog.Infof("pod name %s\n", pod.Name)
+		idStr := strings.TrimPrefix(pod.Name, sts.Name+"-")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			t.Fatalf("failed to parse string %q as an int: %v", idStr, err)
+		}
+		gotIDs.Insert(id)
+	}
+	if !expectedIDs.Equal(gotIDs) {
+		t.Fatalf("expected ids %v, got %v", expectedIDs.List(), gotIDs.List())
+	}
 }

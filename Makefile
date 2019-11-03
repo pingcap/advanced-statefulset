@@ -1,7 +1,7 @@
 GO  := go
 
-# Enable GO111MODULE=on explicitly, disable it with GO111MODULE=off when necessary.
-export GO111MODULE := on
+# Enable GO111MODULE=off explicitly, enable it with GO111MODULE=on when necessary.
+export GO111MODULE := off
 
 ARCH ?= $(shell go env GOARCH)
 OS ?= $(shell go env GOOS)
