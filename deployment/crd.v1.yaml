@@ -37,9 +37,8 @@ spec:
               serviceName:
                 type: string
               podManagementPolicy:
-                type: object
-                # TODO validate all fields
-                x-kubernetes-preserve-unknown-fields: true
+                type: string
+                # TODO OrderedReady/Parallel
               updateStrategy:
                 type: object
                 # TODO validate all fields
