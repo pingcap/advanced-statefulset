@@ -18,7 +18,7 @@ spec:
             properties:
               replicas:
                 type: integer
-                minimum: 1
+                minimum: 0
                 default: 1
               selector:
                 type: object
@@ -29,9 +29,11 @@ spec:
                 # TODO validate all fields
                 x-kubernetes-preserve-unknown-fields: true
               volumeClaimTemplates:
-                type: object
-                # TODO validate all fields
-                x-kubernetes-preserve-unknown-fields: true
+                type: array
+                items:
+                  type: object
+                  # TODO validate all fields
+                  x-kubernetes-preserve-unknown-fields: true
               serviceName:
                 type: string
               podManagementPolicy:

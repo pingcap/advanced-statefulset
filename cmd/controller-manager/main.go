@@ -67,7 +67,7 @@ func Run(c *config.CompletedConfig) error {
 	id = id + "_" + string(uuid.NewUUID())
 	rl, err := resourcelock.New(c.GenericComponent.LeaderElection.ResourceLock,
 		"kube-system",
-		"advanced-statefulset",
+		"advanced-statefulset-controller",
 		c.LeaderElectionClient.CoreV1(),
 		c.LeaderElectionClient.CoordinationV1(),
 		resourcelock.ResourceLockConfig{
