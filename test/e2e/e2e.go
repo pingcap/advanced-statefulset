@@ -32,6 +32,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtimeutils "k8s.io/apimachinery/pkg/util/runtime"
+	utilversion "k8s.io/apimachinery/pkg/util/version"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/component-base/logs"
 	"k8s.io/klog"
@@ -41,13 +42,20 @@ import (
 
 var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	framework.SetupSuite()
-	// Install CRDs
-	framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "deployment/crd.v1.yaml"))
-	framework.RunKubectlOrDie("wait", "--for=condition=Established", "crds/statefulsets.pingcap.com")
-	// Install Controller
+	// Get the client
 	config, err := framework.LoadConfig()
 	c, err := clientset.NewForConfig(config)
 	framework.ExpectNoError(err, "failed to create clientset")
+	// Install CRDs
+	gte116, err := framework.ServerVersionGTE(utilversion.MustParseSemantic("v1.16.0"), c.Discovery())
+	framework.ExpectNoError(err)
+	if gte116 {
+		framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "deployment/crd.v1.yaml"))
+	} else {
+		framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "deployment/crd.v1beta1.yaml"))
+	}
+	framework.RunKubectlOrDie("wait", "--for=condition=Established", "crds/statefulsets.pingcap.com")
+	// Install Controller
 	_, err = c.CoreV1().Namespaces().Create(&v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "advanced-statefulset",
@@ -80,6 +88,7 @@ func RunE2ETests(t *testing.T) {
 	defer logs.FlushLogs()
 
 	gomega.RegisterFailHandler(e2elog.Fail)
+
 	// Disable skipped tests unless they are explicitly requested.
 	if config.GinkgoConfig.FocusString == "" && config.GinkgoConfig.SkipString == "" {
 		config.GinkgoConfig.SkipString = `\[Flaky\]|\[Feature:.+\]`

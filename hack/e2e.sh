@@ -12,18 +12,13 @@ source "${ROOT}/hack/lib.sh"
 KEEP_CLUSTER=${KEEP_CLUSTER:-}
 SKIP_BUILD=${SKIP_BUILD:-}
 REUSE_CLUSTER=${REUSE_CLUSTER:-}
-KIND_IMAGE=${KIND_IMAGE:-kindest/node:v1.16.1}
+KUBE_VERSION=${KUBE_VERSION:-v1.16.1}
 CLUSTER=${CLUSTER:-advanced-statefulset}
-
-if [ -z "$KIND_IMAGE" ]; then
-    echo "error: KIND_IMAGE not specified"
-    exit 1
-fi
 
 echo "KEEP_CLUSTER: $KEEP_CLUSTER"
 echo "SKIP_BUILD: $SKIP_BUILD"
 echo "REUSE_CLUSTER: $REUSE_CLUSTER"
-echo "KIND_IMAGE: $KIND_IMAGE"
+echo "KUBE_VERSION: $KUBE_VERSION"
 echo "CLUSTER: $CLUSTER"
 
 hack::ensure_kind
@@ -51,11 +46,16 @@ fi
 
 if ! $KIND_BIN get clusters | grep $CLUSTER; then
     echo "info: creating the cluster '$CLUSTER'"
-    $KIND_BIN create cluster --name $CLUSTER --image $KIND_IMAGE --config hack/kindconfig.yaml
+    $KIND_BIN create cluster --name $CLUSTER --image kindest/node:$KUBE_VERSION --config hack/kindconfig.$KUBE_VERSION.yaml
 fi
 
 export KUBECONFIG="$($KIND_BIN get kubeconfig-path --name="$CLUSTER")"
 $KUBECTL_BIN cluster-info
+
+if [ "$KUBE_VERSION" == "v1.12.10" ]; then
+	# hack for https://github.com/coredns/coredns/issues/2391
+	$KUBECTL_BIN -n kube-system set image deployment/coredns coredns=k8s.gcr.io/coredns:1.3.0
+fi
 
 export CONTROLLER_IMAGE=quay.io/cofyc/advanced-statefulset:latest
 
@@ -70,6 +70,7 @@ echo "info: loading image $CONTROLLER_IMAGE"
 $KIND_BIN load docker-image --name $CLUSTER $CONTROLLER_IMAGE
 
 hack/run-e2e.sh --kubectl-path=$KUBECTL_BIN \
+    --kubeconfig=$KUBECONFIG \
 	--provider=skeleton \
 	--clean-start=true \
 	--repo-root=$ROOT \

@@ -47,6 +47,7 @@ func (s *hijackStatefulset) Create(sts *v1.StatefulSet) (*v1.StatefulSet, error)
 	if err != nil {
 		return nil, err
 	}
+	pcv1alpha1.SetObjectDefaults_StatefulSet(pcsts) // required if defaulting is not enabled in kube-apiserver
 	pcsts, err = s.StatefulSetInterface.Create(pcsts)
 	if err != nil {
 		return nil, err
