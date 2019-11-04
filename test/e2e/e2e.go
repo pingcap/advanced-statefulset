@@ -22,13 +22,17 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/config"
 	"github.com/onsi/ginkgo/reporters"
 	"github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtimeutils "k8s.io/apimachinery/pkg/util/runtime"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/component-base/logs"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/test/e2e/framework"
@@ -37,6 +41,22 @@ import (
 
 var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	framework.SetupSuite()
+	// Install CRDs
+	framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "deployment/crd.v1.yaml"))
+	framework.RunKubectlOrDie("wait", "--for=condition=Established", "crds/statefulsets.pingcap.com")
+	// Install Controller
+	config, err := framework.LoadConfig()
+	c, err := clientset.NewForConfig(config)
+	framework.ExpectNoError(err, "failed to create clientset")
+	_, err = c.CoreV1().Namespaces().Create(&v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "advanced-statefulset",
+		},
+	})
+	framework.ExpectNoError(err, "failed to create namespace")
+	framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "deployment/rbac.yaml"))
+	framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "deployment/deployment.yaml"))
+	framework.RunKubectlOrDie("-n", "advanced-statefulset", "wait", "--for=condition=Ready", "pod", "-l", "app=advanced-statefulset-controller")
 	return nil
 }, func(data []byte) {
 	// Run on all Ginkgo nodes

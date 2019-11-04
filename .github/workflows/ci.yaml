@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [verify, build, test, test-integration, e2e]
+        target: [verify, build, test, test-integration, e2e-v1.16.1]
     steps:
     - name: Set up Go 1.13.4
       uses: actions/setup-go@v1
@@ -28,6 +28,11 @@ jobs:
       run: |
         export GOPATH=/home/runner/work/advanced-statefulset/go
         if [ "$target" == "test-integration" ]; then export GOFLAGS="-v"; fi
-        make $target
+        if [[ "$target" == e2e-* ]]; then
+          IFS=- read a b <<<"$target"
+          KIND_IMAGE=kindest/node:$b make e2e
+        else
+          make $target
+        fi
       env:
         target: ${{ matrix.target }}

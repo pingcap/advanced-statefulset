@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: advanced-statefulset-controller
+  namespace: advanced-statefulset
+  labels:
+    app: advanced-statefulset-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: advanced-statefulset-controller
+  template:
+    metadata:
+      labels:
+        app: advanced-statefulset-controller
+    spec:
+      containers:
+      - name: advanced-statefulset-controller
+        image: quay.io/cofyc/advanced-statefulset:latest
+        imagePullPolicy: IfNotPresent
+        args:
+        - -v=4
+      serviceAccountName: advanced-statefulset-controller
