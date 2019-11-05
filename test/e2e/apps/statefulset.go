@@ -68,7 +68,7 @@ var _ = SIGDescribe("StatefulSet", func() {
 		framework.ExpectNoError(err)
 		pcc, err := pcclientset.NewForConfig(config)
 		framework.ExpectNoError(err)
-		c = helper.HijackClient{f.ClientSet, pcc}
+		c = helper.NewHijackClient(f.ClientSet, pcc)
 	})
 
 	framework.KubeDescribe("Basic StatefulSet functionality [StatefulSetBasic]", func() {
