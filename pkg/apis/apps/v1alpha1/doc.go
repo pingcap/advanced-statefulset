@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// +groupName=pingcap.com
+// +groupName=apps.pingcap.com
 // +k8s:deepcopy-gen=package
 // +k8s:defaulter-gen=TypeMeta
 // +k8s:openapi-gen=true

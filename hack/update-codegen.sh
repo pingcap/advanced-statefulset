@@ -28,11 +28,11 @@ function codegen::join() { local IFS="$1"; shift; echo "$*"; }
 bash "${CODEGEN_PKG}"/generate-groups.sh "deepcopy,client,informer,lister" \
   github.com/cofyc/advanced-statefulset/pkg/client \
   github.com/cofyc/advanced-statefulset/pkg/apis \
-  pingcap:v1alpha1 \
+  apps:v1alpha1 \
   --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate.go.txt
 
 # work around for https://github.com/kubernetes/code-generator/issues/84
-git checkout pkg/client/listers/pingcap/v1alpha1/expansion_generated.go
+git checkout pkg/client/listers/apps/v1alpha1/expansion_generated.go
 
 #
 # This requires GOPATH/src/k8s.io/kubernetes/vendor/k8s.io/api/core/v1 to exist.
@@ -40,7 +40,7 @@ git checkout pkg/client/listers/pingcap/v1alpha1/expansion_generated.go
 # TODO: fix it
 #
 # EXT_FQ_APIS=(
-    # github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1
+    # github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1
     # github.com/cofyc/advanced-statefulset/vendor/k8s.io/kubernetes/pkg/apis/core/v1
 # )
 

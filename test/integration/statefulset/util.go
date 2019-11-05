@@ -23,10 +23,10 @@ import (
 	"testing"
 	"time"
 
-	appsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
-	"github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1/helper"
+	appsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
+	"github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1/helper"
 	pcclientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
-	typedappsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/typed/pingcap/v1alpha1"
+	typedappsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/typed/apps/v1alpha1"
 	pcinformers "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions"
 	"github.com/cofyc/advanced-statefulset/pkg/controller/statefulset"
 	v1 "k8s.io/api/core/v1"
@@ -193,7 +193,7 @@ func scSetup(t *testing.T) (framework.CloseFunc, *statefulset.StatefulSetControl
 
 	sc := statefulset.NewStatefulSetController(
 		informers.Core().V1().Pods(),
-		pcinformers.Pingcap().V1alpha1().StatefulSets(),
+		pcinformers.Apps().V1alpha1().StatefulSets(),
 		informers.Core().V1().PersistentVolumeClaims(),
 		informers.Apps().V1().ControllerRevisions(),
 		clientset.NewForConfigOrDie(restclient.AddUserAgent(&config, "statefulset-controller")),
@@ -223,7 +223,7 @@ func createSTSsPods(t *testing.T, clientSet clientset.Interface, pcclientSet pcc
 	var createdSTSs []*appsv1alpha1.StatefulSet
 	var createdPods []*v1.Pod
 	for _, sts := range stss {
-		createdSTS, err := pcclientSet.PingcapV1alpha1().StatefulSets(sts.Namespace).Create(sts)
+		createdSTS, err := pcclientSet.AppsV1alpha1().StatefulSets(sts.Namespace).Create(sts)
 		if err != nil {
 			t.Fatalf("failed to create sts %s: %v", sts.Name, err)
 		}
@@ -242,7 +242,7 @@ func createSTSsPods(t *testing.T, clientSet clientset.Interface, pcclientSet pcc
 
 // Verify .Status.Replicas is equal to .Spec.Replicas
 func waitSTSStable(t *testing.T, pcclientSet pcclientset.Interface, sts *appsv1alpha1.StatefulSet) {
-	stsClient := pcclientSet.PingcapV1alpha1().StatefulSets(sts.Namespace)
+	stsClient := pcclientSet.AppsV1alpha1().StatefulSets(sts.Namespace)
 	desiredGeneration := sts.Generation
 	if err := wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
 		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
@@ -318,7 +318,7 @@ func updateSTS(t *testing.T, stsClient typedappsv1alpha1.StatefulSetInterface, s
 
 // Update .Spec.Replicas to replicas and verify .Status.Replicas is changed accordingly
 func scaleSTS(t *testing.T, c pcclientset.Interface, sts *appsv1alpha1.StatefulSet, replicas int32) {
-	stsClient := c.PingcapV1alpha1().StatefulSets(sts.Namespace)
+	stsClient := c.AppsV1alpha1().StatefulSets(sts.Namespace)
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
 		if err != nil {
@@ -334,7 +334,7 @@ func scaleSTS(t *testing.T, c pcclientset.Interface, sts *appsv1alpha1.StatefulS
 }
 
 func scaleSTSWithDeleteSlots(t *testing.T, c pcclientset.Interface, sts *appsv1alpha1.StatefulSet, replicas int32, deleteSlots sets.Int) {
-	stsClient := c.PingcapV1alpha1().StatefulSets(sts.Namespace)
+	stsClient := c.AppsV1alpha1().StatefulSets(sts.Namespace)
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
 		if err != nil {
@@ -355,7 +355,7 @@ func scaleInSTSByDeletingSlots(t *testing.T, c pcclientset.Interface, sts *appsv
 	if set.Len() <= 0 {
 		t.Fatalf("no slots")
 	}
-	stsClient := c.PingcapV1alpha1().StatefulSets(sts.Namespace)
+	stsClient := c.AppsV1alpha1().StatefulSets(sts.Namespace)
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
 		if err != nil {

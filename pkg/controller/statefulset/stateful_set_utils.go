@@ -23,7 +23,7 @@ import (
 	"regexp"
 	"strconv"
 
-	apps "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
+	apps "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
 	"github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/scheme"
 	kubeapps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"

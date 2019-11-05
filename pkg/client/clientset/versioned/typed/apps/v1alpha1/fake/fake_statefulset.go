@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	v1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
+	v1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -31,13 +31,13 @@ import (
 
 // FakeStatefulSets implements StatefulSetInterface
 type FakeStatefulSets struct {
-	Fake *FakePingcapV1alpha1
+	Fake *FakeAppsV1alpha1
 	ns   string
 }
 
-var statefulsetsResource = schema.GroupVersionResource{Group: "pingcap.com", Version: "v1alpha1", Resource: "statefulsets"}
+var statefulsetsResource = schema.GroupVersionResource{Group: "apps.pingcap.com", Version: "v1alpha1", Resource: "statefulsets"}
 
-var statefulsetsKind = schema.GroupVersionKind{Group: "pingcap.com", Version: "v1alpha1", Kind: "StatefulSet"}
+var statefulsetsKind = schema.GroupVersionKind{Group: "apps.pingcap.com", Version: "v1alpha1", Kind: "StatefulSet"}
 
 // Get takes name of the statefulSet, and returns the corresponding statefulSet object, and an error if there is any.
 func (c *FakeStatefulSets) Get(name string, options v1.GetOptions) (result *v1alpha1.StatefulSet, err error) {

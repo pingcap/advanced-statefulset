@@ -21,7 +21,7 @@ package v1alpha1
 import (
 	"time"
 
-	v1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
+	v1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
 	scheme "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/scheme"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,7 +60,7 @@ type statefulSets struct {
 }
 
 // newStatefulSets returns a StatefulSets
-func newStatefulSets(c *PingcapV1alpha1Client, namespace string) *statefulSets {
+func newStatefulSets(c *AppsV1alpha1Client, namespace string) *statefulSets {
 	return &statefulSets{
 		client: c.RESTClient(),
 		ns:     namespace,

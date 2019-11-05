@@ -21,7 +21,7 @@ package v1alpha1
 import (
 	"fmt"
 
-	apps "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
+	apps "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"

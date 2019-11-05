@@ -10,7 +10,7 @@ metadata:
   name: advanced-statefulset-controller
 rules:
 - apiGroups:
-  - pingcap.com
+  - apps.pingcap.com
   resources:
   - '*'
   verbs:

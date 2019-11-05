@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"testing"
 
-	appsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
+	appsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
 	integrationutil "github.com/cofyc/advanced-statefulset/test/integration/util"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,7 +48,7 @@ func TestSpecReplicasChange(t *testing.T) {
 
 	// Add a template annotation change to test STS's status does update
 	// without .Spec.Replicas change
-	stsClient := pcc.PingcapV1alpha1().StatefulSets(ns.Name)
+	stsClient := pcc.AppsV1alpha1().StatefulSets(ns.Name)
 	var oldGeneration int64
 	newSTS := updateSTS(t, stsClient, sts.Name, func(sts *appsv1alpha1.StatefulSet) {
 		oldGeneration = sts.Generation

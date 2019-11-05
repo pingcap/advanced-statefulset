@@ -54,7 +54,7 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	} else {
 		framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "deployment/crd.v1beta1.yaml"))
 	}
-	framework.RunKubectlOrDie("wait", "--for=condition=Established", "crds/statefulsets.pingcap.com")
+	framework.RunKubectlOrDie("wait", "--for=condition=Established", "crds/statefulsets.apps.pingcap.com")
 	// Install Controller
 	_, err = c.CoreV1().Namespaces().Create(&v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{

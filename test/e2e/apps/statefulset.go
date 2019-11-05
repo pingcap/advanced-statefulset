@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1/helper"
+	"github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1/helper"
 	pcclientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
