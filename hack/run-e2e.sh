@@ -4,6 +4,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+export GO111MODULE=off
+
 test_args=(
     -timeout=360m
     -v

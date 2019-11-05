@@ -21,10 +21,10 @@ package v1alpha1
 import (
 	time "time"
 
-	pingcapv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
+	appsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
 	versioned "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/cofyc/advanced-statefulset/pkg/client/listers/pingcap/v1alpha1"
+	v1alpha1 "github.com/cofyc/advanced-statefulset/pkg/client/listers/apps/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -61,16 +61,16 @@ func NewFilteredStatefulSetInformer(client versioned.Interface, namespace string
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.PingcapV1alpha1().StatefulSets(namespace).List(options)
+				return client.AppsV1alpha1().StatefulSets(namespace).List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.PingcapV1alpha1().StatefulSets(namespace).Watch(options)
+				return client.AppsV1alpha1().StatefulSets(namespace).Watch(options)
 			},
 		},
-		&pingcapv1alpha1.StatefulSet{},
+		&appsv1alpha1.StatefulSet{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,7 +81,7 @@ func (f *statefulSetInformer) defaultInformer(client versioned.Interface, resync
 }
 
 func (f *statefulSetInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&pingcapv1alpha1.StatefulSet{}, f.defaultInformer)
+	return f.factory.InformerFor(&appsv1alpha1.StatefulSet{}, f.defaultInformer)
 }
 
 func (f *statefulSetInformer) Lister() v1alpha1.StatefulSetLister {

@@ -5,14 +5,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// read from deployment/crd.v1.yaml
 func getCustomResourceDefinitionData() []*apiextensionsv1beta1.CustomResourceDefinition {
 	return []*apiextensionsv1beta1.CustomResourceDefinition{
 		{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "statefulsets.pingcap.com",
+				Name: "statefulsets.apps.pingcap.com",
 			},
 			Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
-				Group:   "pingcap.com",
+				Group:   "apps.pingcap.com",
 				Version: "v1alpha1",
 				Scope:   apiextensionsv1beta1.NamespaceScoped,
 				Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
@@ -39,21 +40,6 @@ func getCustomResourceDefinitionData() []*apiextensionsv1beta1.CustomResourceDef
 							return &a
 						}(".status.labelSelector"),
 					},
-				},
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "controllerrevisions.pingcap.com",
-			},
-			Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
-				Group:   "pingcap.com",
-				Version: "v1alpha1",
-				Scope:   apiextensionsv1beta1.NamespaceScoped,
-				Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
-					Plural:   "controllerrevisions",
-					Singular: "controllerrevision",
-					Kind:     "ControllerRevision",
 				},
 			},
 		},

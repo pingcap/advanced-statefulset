@@ -3,9 +3,9 @@ package helper
 import (
 	"encoding/json"
 
-	pcv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
+	pcv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
 	pcclientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
-	pingcapv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/typed/pingcap/v1alpha1"
+	pingcapv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/typed/apps/v1alpha1"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -20,14 +20,14 @@ type HijackClient struct {
 }
 
 func (c HijackClient) AppsV1() appsv1.AppsV1Interface {
-	return hijackAppsV1Client{c.Interface.AppsV1(), c.PingCAPInterface.PingcapV1alpha1()}
+	return hijackAppsV1Client{c.Interface.AppsV1(), c.PingCAPInterface.AppsV1alpha1()}
 }
 
 var _ clientset.Interface = &HijackClient{}
 
 type hijackAppsV1Client struct {
 	appsv1.AppsV1Interface
-	pingcapV1alpha1Client pingcapv1alpha1.PingcapV1alpha1Interface
+	pingcapV1alpha1Client pingcapv1alpha1.AppsV1alpha1Interface
 }
 
 func (c hijackAppsV1Client) StatefulSets(namespace string) appsv1.StatefulSetInterface {

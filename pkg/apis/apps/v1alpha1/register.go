@@ -24,7 +24,7 @@ import (
 
 const (
 	// GroupName is the group name use in this package
-	GroupName string = "pingcap.com"
+	GroupName string = "apps.pingcap.com"
 )
 
 // SchemeGroupVersion is group version used to register these objects

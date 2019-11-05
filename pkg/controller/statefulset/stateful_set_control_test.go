@@ -28,12 +28,12 @@ import (
 	"testing"
 	"time"
 
-	apps "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
+	apps "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
 	clientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
 	pcfake "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/fake"
 	pcinformers "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions"
-	appsinformers "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions/pingcap/v1alpha1"
-	appslisters "github.com/cofyc/advanced-statefulset/pkg/client/listers/pingcap/v1alpha1"
+	appsinformers "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions/apps/v1alpha1"
+	appslisters "github.com/cofyc/advanced-statefulset/pkg/client/listers/apps/v1alpha1"
 	kubeapps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -56,8 +56,8 @@ type invariantFunc func(set *apps.StatefulSet, spc *fakeStatefulPodControl) erro
 func setupController(client clientset.Interface, kubeClient kubernetes.Interface) (*fakeStatefulPodControl, *fakeStatefulSetStatusUpdater, StatefulSetControlInterface, chan struct{}) {
 	informerFactory := pcinformers.NewSharedInformerFactory(client, controller.NoResyncPeriodFunc())
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, controller.NoResyncPeriodFunc())
-	spc := newFakeStatefulPodControl(kubeInformerFactory.Core().V1().Pods(), informerFactory.Pingcap().V1alpha1().StatefulSets())
-	ssu := newFakeStatefulSetStatusUpdater(informerFactory.Pingcap().V1alpha1().StatefulSets())
+	spc := newFakeStatefulPodControl(kubeInformerFactory.Core().V1().Pods(), informerFactory.Apps().V1alpha1().StatefulSets())
+	ssu := newFakeStatefulSetStatusUpdater(informerFactory.Apps().V1alpha1().StatefulSets())
 	recorder := record.NewFakeRecorder(10)
 	ssc := NewDefaultStatefulSetControl(spc, ssu, history.NewFakeHistory(kubeInformerFactory.Apps().V1().ControllerRevisions()), recorder)
 
@@ -66,7 +66,7 @@ func setupController(client clientset.Interface, kubeClient kubernetes.Interface
 	kubeInformerFactory.Start(stop)
 	cache.WaitForCacheSync(
 		stop,
-		informerFactory.Pingcap().V1alpha1().StatefulSets().Informer().HasSynced,
+		informerFactory.Apps().V1alpha1().StatefulSets().Informer().HasSynced,
 		kubeInformerFactory.Core().V1().Pods().Informer().HasSynced,
 		kubeInformerFactory.Apps().V1().ControllerRevisions().Informer().HasSynced,
 	)
@@ -512,8 +512,8 @@ func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 		pcClient := pcfake.NewSimpleClientset()
 		informerFactory := pcinformers.NewSharedInformerFactory(pcClient, controller.NoResyncPeriodFunc())
 		kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, controller.NoResyncPeriodFunc())
-		spc := newFakeStatefulPodControl(kubeInformerFactory.Core().V1().Pods(), informerFactory.Pingcap().V1alpha1().StatefulSets())
-		ssu := newFakeStatefulSetStatusUpdater(informerFactory.Pingcap().V1alpha1().StatefulSets())
+		spc := newFakeStatefulPodControl(kubeInformerFactory.Core().V1().Pods(), informerFactory.Apps().V1alpha1().StatefulSets())
+		ssu := newFakeStatefulSetStatusUpdater(informerFactory.Apps().V1alpha1().StatefulSets())
 		recorder := record.NewFakeRecorder(10)
 		ssc := defaultStatefulSetControl{spc, ssu, history.NewFakeHistory(kubeInformerFactory.Apps().V1().ControllerRevisions()), recorder}
 
@@ -523,7 +523,7 @@ func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 		kubeInformerFactory.Start(stop)
 		cache.WaitForCacheSync(
 			stop,
-			informerFactory.Pingcap().V1alpha1().StatefulSets().Informer().HasSynced,
+			informerFactory.Apps().V1alpha1().StatefulSets().Informer().HasSynced,
 			kubeInformerFactory.Core().V1().Pods().Informer().HasSynced,
 			kubeInformerFactory.Apps().V1().ControllerRevisions().Informer().HasSynced,
 		)

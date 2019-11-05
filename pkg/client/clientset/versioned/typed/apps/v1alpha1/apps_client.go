@@ -19,27 +19,27 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/pingcap/v1alpha1"
+	v1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
 	"github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
-type PingcapV1alpha1Interface interface {
+type AppsV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	StatefulSetsGetter
 }
 
-// PingcapV1alpha1Client is used to interact with features provided by the pingcap.com group.
-type PingcapV1alpha1Client struct {
+// AppsV1alpha1Client is used to interact with features provided by the apps.pingcap.com group.
+type AppsV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *PingcapV1alpha1Client) StatefulSets(namespace string) StatefulSetInterface {
+func (c *AppsV1alpha1Client) StatefulSets(namespace string) StatefulSetInterface {
 	return newStatefulSets(c, namespace)
 }
 
-// NewForConfig creates a new PingcapV1alpha1Client for the given config.
-func NewForConfig(c *rest.Config) (*PingcapV1alpha1Client, error) {
+// NewForConfig creates a new AppsV1alpha1Client for the given config.
+func NewForConfig(c *rest.Config) (*AppsV1alpha1Client, error) {
 	config := *c
 	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
@@ -48,12 +48,12 @@ func NewForConfig(c *rest.Config) (*PingcapV1alpha1Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &PingcapV1alpha1Client{client}, nil
+	return &AppsV1alpha1Client{client}, nil
 }
 
-// NewForConfigOrDie creates a new PingcapV1alpha1Client for the given config and
+// NewForConfigOrDie creates a new AppsV1alpha1Client for the given config and
 // panics if there is an error in the config.
-func NewForConfigOrDie(c *rest.Config) *PingcapV1alpha1Client {
+func NewForConfigOrDie(c *rest.Config) *AppsV1alpha1Client {
 	client, err := NewForConfig(c)
 	if err != nil {
 		panic(err)
@@ -61,9 +61,9 @@ func NewForConfigOrDie(c *rest.Config) *PingcapV1alpha1Client {
 	return client
 }
 
-// New creates a new PingcapV1alpha1Client for the given RESTClient.
-func New(c rest.Interface) *PingcapV1alpha1Client {
-	return &PingcapV1alpha1Client{c}
+// New creates a new AppsV1alpha1Client for the given RESTClient.
+func New(c rest.Interface) *AppsV1alpha1Client {
+	return &AppsV1alpha1Client{c}
 }
 
 func setConfigDefaults(config *rest.Config) error {
@@ -81,7 +81,7 @@ func setConfigDefaults(config *rest.Config) error {
 
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
-func (c *PingcapV1alpha1Client) RESTClient() rest.Interface {
+func (c *AppsV1alpha1Client) RESTClient() rest.Interface {
 	if c == nil {
 		return nil
 	}
