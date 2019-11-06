@@ -2,25 +2,18 @@ package helper
 
 import (
 	"encoding/json"
+	"sync"
 
 	pcv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
 	pcclientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
 	appsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/typed/apps/v1alpha1"
-	informersexternal "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions"
-	informersexternalapps "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions/apps"
-	informersexternalappsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions/apps/v1alpha1"
-	pclistersappsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/client/listers/apps/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/informers"
-	apps "k8s.io/client-go/informers/apps"
-	informersappsv1 "k8s.io/client-go/informers/apps/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/watch"
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetappsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
-	listersappsv1 "k8s.io/client-go/listers/apps/v1"
 )
 
 // hijackClient is a special Kubernetes client which hijack statefulset API requests.
@@ -110,104 +103,73 @@ func (s *hijackStatefulset) List(opts metav1.ListOptions) (*appsv1.StatefulSetLi
 	return ToBuiltinStetefulsetList(list)
 }
 
+func (s *hijackStatefulset) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+	watch, err := s.StatefulSetInterface.Watch(opts)
+	if err != nil {
+		return nil, err
+	}
+	return newHijackWatch(watch), nil
+}
+
+type hijackWatch struct {
+	sync.Mutex
+	source  watch.Interface
+	result  chan watch.Event
+	stopped bool
+}
+
+func newHijackWatch(source watch.Interface) watch.Interface {
+	w := &hijackWatch{
+		source: source,
+		result: make(chan watch.Event),
+	}
+	go w.receive()
+	return w
+}
+
+func (w *hijackWatch) Stop() {
+	w.Lock()
+	defer w.Unlock()
+	if !w.stopped {
+		w.stopped = true
+		w.source.Stop()
+	}
+}
+
+func (w *hijackWatch) receive() {
+	defer close(w.result)
+	defer w.Stop()
+	defer utilruntime.HandleCrash()
+	for {
+		select {
+		case event, ok := <-w.source.ResultChan():
+			if !ok {
+				return
+			}
+			asts, ok := event.Object.(*pcv1alpha1.StatefulSet)
+			if !ok {
+				panic("unreachable")
+			}
+			sts, err := ToBuiltinStatefulSet(asts)
+			if err != nil {
+				panic(err)
+			}
+			w.result <- watch.Event{
+				Type:   event.Type,
+				Object: sts,
+			}
+		}
+	}
+}
+
+func (w *hijackWatch) ResultChan() <-chan watch.Event {
+	w.Lock()
+	defer w.Unlock()
+	return w.result
+}
+
 func (s *hijackStatefulset) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *appsv1.StatefulSet, err error) {
 	pcsts, err := s.StatefulSetInterface.Patch(name, pt, data, subresources...)
-	if err != nil {
-		return nil, err
-	}
-	return ToBuiltinStatefulSet(pcsts)
-}
-
-// hijackSharedInformerFactory hijacks StatefulSet V1 interface of informers.SharedInformerFactory.
-type hijackSharedInformerFactory struct {
-	informers.SharedInformerFactory
-	externalSharedInformerFactory informersexternal.SharedInformerFactory
-}
-
-var _ informers.SharedInformerFactory = &hijackSharedInformerFactory{}
-
-func NewHijackSharedInformerFactory(informerFactory informers.SharedInformerFactory, externalInformerFactory informersexternal.SharedInformerFactory) informers.SharedInformerFactory {
-	return &hijackSharedInformerFactory{informerFactory, externalInformerFactory}
-}
-
-func (f *hijackSharedInformerFactory) Apps() apps.Interface {
-	return &hijackAppsInterface{f.SharedInformerFactory.Apps(), f.externalSharedInformerFactory.Apps()}
-}
-
-type hijackAppsInterface struct {
-	apps.Interface
-	externalInterface informersexternalapps.Interface
-}
-
-var _ apps.Interface = &hijackAppsInterface{}
-
-func (i *hijackAppsInterface) V1() informersappsv1.Interface {
-	return &hijackInformersAppsV1Interface{i.Interface.V1(), i.externalInterface.V1alpha1()}
-}
-
-type hijackInformersAppsV1Interface struct {
-	informersappsv1.Interface
-	externalInterface informersexternalappsv1alpha1.Interface
-}
-
-var _ informersappsv1.Interface = &hijackInformersAppsV1Interface{}
-
-func (v *hijackInformersAppsV1Interface) StatefulSets() informersappsv1.StatefulSetInformer {
-	return &hijackStatefulSetInformer{v.externalInterface.StatefulSets()}
-}
-
-type hijackStatefulSetInformer struct {
-	informersexternalappsv1alpha1.StatefulSetInformer
-}
-
-var _ informersappsv1.StatefulSetInformer = &hijackStatefulSetInformer{}
-
-func (f *hijackStatefulSetInformer) Lister() listersappsv1.StatefulSetLister {
-	return &hijackStatefulSetLister{f.StatefulSetInformer.Lister()}
-}
-
-type hijackStatefulSetLister struct {
-	pclistersappsv1alpha1.StatefulSetLister
-}
-
-var _ listersappsv1.StatefulSetLister = &hijackStatefulSetLister{}
-
-func (l *hijackStatefulSetLister) List(selector labels.Selector) (ret []*appsv1.StatefulSet, err error) {
-	items, err := l.StatefulSetLister.List(selector)
-	if err != nil {
-		return nil, err
-	}
-	return ToMultiBuiltinStatefulSet(items)
-}
-
-func (l *hijackStatefulSetLister) StatefulSets(namespace string) listersappsv1.StatefulSetNamespaceLister {
-	return &hijackStatefulSetNamespaceLister{l.StatefulSetLister.StatefulSets(namespace)}
-}
-
-func (l *hijackStatefulSetLister) GetPodStatefulSets(pod *v1.Pod) ([]*appsv1.StatefulSet, error) {
-	items, err := l.StatefulSetLister.GetPodStatefulSets(pod)
-	if err != nil {
-		return nil, err
-	}
-	return ToMultiBuiltinStatefulSet(items)
-}
-
-type hijackStatefulSetNamespaceLister struct {
-	pclistersappsv1alpha1.StatefulSetNamespaceLister
-}
-
-var _ listersappsv1.StatefulSetNamespaceLister = &hijackStatefulSetNamespaceLister{}
-
-func (l *hijackStatefulSetNamespaceLister) List(selector labels.Selector) (ret []*appsv1.StatefulSet, err error) {
-	items, err := l.StatefulSetNamespaceLister.List(selector)
-	if err != nil {
-		return nil, err
-	}
-	return ToMultiBuiltinStatefulSet(items)
-}
-
-func (l *hijackStatefulSetNamespaceLister) Get(name string) (*appsv1.StatefulSet, error) {
-	pcsts, err := l.StatefulSetNamespaceLister.Get(name)
 	if err != nil {
 		return nil, err
 	}
