@@ -20,5 +20,13 @@ spec:
         image: quay.io/cofyc/advanced-statefulset:latest
         imagePullPolicy: IfNotPresent
         args:
-        - -v=4
+        - --v=4
+        - --leader-elect
+        - --leader-elect-resource-name=advanced-statefulset-controller
+        - --leader-elect-resource-namespace=$(POD_NAMESPACE)
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
       serviceAccountName: advanced-statefulset-controller

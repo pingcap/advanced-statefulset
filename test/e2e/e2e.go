@@ -40,6 +40,10 @@ import (
 	e2elog "k8s.io/kubernetes/test/e2e/framework/log"
 )
 
+const (
+	asNamespace = "advanced-statefulset"
+)
+
 var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	framework.SetupSuite()
 	// Get the client
@@ -58,13 +62,13 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	// Install Controller
 	_, err = c.CoreV1().Namespaces().Create(&v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "advanced-statefulset",
+			Name: asNamespace,
 		},
 	})
 	framework.ExpectNoError(err, "failed to create namespace")
 	framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "deployment/rbac.yaml"))
 	framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "deployment/deployment.yaml"))
-	framework.RunKubectlOrDie("-n", "advanced-statefulset", "wait", "--for=condition=Ready", "pod", "-l", "app=advanced-statefulset-controller")
+	framework.RunKubectlOrDie("-n", asNamespace, "wait", "--for=condition=Ready", "pod", "-l", "app=advanced-statefulset-controller")
 	return nil
 }, func(data []byte) {
 	// Run on all Ginkgo nodes
