@@ -47,7 +47,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: advanced-statefulset-controller
-  namespace: kube-system
+  namespace: advanced-statefulset
 rules:
 - apiGroups:
   - ''
@@ -60,7 +60,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: advanced-statefulset-controller
-  namespace: kube-system
+  namespace: advanced-statefulset
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role

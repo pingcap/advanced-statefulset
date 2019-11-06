@@ -5,6 +5,7 @@ import (
 	"github.com/cofyc/advanced-statefulset/pkg/component/config"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/record"
 )
 
@@ -19,7 +20,9 @@ type Config struct {
 	PCClient *pcclientset.Clientset
 
 	// the client only used for leader election
-	LeaderElectionClient *clientset.Clientset
+	// LeaderElectionClient *clientset.Clientset
+	// LeaderElection is optional.
+	LeaderElection *leaderelection.LeaderElectionConfig
 
 	// the rest config for the master
 	Kubeconfig *rest.Config

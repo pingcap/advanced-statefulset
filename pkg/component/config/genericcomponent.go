@@ -4,7 +4,8 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	componentbasev1alpha1 "k8s.io/component-base/config/v1alpha1"
+	componentbaseconfig "k8s.io/component-base/config"
+	componentbaseconfigv1alpha1 "k8s.io/component-base/config/v1alpha1"
 )
 
 // GenericComponentConfiguration is generic component configuration.
@@ -21,7 +22,7 @@ type GenericComponentConfiguration struct {
 	// How long to wait between starting controller managers
 	ControllerStartInterval metav1.Duration
 	// leaderElection defines the configuration of leader election client.
-	LeaderElection componentbasev1alpha1.LeaderElectionConfiguration
+	LeaderElection componentbaseconfig.LeaderElectionConfiguration
 }
 
 // NewDefaultGenericComponentConfiguration returns default GenericComponentConfiguration.
@@ -33,6 +34,8 @@ func NewDefaultGenericComponentConfiguration() GenericComponentConfiguration {
 		KubeAPIBurst:            30,
 		ControllerStartInterval: metav1.Duration{Duration: 0 * time.Second},
 	}
-	componentbasev1alpha1.RecommendedDefaultLeaderElectionConfiguration(&c.LeaderElection)
+	leaderElection := componentbaseconfigv1alpha1.LeaderElectionConfiguration{}
+	componentbaseconfigv1alpha1.RecommendedDefaultLeaderElectionConfiguration(&leaderElection)
+	componentbaseconfigv1alpha1.Convert_v1alpha1_LeaderElectionConfiguration_To_config_LeaderElectionConfiguration(&leaderElection, &c.LeaderElection, nil)
 	return c
 }

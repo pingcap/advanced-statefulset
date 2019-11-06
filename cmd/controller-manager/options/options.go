@@ -1,24 +1,32 @@
 package options
 
 import (
+	"fmt"
+	"os"
+	"time"
+
 	controllermanagerconfig "github.com/cofyc/advanced-statefulset/cmd/controller-manager/config"
 	pcclientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
 	"github.com/cofyc/advanced-statefulset/pkg/component/config"
 	"github.com/cofyc/advanced-statefulset/pkg/component/options"
-	"github.com/spf13/pflag"
 	v1 "k8s.io/api/core/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/leaderelection"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
+	cliflag "k8s.io/component-base/cli/flag"
+	componentbaseconfig "k8s.io/component-base/config"
 	"k8s.io/klog"
 )
 
-// K8sRebalancerOptions is the main context object for the kirk-controller-manager.
-type K8sRebalancerOptions struct {
+// ControllerManagerOptions is the main context object for the kirk-controller-manager.
+type ControllerManagerOptions struct {
 	GenericComponent *options.GenericComponentOptions
 
 	Controllers []string
@@ -27,24 +35,26 @@ type K8sRebalancerOptions struct {
 	Kubeconfig string
 }
 
-// NewK8sRebalancerOptions creates a new K8sRebalancerOptions with a default config.
-func NewK8sRebalancerOptions() *K8sRebalancerOptions {
+// NewControllerManagerOptions creates a new ControllerManagerOptions with a default config.
+func NewControllerManagerOptions() *ControllerManagerOptions {
 	genericComponetConfig := config.NewDefaultGenericComponentConfiguration()
-	s := K8sRebalancerOptions{
+	s := ControllerManagerOptions{
 		GenericComponent: options.NewGenericComponentOptions(genericComponetConfig),
 	}
 	return &s
 }
 
-// AddFlags adds flags for a specific K8sRebalancerOptions to the specified FlagSet
-func (s *K8sRebalancerOptions) AddFlags(fs *pflag.FlagSet) {
-	s.GenericComponent.AddFlags(fs)
+func (s *ControllerManagerOptions) Flags() (nfs cliflag.NamedFlagSets) {
+	fs := nfs.FlagSet("misc")
 	fs.StringVar(&s.Master, "master", s.Master, "The address of the Kubernetes API server (overrides any value in kubeconfig).")
 	fs.StringVar(&s.Kubeconfig, "kubeconfig", s.Kubeconfig, "Path to kubeconfig file with authorization and master location information.")
+
+	s.GenericComponent.AddFlags(nfs.FlagSet("generic"))
+	return
 }
 
 // ApplyTo fills up controller manager config with options.
-func (s *K8sRebalancerOptions) ApplyTo(c *controllermanagerconfig.Config, userAgent string) error {
+func (s *ControllerManagerOptions) ApplyTo(c *controllermanagerconfig.Config, userAgent string) error {
 	if err := s.GenericComponent.ApplyTo(&c.GenericComponent); err != nil {
 		return err
 	}
@@ -63,28 +73,38 @@ func (s *K8sRebalancerOptions) ApplyTo(c *controllermanagerconfig.Config, userAg
 		return err
 	}
 
-	// FIXME: use protobuf?
+	// CRD does not support protobuf.
 	c.Kubeconfig.ContentConfig.ContentType = "application/json"
 	c.PCClient, err = pcclientset.NewForConfig(rest.AddUserAgent(c.Kubeconfig, userAgent))
 	if err != nil {
 		return err
 	}
-
-	c.LeaderElectionClient = clientset.NewForConfigOrDie(rest.AddUserAgent(c.Kubeconfig, "leader-election"))
+	leaderElectionClient := clientset.NewForConfigOrDie(rest.AddUserAgent(c.Kubeconfig, "leader-election"))
 
 	c.EventRecorder = createRecorder(c.Client, userAgent)
+
+	// Set up leader election if enabled.
+	var leaderElectionConfig *leaderelection.LeaderElectionConfig
+	if c.GenericComponent.LeaderElection.LeaderElect {
+		leaderElectionConfig, err = makeLeaderElectionConfig(c.GenericComponent.LeaderElection, leaderElectionClient, c.EventRecorder)
+		if err != nil {
+			return err
+		}
+	}
+
+	c.LeaderElection = leaderElectionConfig
 	return nil
 }
 
 // Validate is used to validate the options and config before launching the controller manager
-func (s *K8sRebalancerOptions) Validate() error {
+func (s *ControllerManagerOptions) Validate() error {
 	var errs []error
 	errs = append(errs, s.GenericComponent.Validate()...)
 	return utilerrors.NewAggregate(errs)
 }
 
 // Config configures configuration.
-func (s *K8sRebalancerOptions) Config() (*controllermanagerconfig.Config, error) {
+func (s *ControllerManagerOptions) Config() (*controllermanagerconfig.Config, error) {
 	c := &controllermanagerconfig.Config{}
 	if err := s.ApplyTo(c, "advanced-statefulset"); err != nil {
 		return nil, err
@@ -99,4 +119,37 @@ func createRecorder(kubeClient clientset.Interface, userAgent string) record.Eve
 	eventBroadcaster.StartLogging(klog.Infof)
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: kubeClient.CoreV1().Events("")})
 	return eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: userAgent})
+}
+
+// makeLeaderElectionConfig builds a leader election configuration. It will
+// create a new resource lock associated with the configuration.
+func makeLeaderElectionConfig(config componentbaseconfig.LeaderElectionConfiguration, client clientset.Interface, recorder record.EventRecorder) (*leaderelection.LeaderElectionConfig, error) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get hostname: %v", err)
+	}
+	// add a uniquifier so that two processes on the same host don't accidentally both become active
+	id := hostname + "_" + string(uuid.NewUUID())
+
+	rl, err := resourcelock.New(config.ResourceLock,
+		config.ResourceNamespace,
+		config.ResourceName,
+		client.CoreV1(),
+		client.CoordinationV1(),
+		resourcelock.ResourceLockConfig{
+			Identity:      id,
+			EventRecorder: recorder,
+		})
+	if err != nil {
+		return nil, fmt.Errorf("couldn't create resource lock: %v", err)
+	}
+
+	return &leaderelection.LeaderElectionConfig{
+		Lock:          rl,
+		LeaseDuration: config.LeaseDuration.Duration,
+		RenewDeadline: config.RenewDeadline.Duration,
+		RetryPeriod:   config.RetryPeriod.Duration,
+		WatchDog:      leaderelection.NewLeaderHealthzAdaptor(time.Second * 20),
+		Name:          "controller-manager",
+	}, nil
 }

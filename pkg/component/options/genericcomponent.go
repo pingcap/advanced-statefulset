@@ -4,7 +4,8 @@ import (
 	"github.com/cofyc/advanced-statefulset/pkg/component/config"
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	componentbasev1alpha1 "k8s.io/component-base/config/v1alpha1"
+	componentbaseconfig "k8s.io/component-base/config"
+	"k8s.io/kubernetes/pkg/client/leaderelectionconfig"
 )
 
 // GenericComponentOptions holds the options which are generic.
@@ -14,7 +15,7 @@ type GenericComponentOptions struct {
 	KubeAPIQPS              float32
 	KubeAPIBurst            int32
 	ControllerStartInterval metav1.Duration
-	LeaderElection          componentbasev1alpha1.LeaderElectionConfiguration
+	LeaderElection          componentbaseconfig.LeaderElectionConfiguration
 }
 
 // NewGenericComponentOptions returns generic configuration default
@@ -43,7 +44,7 @@ func (o *GenericComponentOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&o.KubeAPIBurst, "kube-api-burst", o.KubeAPIBurst, "Burst to use while talking with kubernetes apiserver.")
 	fs.DurationVar(&o.ControllerStartInterval.Duration, "controller-start-interval", o.ControllerStartInterval.Duration, "Interval between starting controller managers.")
 
-	bindLeaderElectionFlags(&o.LeaderElection, fs)
+	leaderelectionconfig.BindFlags(&o.LeaderElection, fs)
 }
 
 // Validate checks validation of GenericComponentOptions.
@@ -70,28 +71,4 @@ func (o *GenericComponentOptions) ApplyTo(cfg *config.GenericComponentConfigurat
 	cfg.LeaderElection = o.LeaderElection
 
 	return nil
-}
-
-// bindLeaderElectionFlags binds the common LeaderElectionCLIConfig flags to a flagset
-func bindLeaderElectionFlags(l *componentbasev1alpha1.LeaderElectionConfiguration, fs *pflag.FlagSet) {
-	fs.BoolVar(l.LeaderElect, "leader-elect", *l.LeaderElect, ""+
-		"Start a leader election client and gain leadership before "+
-		"executing the main loop. Enable this when running replicated "+
-		"components for high availability.")
-	fs.DurationVar(&l.LeaseDuration.Duration, "leader-elect-lease-duration", l.LeaseDuration.Duration, ""+
-		"The duration that non-leader candidates will wait after observing a leadership "+
-		"renewal until attempting to acquire leadership of a led but unrenewed leader "+
-		"slot. This is effectively the maximum duration that a leader can be stopped "+
-		"before it is replaced by another candidate. This is only applicable if leader "+
-		"election is enabled.")
-	fs.DurationVar(&l.RenewDeadline.Duration, "leader-elect-renew-deadline", l.RenewDeadline.Duration, ""+
-		"The interval between attempts by the acting master to renew a leadership slot "+
-		"before it stops leading. This must be less than or equal to the lease duration. "+
-		"This is only applicable if leader election is enabled.")
-	fs.DurationVar(&l.RetryPeriod.Duration, "leader-elect-retry-period", l.RetryPeriod.Duration, ""+
-		"The duration the clients should wait between attempting acquisition and renewal "+
-		"of a leadership. This is only applicable if leader election is enabled.")
-	fs.StringVar(&l.ResourceLock, "leader-elect-resource-lock", l.ResourceLock, ""+
-		"The type of resource object that is used for locking during "+
-		"leader election. Supported options are `endpoints` (default) and `configmaps`.")
 }
