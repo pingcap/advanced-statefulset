@@ -68,7 +68,7 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	framework.ExpectNoError(err, "failed to create namespace")
 	framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "deployment/rbac.yaml"))
 	framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "deployment/deployment.yaml"))
-	framework.RunKubectlOrDie("-n", asNamespace, "wait", "--for=condition=Ready", "pod", "-l", "app=advanced-statefulset-controller")
+	framework.RunKubectlOrDie("-n", asNamespace, "wait", "--for=condition=Available", "deployment/advanced-statefulset-controller")
 	return nil
 }, func(data []byte) {
 	// Run on all Ginkgo nodes
