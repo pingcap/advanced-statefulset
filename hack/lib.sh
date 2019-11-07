@@ -14,6 +14,8 @@ KIND_VERSION=0.5.1
 KIND_BIN=$OUTPUT_BIN/kind
 KUBECTL_VERSION=1.16.0
 KUBECTL_BIN=$OUTPUT_BIN/kubectl
+GINKGO_VERSION=1.8.0
+GINKGO_BIN=$OUTPUT_BIN/ginkgo
 
 test -d "$OUTPUT_BIN" || mkdir -p "$OUTPUT_BIN"
 
@@ -109,4 +111,24 @@ function hack::ensure_kubectl() {
     curl -Lo $tmpfile https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl
     mv $tmpfile $KUBECTL_BIN
     chmod +x $KUBECTL_BIN
+}
+
+function hack::verify_ginkgo() {
+    if test -x "$GINKGO_BIN"; then
+        [[ "$($GINKGO_BIN version | grep -o -P '\d+\.\d+\.\d+')" == "$GINKGO_VERSION" ]]
+        return
+    fi
+    return 1
+}
+
+function hack::ensure_ginkgo() {
+    if hack::verify_ginkgo; then
+        return 0
+    fi
+    echo "Installing ginkgo v$GINKGO_VERSION..."
+    GO111MODULE=off go build -o $GINKGO_BIN ./vendor/github.com/onsi/ginkgo/ginkgo
+    if ! hack::verify_ginkgo; then
+        echo "info: installed ginkgo ($GINKGO_BIN) does not match expected version $GINKGO_VERSION"
+        exit 1
+    fi
 }

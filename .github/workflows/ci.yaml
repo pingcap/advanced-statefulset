@@ -30,7 +30,7 @@ jobs:
         if [ "$target" == "test-integration" ]; then export GOFLAGS="-v"; fi
         if [[ "$target" == e2e-* ]]; then
           IFS=- read a b <<<"$target"
-          KUBE_VERSION=$b make e2e
+          KUBE_VERSION=$b GINKGO_NODES=4 make e2e
         else
           make $target
         fi
