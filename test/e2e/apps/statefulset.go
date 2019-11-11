@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1/helper"
-	pcclientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
+	asclientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -66,9 +66,9 @@ var _ = SIGDescribe("StatefulSet", func() {
 		// We didn't modify the code except hijacking the client.
 		config, err := framework.LoadConfig()
 		framework.ExpectNoError(err)
-		pcc, err := pcclientset.NewForConfig(config)
+		asc, err := asclientset.NewForConfig(config)
 		framework.ExpectNoError(err)
-		c = helper.NewHijackClient(f.ClientSet, pcc)
+		c = helper.NewHijackClient(f.ClientSet, asc)
 	})
 
 	framework.KubeDescribe("Basic StatefulSet functionality [StatefulSetBasic]", func() {

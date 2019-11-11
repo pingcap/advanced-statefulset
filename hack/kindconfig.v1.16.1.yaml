@@ -17,12 +17,15 @@ kubeadmConfigPatches:
   apiServer:
     extraArgs:
       "feature-gates": "CustomResourceDefaulting=true"
+      "v": "4"
   scheduler:
     extraArgs:
       "feature-gates": "CustomResourceDefaulting=true"
+      "v": "4"
   controllerManager:
     extraArgs:
       "feature-gates": "CustomResourceDefaulting=true"
+      "v": "4"
 - |
   apiVersion: kubeadm.k8s.io/v1beta2
   kind: InitConfiguration
@@ -31,3 +34,4 @@ kubeadmConfigPatches:
   nodeRegistration:
     kubeletExtraArgs:
       "feature-gates": "CustomResourceDefaulting=true"
+      "v": "4"
