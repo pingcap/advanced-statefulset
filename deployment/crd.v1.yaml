@@ -51,6 +51,16 @@ spec:
             type: object
             # TODO validate all fields
             x-kubernetes-preserve-unknown-fields: true
+    additionalPrinterColumns:
+    - name: Desired
+      type: integer
+      jsonPath: .spec.replicas
+    - name: Current
+      type: integer
+      jsonPath: .status.readyReplicas
+    - name: Age
+      type: date
+      jsonPath: .metadata.creationTimestamp
     # subresources describes the subresources for custom resources.
     subresources:
       # status enables the status subresource.

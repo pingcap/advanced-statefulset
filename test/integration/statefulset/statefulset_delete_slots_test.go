@@ -17,6 +17,7 @@ limitations under the License.
 package statefulset
 
 import (
+	"fmt"
 	"testing"
 
 	appsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
@@ -47,14 +48,21 @@ func TestDeleteSlots(t *testing.T) {
 	scaleSTS(t, pcc, sts, 0)
 	scaleSTS(t, pcc, sts, 2)
 
-	scaleSTS(t, pcc, sts, 4)                  // 0, 1, 2, 3
-	scaleSTS(t, pcc, sts, 3)                  // 0, 1, 2
-	scaleInSTSByDeletingSlots(t, pcc, sts, 1) // 0, 2
+	scaleSTS(t, pcc, sts, 4) // 0, 1, 2, 3
+	scaleSTS(t, pcc, sts, 3) // 0, 1, 2
+
+	scaleInSTSByDeletingSlots(t, pcc, sts, 1)
 	checkPodIdentifiers(t, c, sts, 0, 2)
 
+	t.Logf(fmt.Sprintf("scale to replicas %d with delete slots %v", 0, []int{1}))
+	scaleSTSWithDeleteSlots(t, pcc, sts, 0, sets.NewInt(1))
+	checkPodIdentifiers(t, c, sts)
+
+	t.Logf(fmt.Sprintf("scale to replicas %d with delete slots %v", 4, []int{}))
 	scaleSTSWithDeleteSlots(t, pcc, sts, 4, sets.NewInt())
 	checkPodIdentifiers(t, c, sts, 0, 1, 2, 3)
 
+	t.Logf(fmt.Sprintf("scale to replicas %d with delete slots %v", 3, []int{0}))
 	scaleSTSWithDeleteSlots(t, pcc, sts, 3, sets.NewInt(0))
 	checkPodIdentifiers(t, c, sts, 1, 2, 3)
 

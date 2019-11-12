@@ -251,7 +251,7 @@ func waitSTSStable(t *testing.T, pcclientSet pcclientset.Interface, sts *appsv1a
 		}
 		return newSTS.Status.Replicas == *newSTS.Spec.Replicas && newSTS.Status.ObservedGeneration >= desiredGeneration, nil
 	}); err != nil {
-		t.Fatalf("failed to verify .Status.Replicas is equal to .Spec.Replicas for sts %s (got %d, expected: %d): %v", sts.Name, sts.Status.Replicas, sts.Spec.Replicas, err)
+		t.Fatalf("failed to verify .Status.Replicas is equal to .Spec.Replicas for sts %s (got %d, expected: %d): %v", sts.Name, sts.Status.Replicas, *sts.Spec.Replicas, err)
 	}
 }
 

@@ -49,3 +49,13 @@ spec:
       statusReplicasPath: .status.replicas
       # labelSelectorPath defines the JSONPath inside of a custom resource that corresponds to Scale.Status.Selector.
       labelSelectorPath: .status.labelSelector
+  additionalPrinterColumns:
+  - name: Desired
+    type: integer
+    JSONPath: .spec.replicas
+  - name: Current
+    type: integer
+    JSONPath: .status.readyReplicas
+  - name: Age
+    type: date
+    JSONPath: .metadata.creationTimestamp

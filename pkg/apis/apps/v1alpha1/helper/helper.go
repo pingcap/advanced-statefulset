@@ -19,21 +19,21 @@ package helper
 import (
 	"encoding/json"
 
-	apps "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
-	deletedSlotsAnnotation = "delete-slots"
+	deleteSlotsAnn = "delete-slots"
 )
 
-func GetDeleteSlots(set *apps.StatefulSet) (deleteSlots sets.Int) {
+func GetDeleteSlots(set metav1.Object) (deleteSlots sets.Int) {
 	deleteSlots = sets.NewInt()
-	if set.Annotations == nil {
+	annotations := set.GetAnnotations()
+	if annotations == nil {
 		return
 	}
-	value, ok := set.Annotations[deletedSlotsAnnotation]
+	value, ok := annotations[deleteSlotsAnn]
 	if !ok {
 		return
 	}
@@ -46,23 +46,41 @@ func GetDeleteSlots(set *apps.StatefulSet) (deleteSlots sets.Int) {
 	return
 }
 
-func SetDeleteSlots(set *apps.StatefulSet, deleteSlots sets.Int) (err error) {
+func SetDeleteSlots(set metav1.Object, deleteSlots sets.Int) (err error) {
+	annotations := set.GetAnnotations()
 	if deleteSlots == nil || deleteSlots.Len() == 0 {
-		// clear the annotation
-		if set.ObjectMeta.Annotations != nil {
-			delete(set.ObjectMeta.Annotations, deletedSlotsAnnotation)
+		// clear
+		delete(annotations, deleteSlotsAnn)
+	} else {
+		// set
+		b, err := json.Marshal(deleteSlots.List())
+		if err != nil {
+			return err
 		}
-		return
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		annotations[deleteSlotsAnn] = string(b)
 	}
-	b, err := json.Marshal(deleteSlots.List())
-	if err != nil {
-		return
-	}
-	metav1.SetMetaDataAnnotation(&set.ObjectMeta, deletedSlotsAnnotation, string(b))
+	set.SetAnnotations(annotations)
 	return
 }
 
-func AddDeleteSlots(set *apps.StatefulSet, deleteSlots sets.Int) (err error) {
+func AddDeleteSlots(set metav1.Object, deleteSlots sets.Int) (err error) {
 	currentDeleteSlots := GetDeleteSlots(set)
 	return SetDeleteSlots(set, currentDeleteSlots.Union(deleteSlots))
+}
+
+// GetMaxReplicaCountAndDeleteSlots returns the max replica count and delete
+// slots. The desired slots of this stateful set will be [0, replicaCount) - [delete slots].
+func GetMaxReplicaCountAndDeleteSlots(replicas int, deleteSlots sets.Int) (int, sets.Int) {
+	replicaCount := replicas
+	for _, deleteSlot := range deleteSlots.List() {
+		if deleteSlot < replicaCount {
+			replicaCount++
+		} else {
+			deleteSlots.Delete(deleteSlot)
+		}
+	}
+	return replicaCount, deleteSlots
 }

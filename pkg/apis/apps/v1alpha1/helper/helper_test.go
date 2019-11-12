@@ -43,7 +43,7 @@ func TestGetDeleteSlots(t *testing.T) {
 			sts: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deletedSlotsAnnotation: "",
+						deleteSlotsAnn: "",
 					},
 				},
 			},
@@ -54,7 +54,7 @@ func TestGetDeleteSlots(t *testing.T) {
 			sts: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deletedSlotsAnnotation: "invalid",
+						deleteSlotsAnn: "invalid",
 					},
 				},
 			},
@@ -65,7 +65,7 @@ func TestGetDeleteSlots(t *testing.T) {
 			sts: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deletedSlotsAnnotation: "[1]",
+						deleteSlotsAnn: "[1]",
 					},
 				},
 			},
@@ -76,7 +76,7 @@ func TestGetDeleteSlots(t *testing.T) {
 			sts: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deletedSlotsAnnotation: "[1, 2, 3]",
+						deleteSlotsAnn: "[1, 2, 3]",
 					},
 				},
 			},
@@ -87,7 +87,7 @@ func TestGetDeleteSlots(t *testing.T) {
 			sts: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deletedSlotsAnnotation: "[1, 2, 3, 3]",
+						deleteSlotsAnn: "[1, 2, 3, 3]",
 					},
 				},
 			},
@@ -117,7 +117,7 @@ func TestSetDeleteSlots(t *testing.T) {
 			sts: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deletedSlotsAnnotation: "[1]",
+						deleteSlotsAnn: "[1]",
 					},
 				},
 			},
@@ -133,7 +133,7 @@ func TestSetDeleteSlots(t *testing.T) {
 			sts: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deletedSlotsAnnotation: "[1]",
+						deleteSlotsAnn: "[1]",
 					},
 				},
 			},
@@ -153,7 +153,7 @@ func TestSetDeleteSlots(t *testing.T) {
 			want: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deletedSlotsAnnotation: "[3]",
+						deleteSlotsAnn: "[3]",
 					},
 				},
 			},
@@ -167,7 +167,7 @@ func TestSetDeleteSlots(t *testing.T) {
 			want: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deletedSlotsAnnotation: "[1,3,4]",
+						deleteSlotsAnn: "[1,3,4]",
 					},
 				},
 			},

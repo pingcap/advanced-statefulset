@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"sync"
 
-	pcv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
-	pcclientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
+	asv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
+	asclientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
 	appsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/typed/apps/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,7 +19,7 @@ import (
 // hijackClient is a special Kubernetes client which hijack statefulset API requests.
 type hijackClient struct {
 	clientset.Interface
-	PingCAPInterface pcclientset.Interface
+	PingCAPInterface asclientset.Interface
 }
 
 var _ clientset.Interface = &hijackClient{}
@@ -29,7 +29,7 @@ func (c hijackClient) AppsV1() clientsetappsv1.AppsV1Interface {
 }
 
 // NewHijackClient creates a new hijacked Kubernetes interface.
-func NewHijackClient(client clientset.Interface, pcclient pcclientset.Interface) clientset.Interface {
+func NewHijackClient(client clientset.Interface, pcclient asclientset.Interface) clientset.Interface {
 	return &hijackClient{client, pcclient}
 }
 
@@ -55,7 +55,7 @@ func (s *hijackStatefulset) Create(sts *appsv1.StatefulSet) (*appsv1.StatefulSet
 	if err != nil {
 		return nil, err
 	}
-	pcv1alpha1.SetObjectDefaults_StatefulSet(pcsts) // required if defaulting is not enabled in kube-apiserver
+	asv1alpha1.SetObjectDefaults_StatefulSet(pcsts) // required if defaulting is not enabled in kube-apiserver
 	pcsts, err = s.StatefulSetInterface.Create(pcsts)
 	if err != nil {
 		return nil, err
@@ -146,7 +146,7 @@ func (w *hijackWatch) receive() {
 			if !ok {
 				return
 			}
-			asts, ok := event.Object.(*pcv1alpha1.StatefulSet)
+			asts, ok := event.Object.(*asv1alpha1.StatefulSet)
 			if !ok {
 				panic("unreachable")
 			}
@@ -176,17 +176,17 @@ func (s *hijackStatefulset) Patch(name string, pt types.PatchType, data []byte, 
 	return ToBuiltinStatefulSet(pcsts)
 }
 
-func FromBuiltinStatefulSet(sts *appsv1.StatefulSet) (*pcv1alpha1.StatefulSet, error) {
+func FromBuiltinStatefulSet(sts *appsv1.StatefulSet) (*asv1alpha1.StatefulSet, error) {
 	data, err := json.Marshal(sts)
 	if err != nil {
 		return nil, err
 	}
-	newSet := &pcv1alpha1.StatefulSet{}
+	newSet := &asv1alpha1.StatefulSet{}
 	err = json.Unmarshal(data, newSet)
 	return newSet, err
 }
 
-func ToMultiBuiltinStatefulSet(pcstss []*pcv1alpha1.StatefulSet) ([]*appsv1.StatefulSet, error) {
+func ToMultiBuiltinStatefulSet(pcstss []*asv1alpha1.StatefulSet) ([]*appsv1.StatefulSet, error) {
 	stss := make([]*appsv1.StatefulSet, 0)
 	for _, pcsts := range pcstss {
 		sts, err := ToBuiltinStatefulSet(pcsts)
@@ -198,7 +198,7 @@ func ToMultiBuiltinStatefulSet(pcstss []*pcv1alpha1.StatefulSet) ([]*appsv1.Stat
 	return stss, nil
 }
 
-func ToBuiltinStatefulSet(sts *pcv1alpha1.StatefulSet) (*appsv1.StatefulSet, error) {
+func ToBuiltinStatefulSet(sts *asv1alpha1.StatefulSet) (*appsv1.StatefulSet, error) {
 	data, err := json.Marshal(sts)
 	if err != nil {
 		return nil, err
@@ -208,7 +208,7 @@ func ToBuiltinStatefulSet(sts *pcv1alpha1.StatefulSet) (*appsv1.StatefulSet, err
 	return newSet, err
 }
 
-func ToBuiltinStetefulsetList(stsList *pcv1alpha1.StatefulSetList) (*appsv1.StatefulSetList, error) {
+func ToBuiltinStetefulsetList(stsList *asv1alpha1.StatefulSetList) (*appsv1.StatefulSetList, error) {
 	data, err := json.Marshal(stsList)
 	if err != nil {
 		return nil, err
