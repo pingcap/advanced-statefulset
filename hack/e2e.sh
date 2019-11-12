@@ -28,14 +28,14 @@ trap 'cleanup' EXIT
 
 function cleanup() {
     if [ -z "$KEEP_CLUSTER" ]; then
-        if $KIND_BIN get clusters | grep $CLUSTER; then
+        if $KIND_BIN get clusters | grep $CLUSTER &>/dev/null; then
             echo "info: deleting the cluster '$CLUSTER'"
             $KIND_BIN delete cluster --name $CLUSTER
         fi
     fi
 }
 
-if $KIND_BIN get clusters | grep $CLUSTER; then
+if $KIND_BIN get clusters | grep $CLUSTER &>/dev/null; then
     if [ -z "$REUSE_CLUSTER" ]; then
         echo "info: deleting the cluster '$CLUSTER'"
         $KIND_BIN delete cluster --name $CLUSTER
@@ -44,7 +44,7 @@ if $KIND_BIN get clusters | grep $CLUSTER; then
     fi
 fi
 
-if ! $KIND_BIN get clusters | grep $CLUSTER; then
+if ! $KIND_BIN get clusters | grep $CLUSTER &>/dev/null; then
     echo "info: creating the cluster '$CLUSTER'"
     $KIND_BIN create cluster --name $CLUSTER --image kindest/node:$KUBE_VERSION --config hack/kindconfig.$KUBE_VERSION.yaml
 fi

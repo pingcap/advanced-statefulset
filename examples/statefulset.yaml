@@ -12,7 +12,7 @@ spec:
   selector:
     app: web
 ---
-apiVersion: pingcap.com/v1alpha1
+apiVersion: apps.pingcap.com/v1alpha1
 kind: StatefulSet
 metadata:
   name: web
