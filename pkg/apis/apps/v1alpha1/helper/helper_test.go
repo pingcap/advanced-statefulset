@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
-func TestGetDeleteSlots(t *testing.T) {
+func TestGetDeletedSlots(t *testing.T) {
 	tests := []struct {
 		name string
 		sts  apps.StatefulSet
@@ -43,7 +43,7 @@ func TestGetDeleteSlots(t *testing.T) {
 			sts: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "",
+						deletedSlotsAnn: "",
 					},
 				},
 			},
@@ -54,7 +54,7 @@ func TestGetDeleteSlots(t *testing.T) {
 			sts: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "invalid",
+						deletedSlotsAnn: "invalid",
 					},
 				},
 			},
@@ -65,7 +65,7 @@ func TestGetDeleteSlots(t *testing.T) {
 			sts: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "[1]",
+						deletedSlotsAnn: "[1]",
 					},
 				},
 			},
@@ -76,7 +76,7 @@ func TestGetDeleteSlots(t *testing.T) {
 			sts: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "[1, 2, 3]",
+						deletedSlotsAnn: "[1, 2, 3]",
 					},
 				},
 			},
@@ -87,7 +87,7 @@ func TestGetDeleteSlots(t *testing.T) {
 			sts: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "[1, 2, 3, 3]",
+						deletedSlotsAnn: "[1, 2, 3, 3]",
 					},
 				},
 			},
@@ -97,15 +97,15 @@ func TestGetDeleteSlots(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := GetDeleteSlots(&tt.sts)
+			got := GetDeletedSlots(&tt.sts)
 			if !got.Equal(tt.want) {
-				t.Errorf("GetDeleteSlots want %v got %v", tt.want, got)
+				t.Errorf("GetDeletedSlots want %v got %v", tt.want, got)
 			}
 		})
 	}
 }
 
-func TestSetDeleteSlots(t *testing.T) {
+func TestSetDeletedSlots(t *testing.T) {
 	tests := []struct {
 		name string
 		sts  apps.StatefulSet
@@ -117,7 +117,7 @@ func TestSetDeleteSlots(t *testing.T) {
 			sts: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "[1]",
+						deletedSlotsAnn: "[1]",
 					},
 				},
 			},
@@ -133,7 +133,7 @@ func TestSetDeleteSlots(t *testing.T) {
 			sts: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "[1]",
+						deletedSlotsAnn: "[1]",
 					},
 				},
 			},
@@ -153,7 +153,7 @@ func TestSetDeleteSlots(t *testing.T) {
 			want: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "[3]",
+						deletedSlotsAnn: "[3]",
 					},
 				},
 			},
@@ -167,7 +167,7 @@ func TestSetDeleteSlots(t *testing.T) {
 			want: apps.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "[1,3,4]",
+						deletedSlotsAnn: "[1,3,4]",
 					},
 				},
 			},
@@ -176,7 +176,7 @@ func TestSetDeleteSlots(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_ = SetDeleteSlots(&tt.sts, tt.set)
+			_ = SetDeletedSlots(&tt.sts, tt.set)
 			if diff := cmp.Diff(tt.want, tt.sts); diff != "" {
 				t.Errorf("unexpected result (-want, +got): %s", diff)
 			}
