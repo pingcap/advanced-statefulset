@@ -279,12 +279,12 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 	*status.CollisionCount = collisionCount
 
 	// desired replica slots: [0, replicaCount) - [delete slots]
-	deleteSlots := helper.GetDeleteSlots(set)
-	replicaCount, deleteSlots := helper.GetMaxReplicaCountAndDeleteSlots(int(*set.Spec.Replicas), deleteSlots)
+	deletedSlots := helper.GetDeletedSlots(set)
+	replicaCount, deletedSlots := helper.GetMaxReplicaCountAndDeletedSlots(int(*set.Spec.Replicas), deletedSlots)
 
-	// slice that will contain all Pods such that 0 <= getOrdinal(pod) < set.Spec.Replicas and not in deleteSlots
+	// slice that will contain all Pods such that 0 <= getOrdinal(pod) < set.Spec.Replicas and not in deletedSlots
 	replicas := make([]*v1.Pod, replicaCount)
-	// slice that will contain all Pods such that set.Spec.Replicas <= getOrdinal(pod) or exist in deleteSlots
+	// slice that will contain all Pods such that set.Spec.Replicas <= getOrdinal(pod) or exist in deletedSlots
 	condemned := make([]*v1.Pod, 0, len(pods))
 	unhealthy := 0
 	firstUnhealthyOrdinal := math.MaxInt32
@@ -309,21 +309,21 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 			}
 		}
 
-		if ord := getOrdinal(pods[i]); 0 <= ord && ord < replicaCount && !deleteSlots.Has(ord) {
+		if ord := getOrdinal(pods[i]); 0 <= ord && ord < replicaCount && !deletedSlots.Has(ord) {
 			// if the ordinal of the pod is within the range of the current number of replicas,
 			// insert it at the indirection of its ordinal
 			replicas[ord] = pods[i]
 
-		} else if ord >= replicaCount || deleteSlots.Has(ord) {
+		} else if ord >= replicaCount || deletedSlots.Has(ord) {
 			// if the ordinal is greater than the number of replicas add it to the condemned list
 			condemned = append(condemned, pods[i])
 		}
 		// If the ordinal could not be parsed (ord < 0), ignore the Pod.
 	}
 
-	// for any empty indices in the sequence [0,set.Spec.Replicas) and do not exist in deleteSlots create a new Pod at the correct revision
+	// for any empty indices in the sequence [0,set.Spec.Replicas) and do not exist in deletedSlots create a new Pod at the correct revision
 	for ord := 0; ord < replicaCount; ord++ {
-		if deleteSlots.Has(ord) {
+		if deletedSlots.Has(ord) {
 			continue
 		}
 		if replicas[ord] == nil {

@@ -24,16 +24,16 @@ import (
 )
 
 const (
-	deleteSlotsAnn = "delete-slots"
+	deletedSlotsAnn = "deleted-slots"
 )
 
-func GetDeleteSlots(set metav1.Object) (deleteSlots sets.Int) {
-	deleteSlots = sets.NewInt()
+func GetDeletedSlots(set metav1.Object) (deletedSlots sets.Int) {
+	deletedSlots = sets.NewInt()
 	annotations := set.GetAnnotations()
 	if annotations == nil {
 		return
 	}
-	value, ok := annotations[deleteSlotsAnn]
+	value, ok := annotations[deletedSlotsAnn]
 	if !ok {
 		return
 	}
@@ -42,45 +42,45 @@ func GetDeleteSlots(set metav1.Object) (deleteSlots sets.Int) {
 	if err != nil {
 		return
 	}
-	deleteSlots.Insert(slice...)
+	deletedSlots.Insert(slice...)
 	return
 }
 
-func SetDeleteSlots(set metav1.Object, deleteSlots sets.Int) (err error) {
+func SetDeletedSlots(set metav1.Object, deletedSlots sets.Int) (err error) {
 	annotations := set.GetAnnotations()
-	if deleteSlots == nil || deleteSlots.Len() == 0 {
+	if deletedSlots == nil || deletedSlots.Len() == 0 {
 		// clear
-		delete(annotations, deleteSlotsAnn)
+		delete(annotations, deletedSlotsAnn)
 	} else {
 		// set
-		b, err := json.Marshal(deleteSlots.List())
+		b, err := json.Marshal(deletedSlots.List())
 		if err != nil {
 			return err
 		}
 		if annotations == nil {
 			annotations = make(map[string]string)
 		}
-		annotations[deleteSlotsAnn] = string(b)
+		annotations[deletedSlotsAnn] = string(b)
 	}
 	set.SetAnnotations(annotations)
 	return
 }
 
-func AddDeleteSlots(set metav1.Object, deleteSlots sets.Int) (err error) {
-	currentDeleteSlots := GetDeleteSlots(set)
-	return SetDeleteSlots(set, currentDeleteSlots.Union(deleteSlots))
+func AddDeletedSlots(set metav1.Object, deletedSlots sets.Int) (err error) {
+	currentDeletedSlots := GetDeletedSlots(set)
+	return SetDeletedSlots(set, currentDeletedSlots.Union(deletedSlots))
 }
 
-// GetMaxReplicaCountAndDeleteSlots returns the max replica count and delete
+// GetMaxReplicaCountAndDeletedSlots returns the max replica count and delete
 // slots. The desired slots of this stateful set will be [0, replicaCount) - [delete slots].
-func GetMaxReplicaCountAndDeleteSlots(replicas int, deleteSlots sets.Int) (int, sets.Int) {
+func GetMaxReplicaCountAndDeletedSlots(replicas int, deletedSlots sets.Int) (int, sets.Int) {
 	replicaCount := replicas
-	for _, deleteSlot := range deleteSlots.List() {
+	for _, deleteSlot := range deletedSlots.List() {
 		if deleteSlot < replicaCount {
 			replicaCount++
 		} else {
-			deleteSlots.Delete(deleteSlot)
+			deletedSlots.Delete(deleteSlot)
 		}
 	}
-	return replicaCount, deleteSlots
+	return replicaCount, deletedSlots
 }
