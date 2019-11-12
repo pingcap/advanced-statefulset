@@ -278,8 +278,10 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 	status.CollisionCount = new(int32)
 	*status.CollisionCount = collisionCount
 
+	// desired replica slots: [0, replicaCount) - [delete slots]
 	deleteSlots := helper.GetDeleteSlots(set)
-	replicaCount := int(*set.Spec.Replicas) + deleteSlots.Len()
+	replicaCount, deleteSlots := helper.GetMaxReplicaCountAndDeleteSlots(int(*set.Spec.Replicas), deleteSlots)
+
 	// slice that will contain all Pods such that 0 <= getOrdinal(pod) < set.Spec.Replicas and not in deleteSlots
 	replicas := make([]*v1.Pod, replicaCount)
 	// slice that will contain all Pods such that set.Spec.Replicas <= getOrdinal(pod) or exist in deleteSlots

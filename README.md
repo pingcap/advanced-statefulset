@@ -23,8 +23,8 @@ kind `v0.5.1` is required.
 ```
 curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/v0.5.1/kind-$(uname)-amd64
 chmod +x ./kind
-./kind create cluster --image kindest/node:v1.16.1 --config hack/kindconfig.yaml
-export KUBECONFIG=$(kind get kubeconfig-path --name kind)
+./kind create cluster --image kindest/node:v1.16.1 --config hack/kindconfig.yaml --name advanced-statefulset
+export KUBECONFIG=$(kind get kubeconfig-path --name advanced-statefulset)
 ```
 
 ### install CRD
@@ -47,7 +47,7 @@ hack/local-up.sh
 kubectl apply -f examples/statefulset.yaml
 ```
 
-### scale up
+### scale out
 
 Note that `--resource-version` is required for CRD objects.
 
