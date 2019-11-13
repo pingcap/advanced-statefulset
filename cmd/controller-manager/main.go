@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/cofyc/advanced-statefulset/cmd/controller-manager/app"
+	"github.com/pingcap/advanced-statefulset/cmd/controller-manager/app"
 	"k8s.io/component-base/logs"
 )
 

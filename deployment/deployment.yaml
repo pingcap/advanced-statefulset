@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: advanced-statefulset-controller
-        image: quay.io/cofyc/advanced-statefulset:latest
+        image: quay.io/pingcap/advanced-statefulset:latest
         imagePullPolicy: IfNotPresent
         args:
         - --v=4

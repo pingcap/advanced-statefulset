@@ -22,10 +22,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1/helper"
-	asclientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
+	"github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1/helper"
+	asclientset "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

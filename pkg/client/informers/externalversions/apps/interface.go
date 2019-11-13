@@ -19,8 +19,8 @@ limitations under the License.
 package apps
 
 import (
-	v1alpha1 "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions/apps/v1alpha1"
-	internalinterfaces "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/pingcap/advanced-statefulset/pkg/client/informers/externalversions/apps/v1alpha1"
+	internalinterfaces "github.com/pingcap/advanced-statefulset/pkg/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

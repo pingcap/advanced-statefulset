@@ -19,7 +19,7 @@ limitations under the License.
 package scheme
 
 import (
-	appsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
+	appsv1alpha1 "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

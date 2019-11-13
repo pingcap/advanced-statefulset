@@ -19,8 +19,8 @@ package helper
 import (
 	"testing"
 
-	apps "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
 	"github.com/google/go-cmp/cmp"
+	apps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )

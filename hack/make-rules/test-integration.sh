@@ -9,7 +9,7 @@ cd $ROOT
 
 source $ROOT/hack/lib.sh
 
-readonly GO_PACKAGE=github.com/cofyc/advanced-statefulset
+readonly GO_PACKAGE=github.com/pingcap/advanced-statefulset
 
 # Give integration tests longer to run by default.
 KUBE_TIMEOUT=${KUBE_TIMEOUT:--timeout=600s}

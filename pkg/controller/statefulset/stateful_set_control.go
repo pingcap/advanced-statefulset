@@ -24,8 +24,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 
-	apps "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
-	"github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1/helper"
+	apps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1"
+	"github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1/helper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/controller/history"

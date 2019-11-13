@@ -23,7 +23,7 @@ jobs:
       uses: actions/checkout@v1
       with:
         fetch-depth: 1
-        path: go/src/github.com/cofyc/advanced-statefulset
+        path: go/src/github.com/pingcap/advanced-statefulset
     - name: make ${{ matrix.target }}
       run: |
         export GOPATH=/home/runner/work/advanced-statefulset/go

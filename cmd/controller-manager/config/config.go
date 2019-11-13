@@ -1,8 +1,8 @@
 package config
 
 import (
-	pcclientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
-	"github.com/cofyc/advanced-statefulset/pkg/component/config"
+	pcclientset "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned"
+	"github.com/pingcap/advanced-statefulset/pkg/component/config"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection"

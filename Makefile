@@ -7,7 +7,7 @@ ARCH ?= $(shell go env GOARCH)
 OS ?= $(shell go env GOOS)
 
 ALL_TARGETS := cmd/controller-manager
-SRC_PREFIX := github.com/cofyc/advanced-statefulset
+SRC_PREFIX := github.com/pingcap/advanced-statefulset
 
 all: build
 .PHONY: all

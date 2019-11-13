@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"testing"
 
-	appsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
-	integrationutil "github.com/cofyc/advanced-statefulset/test/integration/util"
+	appsv1alpha1 "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1"
+	integrationutil "github.com/pingcap/advanced-statefulset/test/integration/util"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
