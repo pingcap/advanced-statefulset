@@ -3,7 +3,7 @@ kind: StatefulSet
 metadata:
   name: web
   annotations:
-    deleted-slots: '[1]'
+    delete-slots: '[1]'
 spec:
   selector:
     matchLabels:

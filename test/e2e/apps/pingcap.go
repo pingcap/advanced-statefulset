@@ -85,7 +85,7 @@ var _ = SIGDescribe("StatefulSet", func() {
 				ginkgo.By(fmt.Sprintf("Scaling statefulset %q to %d replicas with delete slots %v", ss.Name, 2, []int{1}))
 				ss, err = e2esset.UpdateStatefulSetWithRetries(hc, ns, ss.Name, func(update *appsv1.StatefulSet) {
 					*(update.Spec.Replicas) = 2
-					helper.AddDeletedSlots(update, sets.NewInt(1))
+					helper.AddDeleteSlots(update, sets.NewInt(1))
 				})
 				framework.ExpectNoError(err)
 				e2esset.WaitForStatusReplicas(hc, ss, 2)
@@ -93,7 +93,7 @@ var _ = SIGDescribe("StatefulSet", func() {
 				ginkgo.By(fmt.Sprintf("Scaling statefulset %q to %d replicas with delete slots %v", ss.Name, 10, []int{1, 3}))
 				ss, err = e2esset.UpdateStatefulSetWithRetries(hc, ns, ss.Name, func(update *appsv1.StatefulSet) {
 					*(update.Spec.Replicas) = 10
-					helper.AddDeletedSlots(update, sets.NewInt(1, 3))
+					helper.AddDeleteSlots(update, sets.NewInt(1, 3))
 				})
 				framework.ExpectNoError(err)
 				e2esset.WaitForStatusReplicas(hc, ss, 10)
@@ -110,8 +110,8 @@ var _ = SIGDescribe("StatefulSet", func() {
 			ginkgo.By("Creating statefulset " + ssName + " in namespace " + ns)
 			*(ss.Spec.Replicas) = 3
 			e2esset.SetHTTPProbe(ss)
-			deletedSlots := sets.NewInt(1)
-			helper.AddDeletedSlots(ss, deletedSlots)
+			deleteSlots := sets.NewInt(1)
+			helper.AddDeleteSlots(ss, deleteSlots)
 			ss.Spec.UpdateStrategy = appsv1.StatefulSetUpdateStrategy{
 				Type: appsv1.RollingUpdateStatefulSetStrategyType,
 				RollingUpdate: func() *appsv1.RollingUpdateStatefulSetStrategy {
@@ -123,7 +123,7 @@ var _ = SIGDescribe("StatefulSet", func() {
 						}()}
 				}(),
 			}
-			ginkgo.By(fmt.Sprintf("Creating statefulset %q with %d replicas and delete slots %v", ss.Name, 3, deletedSlots.List()))
+			ginkgo.By(fmt.Sprintf("Creating statefulset %q with %d replicas and delete slots %v", ss.Name, 3, deleteSlots.List()))
 			ss, err := hc.AppsV1().StatefulSets(ns).Create(ss)
 			framework.ExpectNoError(err)
 			e2esset.WaitForStatusReplicas(hc, ss, 3) // partition does not apply newly created pods
@@ -519,10 +519,10 @@ func WaitForRunning(c clientset.Interface, numPodsRunning, numPodsReady int32, s
 			if int32(len(podList.Items)) > numPodsRunning {
 				return false, fmt.Errorf("too many pods scheduled, expected %d got %d", numPodsRunning, len(podList.Items))
 			}
-			deletedSlots := helper.GetDeletedSlots(ss)
-			replicaCount, deletedSlots := helper.GetMaxReplicaCountAndDeletedSlots(int(*ss.Spec.Replicas), deletedSlots)
+			deleteSlots := helper.GetDeleteSlots(ss)
+			replicaCount, deleteSlots := helper.GetMaxReplicaCountAndDeleteSlots(int(*ss.Spec.Replicas), deleteSlots)
 			for _, p := range podList.Items {
-				if deletedSlots.Has(getStatefulPodOrdinal(&p)) {
+				if deleteSlots.Has(getStatefulPodOrdinal(&p)) {
 					return false, fmt.Errorf("unexpected pod ordinal: %d for stateful set %q", getStatefulPodOrdinal(&p), ss.Name)
 				}
 				shouldBeReady := getStatefulPodOrdinal(&p) < replicaCount
