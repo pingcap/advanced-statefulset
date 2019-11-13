@@ -65,7 +65,7 @@ kubectl scale --resource-version=$RESOURCE_VERSION --replicas=3 statefulsets.pin
 
 ### scale in at arbitrary position
 
-We should set `deleted-slots` annotations and decrement `spec.replicas` at the
+We should set `delete-slots` annotations and decrement `spec.replicas` at the
 same time.
 
 ```

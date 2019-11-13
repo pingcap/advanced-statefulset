@@ -333,14 +333,14 @@ func scaleSTS(t *testing.T, c pcclientset.Interface, sts *appsv1alpha1.StatefulS
 	waitSTSStable(t, c, sts)
 }
 
-func scaleSTSWithDeletedSlots(t *testing.T, c pcclientset.Interface, sts *appsv1alpha1.StatefulSet, replicas int32, deletedSlots sets.Int) {
+func scaleSTSWithDeleteSlots(t *testing.T, c pcclientset.Interface, sts *appsv1alpha1.StatefulSet, replicas int32, deleteSlots sets.Int) {
 	stsClient := c.AppsV1alpha1().StatefulSets(sts.Namespace)
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
-		helper.SetDeletedSlots(newSTS, deletedSlots)
+		helper.SetDeleteSlots(newSTS, deleteSlots)
 		*newSTS.Spec.Replicas = replicas
 		sts, err = stsClient.Update(newSTS)
 		return err
@@ -361,7 +361,7 @@ func scaleInSTSByDeletingSlots(t *testing.T, c pcclientset.Interface, sts *appsv
 		if err != nil {
 			return err
 		}
-		helper.AddDeletedSlots(newSTS, set)
+		helper.AddDeleteSlots(newSTS, set)
 		replicas := *newSTS.Spec.Replicas - int32(set.Len())
 		if replicas < 0 {
 			t.Fatalf("replicas should not be less than 0: %v", replicas)

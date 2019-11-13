@@ -29,7 +29,7 @@ import (
 	"k8s.io/klog"
 )
 
-func TestDeletedSlots(t *testing.T) {
+func TestDeleteSlots(t *testing.T) {
 	closeFn, rm, informers, c, appsinformers, pcc := scSetup(t)
 	defer closeFn()
 	ns := integrationutil.CreateTestingNamespace("test-spec-replicas-change", c, t)
@@ -55,15 +55,15 @@ func TestDeletedSlots(t *testing.T) {
 	checkPodIdentifiers(t, c, sts, 0, 2)
 
 	t.Logf(fmt.Sprintf("scale to replicas %d with delete slots %v", 0, []int{1}))
-	scaleSTSWithDeletedSlots(t, pcc, sts, 0, sets.NewInt(1))
+	scaleSTSWithDeleteSlots(t, pcc, sts, 0, sets.NewInt(1))
 	checkPodIdentifiers(t, c, sts)
 
 	t.Logf(fmt.Sprintf("scale to replicas %d with delete slots %v", 4, []int{}))
-	scaleSTSWithDeletedSlots(t, pcc, sts, 4, sets.NewInt())
+	scaleSTSWithDeleteSlots(t, pcc, sts, 4, sets.NewInt())
 	checkPodIdentifiers(t, c, sts, 0, 1, 2, 3)
 
 	t.Logf(fmt.Sprintf("scale to replicas %d with delete slots %v", 3, []int{0}))
-	scaleSTSWithDeletedSlots(t, pcc, sts, 3, sets.NewInt(0))
+	scaleSTSWithDeleteSlots(t, pcc, sts, 3, sets.NewInt(0))
 	checkPodIdentifiers(t, c, sts, 1, 2, 3)
 
 	// Add a template annotation change to test STS's status does update
