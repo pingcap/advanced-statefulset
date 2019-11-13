@@ -15,6 +15,11 @@ spec:
         properties:
           spec:
             type: object
+            required:
+            - replicas
+            - selector
+            - template
+            - serviceName
             properties:
               replicas:
                 type: integer
@@ -45,7 +50,7 @@ spec:
                 x-kubernetes-preserve-unknown-fields: true
               revisionHistoryLimit:
                 type: integer
-                minimum: 1
+                minimum: 0
                 default: 10
           status:
             type: object
