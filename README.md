@@ -1,8 +1,5 @@
 # Advanced StatefulSet
 
-[![Build Status](https://travis-ci.com/cofyc/advanced-statefulset.svg?token=d2ZWjsd7VLnLR8jqd2ay&branch=master)](https://travis-ci.com/cofyc/advanced-statefulset)
-[![Docker Repository on Quay](https://quay.io/repository/cofyc/advanced-statefulset/status "Docker Repository on Quay")](https://quay.io/repository/cofyc/advanced-statefulset)
-
 This is an Advanced StatefulSet CRD implementation based on official
 StatefulSet in Kubernetes 1.16.0.
 

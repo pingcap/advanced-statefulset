@@ -1,0 +1,21 @@
+name: release
+
+on:
+  push:
+    branches:
+    - master
+    tags:
+    - v[0-9].[0-9]+.[0-9]+
+
+jobs:
+
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Trigger release job
+      run: |
+        sudo apt-get install -y python3
+        ./hack/trigger-jenkins-job.py --token "${JENKINS_TRIGGER_TOKEN}" --build-ref "${BUILD_REF}"
+      env:
+        JENKINS_TRIGGER_TOKEN: ${{ secrets.JENKINS_TRIGGER_TOKEN }}
+        BUILD_REF: ${{ github.ref }}
