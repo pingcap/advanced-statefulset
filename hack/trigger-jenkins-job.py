@@ -1,5 +1,17 @@
 #!/usr/bin/env python3
-# encoding: utf-8
+
+# Copyright 2019 PingCAP, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 """
 Script to trigger jenkins job.
@@ -34,10 +46,10 @@ def trigger(url, params={}):
 # - refs/heads/master
 # - refs/tags/v1.0.0
 def tag_from_ref(ref):
-    seps=ref.split("/")
+    seps = ref.split("/")
     if len(seps) <= 0:
         raise Exception("unexpected ref: {}".ref)
-    ref=seps[len(seps)-1]
+    ref = seps[len(seps)-1]
     if ref == "master":
         return "latest"
     else:
@@ -45,16 +57,16 @@ def tag_from_ref(ref):
 
 
 if __name__ == '__main__':
-    parser=argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
     parser.add_argument('--token', required=True)
     parser.add_argument('--build-ref', required=True)
     parser.add_argument('--image-tag')
-    options=parser.parse_args()
-    params={}
-    params["token"]=options.token
-    params["BUILD_REF"]=options.build_ref
+    options = parser.parse_args()
+    params = {}
+    params["token"] = options.token
+    params["BUILD_REF"] = options.build_ref
     if options.image_tag:
-        params["IMAGE_TAG"]=options.image_tag
+        params["IMAGE_TAG"] = options.image_tag
     else:
-        params["IMAGE_TAG"]=tag_from_ref(options.build_ref)
+        params["IMAGE_TAG"] = tag_from_ref(options.build_ref)
     trigger(JOB_URL, params)

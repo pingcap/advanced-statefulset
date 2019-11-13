@@ -1,5 +1,18 @@
 #!/usr/bin/env bash
 
+# Copyright 2019 PingCAP, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2019 The Kubernetes Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,7 +42,7 @@ bash "${CODEGEN_PKG}"/generate-groups.sh "deepcopy,client,informer,lister" \
   github.com/pingcap/advanced-statefulset/pkg/client \
   github.com/pingcap/advanced-statefulset/pkg/apis \
   apps:v1alpha1 \
-  --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate.go.txt
+  --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate/boilerplate.k8s.go.txt
 
 # work around for https://github.com/kubernetes/code-generator/issues/84
 git checkout pkg/client/listers/apps/v1alpha1/expansion_generated.go
@@ -47,5 +60,5 @@ git checkout pkg/client/listers/apps/v1alpha1/expansion_generated.go
 # "${GOPATH}/bin/defaulter-gen"  \
     # --input-dirs "$(codegen::join , "${EXT_FQ_APIS[@]}")" \
     # -O zz_generated.defaults  \
-    # --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate.go.txt \
+    # --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate/boilerplate.k8s.go.txt \
     # -v 5
