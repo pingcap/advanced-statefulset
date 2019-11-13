@@ -21,8 +21,8 @@ package v1alpha1
 import (
 	"time"
 
-	v1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
-	scheme "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/scheme"
+	v1alpha1 "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1"
+	scheme "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned/scheme"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"

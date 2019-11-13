@@ -1,7 +1,7 @@
 package options
 
 import (
-	"github.com/cofyc/advanced-statefulset/pkg/component/config"
+	"github.com/pingcap/advanced-statefulset/pkg/component/config"
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	componentbaseconfig "k8s.io/component-base/config"

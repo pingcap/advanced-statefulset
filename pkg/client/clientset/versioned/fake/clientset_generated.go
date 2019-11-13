@@ -19,9 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
-	appsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/typed/apps/v1alpha1"
-	fakeappsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/typed/apps/v1alpha1/fake"
+	clientset "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned"
+	appsv1alpha1 "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned/typed/apps/v1alpha1"
+	fakeappsv1alpha1 "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned/typed/apps/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

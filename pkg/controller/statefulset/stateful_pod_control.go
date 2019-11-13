@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"strings"
 
-	apps "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
-	statefulsetlisters "github.com/cofyc/advanced-statefulset/pkg/client/listers/apps/v1alpha1"
+	apps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1"
+	statefulsetlisters "github.com/pingcap/advanced-statefulset/pkg/client/listers/apps/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	errorutils "k8s.io/apimachinery/pkg/util/errors"

@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"sync"
 
-	asv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
-	asclientset "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
-	appsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/typed/apps/v1alpha1"
+	asv1alpha1 "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1"
+	asclientset "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned"
+	appsv1alpha1 "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned/typed/apps/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

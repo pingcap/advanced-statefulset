@@ -26,9 +26,9 @@ import (
 	core "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
-	apps "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
-	"github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/fake"
-	appslisters "github.com/cofyc/advanced-statefulset/pkg/client/listers/apps/v1alpha1"
+	apps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1"
+	"github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned/fake"
+	appslisters "github.com/pingcap/advanced-statefulset/pkg/client/listers/apps/v1alpha1"
 )
 
 func TestStatefulSetUpdaterUpdatesSetStatus(t *testing.T) {

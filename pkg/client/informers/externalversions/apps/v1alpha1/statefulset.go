@@ -21,10 +21,10 @@ package v1alpha1
 import (
 	time "time"
 
-	appsv1alpha1 "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
-	versioned "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
-	internalinterfaces "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/cofyc/advanced-statefulset/pkg/client/listers/apps/v1alpha1"
+	appsv1alpha1 "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1"
+	versioned "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/pingcap/advanced-statefulset/pkg/client/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/pingcap/advanced-statefulset/pkg/client/listers/apps/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

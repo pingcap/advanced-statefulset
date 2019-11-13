@@ -11,7 +11,7 @@ export GO111MODULE=off
 
 TIMEOUT=${TIMEOUT:--timeout=600s}
 GO_RACE=${GO_RACE:-}   # use GO_RACE="-race" to enable race testing
-readonly GO_PACKAGE=github.com/cofyc/advanced-statefulset
+readonly GO_PACKAGE=github.com/pingcap/advanced-statefulset
 
 test::find_dirs() {
   (

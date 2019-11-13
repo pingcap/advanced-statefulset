@@ -1,4 +1,4 @@
-module github.com/cofyc/advanced-statefulset
+module github.com/pingcap/advanced-statefulset
 
 go 1.13
 

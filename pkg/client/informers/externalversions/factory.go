@@ -23,9 +23,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned"
-	apps "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions/apps"
-	internalinterfaces "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions/internalinterfaces"
+	versioned "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned"
+	apps "github.com/pingcap/advanced-statefulset/pkg/client/informers/externalversions/apps"
+	internalinterfaces "github.com/pingcap/advanced-statefulset/pkg/client/informers/externalversions/internalinterfaces"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

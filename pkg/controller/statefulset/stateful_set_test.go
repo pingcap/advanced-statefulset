@@ -20,9 +20,9 @@ import (
 	"sort"
 	"testing"
 
-	apps "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
-	"github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/fake"
-	informers "github.com/cofyc/advanced-statefulset/pkg/client/informers/externalversions"
+	apps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1"
+	"github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned/fake"
+	informers "github.com/pingcap/advanced-statefulset/pkg/client/informers/externalversions"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

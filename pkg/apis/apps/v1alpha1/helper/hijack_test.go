@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	asapps "github.com/cofyc/advanced-statefulset/pkg/apis/apps/v1alpha1"
-	asfake "github.com/cofyc/advanced-statefulset/pkg/client/clientset/versioned/fake"
 	"github.com/google/go-cmp/cmp"
+	asapps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1"
+	asfake "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned/fake"
 	v1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
