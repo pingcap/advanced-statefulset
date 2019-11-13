@@ -12,6 +12,8 @@ jobs:
   trigger:
     runs-on: ubuntu-latest
     steps:
+    - name: Check out the repository
+      uses: actions/checkout@v1
     - name: Trigger release job
       run: |
         sudo apt-get install -y python3
