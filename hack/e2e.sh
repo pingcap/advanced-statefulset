@@ -70,7 +70,7 @@ if [ "$KUBE_VERSION" == "v1.12.10" ]; then
 	$KUBECTL_BIN -n kube-system set image deployment/coredns coredns=k8s.gcr.io/coredns:1.3.0
 fi
 
-export CONTROLLER_IMAGE=quay.io/pingcap/advanced-statefulset:latest
+export CONTROLLER_IMAGE=pingcap/advanced-statefulset:latest
 
 if [ -z "$SKIP_BUILD" ]; then
 	echo "info: building image $CONTROLLER_IMAGE"
