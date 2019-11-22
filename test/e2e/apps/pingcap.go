@@ -85,10 +85,11 @@ var _ = SIGDescribe("StatefulSet", func() {
 		})
 
 		for _, policy := range []appsv1.PodManagementPolicyType{appsv1.OrderedReadyPodManagement, appsv1.ParallelPodManagement} {
-			ginkgo.It(fmt.Sprintf("scale in/out with delete slots [podManagementPolicy=%s]", policy), func() {
-				ginkgo.By("Creating statefulset " + ssName + " in namespace " + ns)
+			tmpPolicy := policy
+			ginkgo.It(fmt.Sprintf("scale in/out with delete slots [podManagementPolicy=%s]", tmpPolicy), func() {
+				ginkgo.By(fmt.Sprintf("Creating statefulset %s in namespace %s with pod management policy %s", ssName, ns, tmpPolicy))
 				*(ss.Spec.Replicas) = 3
-				ss.Spec.PodManagementPolicy = policy
+				ss.Spec.PodManagementPolicy = tmpPolicy
 
 				ginkgo.By(fmt.Sprintf("Creating statefulset %q with %d replicas and delete slots %v", ss.Name, 3, []int{}))
 				ss, err := hc.AppsV1().StatefulSets(ns).Create(ss)
