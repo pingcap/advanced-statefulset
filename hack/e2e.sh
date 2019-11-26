@@ -25,8 +25,13 @@ source "${ROOT}/hack/lib.sh"
 KEEP_CLUSTER=${KEEP_CLUSTER:-}
 SKIP_BUILD=${SKIP_BUILD:-}
 REUSE_CLUSTER=${REUSE_CLUSTER:-}
-KUBE_VERSION=${KUBE_VERSION:-v1.16.1}
+KUBE_VERSION=${KUBE_VERSION:-v1.16.3}
 CLUSTER=${CLUSTER:-advanced-statefulset}
+
+# https://github.com/kubernetes-sigs/kind/releases/tag/v0.6.0
+declare -A kind_node_images
+kind_node_images["v1.16.3"]="kindest/node:v1.16.3@sha256:bced4bc71380b59873ea3917afe9fb35b00e174d22f50c7cab9188eac2b0fb88"
+kind_node_images["v1.12.10"]="kindest/node:v1.12.10@sha256:e93e70143f22856bd652f03da880bfc70902b736750f0a68e5e66d70d"
 
 echo "KEEP_CLUSTER: $KEEP_CLUSTER"
 echo "SKIP_BUILD: $SKIP_BUILD"
@@ -59,16 +64,23 @@ fi
 
 if ! $KIND_BIN get clusters | grep $CLUSTER &>/dev/null; then
     echo "info: creating the cluster '$CLUSTER'"
-    $KIND_BIN create cluster --name $CLUSTER --image kindest/node:$KUBE_VERSION --config hack/kindconfig.$KUBE_VERSION.yaml
+    image=""
+    for v in ${!kind_node_images[*]}; do
+        if [[ "$KUBE_VERSION" == "$v" ]]; then
+            image=${kind_node_images[$v]}
+            echo "info: image for $KUBE_VERSION: $image"
+            break
+        fi
+    done
+    if [ -z "$image" ]; then
+        echo "error: no image for $KUBE_VERSION, exit"
+        exit 1
+    fi
+    $KIND_BIN create cluster --name $CLUSTER --image kindest/node:$KUBE_VERSION --config hack/kindconfig.$KUBE_VERSION.yaml --loglevel debug
 fi
 
 export KUBECONFIG="$($KIND_BIN get kubeconfig-path --name="$CLUSTER")"
 $KUBECTL_BIN cluster-info
-
-if [ "$KUBE_VERSION" == "v1.12.10" ]; then
-	# hack for https://github.com/coredns/coredns/issues/2391
-	$KUBECTL_BIN -n kube-system set image deployment/coredns coredns=k8s.gcr.io/coredns:1.3.0
-fi
 
 export CONTROLLER_IMAGE=pingcap/advanced-statefulset:latest
 
