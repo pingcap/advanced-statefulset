@@ -17,59 +17,76 @@ apiVersion: v1
 kind: Pod
 spec:
   containers:
-  - name: docker
-    image: docker:19.03.1
+  - name: main
+    image: gcr.io/k8s-testimages/kubekins-e2e:v20191108-9467d02-master
     command:
+    - runner.sh
     - sleep
-    args:
     - 99d
-    env:
-      - name: DOCKER_HOST
-        value: tcp://localhost:2375
-  - name: docker-daemon
-    image: docker:19.03.1-dind
+    # we need privileged mode in order to do docker in docker
     securityContext:
       privileged: true
     env:
-      - name: DOCKER_TLS_CERTDIR
-        value: ""
+    - name: DOCKER_IN_DOCKER_ENABLED
+      value: "true"
+    resources:
+      requests:
+        memory: "4000Mi"
+        cpu: 2000m
+    # kind needs /lib/modules and cgroups from the host
+    volumeMounts:
+    - mountPath: /lib/modules
+      name: modules
+      readOnly: true
+    - mountPath: /sys/fs/cgroup
+      name: cgroup
+  volumes:
+  - name: modules
+    hostPath:
+      path: /lib/modules
+      type: Directory
+  - name: cgroup
+    hostPath:
+      path: /sys/fs/cgroup
+      type: Directory
 ''') {
     node(POD_LABEL) {
-        container('docker') {
-            stage('Checkout repository') {
-				checkout changelog: false,
-				poll: false,
-				scm: [
-					$class: 'GitSCM',
-					branches: [[name: "${BUILD_BRANCH}"]],
-					doGenerateSubmoduleConfigurations: false,
-					extensions: [], 
-					submoduleCfg: [], 
-					userRemoteConfigs: [[
-						credentialsId: 'github-sre-bot-ssh',
-						refspec: '+refs/heads/*:refs/remotes/origin/* +refs/pull/*:refs/remotes/origin/pr/*',
-						url: "${BUILD_URL}",
-					]]
-				]
+        container('main') {
+            stage("Debug Info") {
+                println "debug command: kubectl -n jenkins-ci exec -ti ${NODE_NAME} bash"
             }
-
-			stage("Basic checks") {
-				sh "./hack/run-in-docker.sh make verify build test test-integration"
-			}
-
-			stage("Test") {
-				sh "./hack/run-in-docker.sh make test"
-			}
-
-			stage("Integration") {
-				sh "./hack/run-in-docker.sh make test-integration"
-			}
-
-			stage("E2E") {
-				sh "make e2e-v1.16.1"
-			}
+            stage('Build') {
+                dir("/home/jenkins/agent/workspace/go/src/github.com/pingcap/advanced-statefulset") {
+                    checkout changelog: false,
+                        poll: false,
+                        scm: [
+                            $class: 'GitSCM',
+                            branches: [[name: "${BUILD_BRANCH}"]],
+                            doGenerateSubmoduleConfigurations: false,
+                            extensions: [],
+                            submoduleCfg: [],
+                            userRemoteConfigs: [[
+                                credentialsId: 'github-sre-bot-ssh',
+                                refspec: '+refs/heads/*:refs/remotes/origin/* +refs/pull/*:refs/remotes/origin/pr/*',
+                                url: "${BUILD_URL}",
+                            ]]
+                        ]
+                    sh """
+                    echo "====== shell env ======"
+                    echo "pwd: \$(pwd)"
+                    env
+                    echo "====== go env ======"
+                    go env
+                    echo "====== docker version ======"
+                    docker version
+                    export GOPATH=/home/jenkins/agent/workspace/go
+                    make verify build test test-integration
+                    make e2e
+                    """
+                }
+            }
         }
     }
 }
 
-// vim: noet
+// vim: et

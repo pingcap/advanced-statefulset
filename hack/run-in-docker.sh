@@ -26,7 +26,9 @@ if [ $# -gt 0 ]; then
 fi
 
 docker run -it --rm --privileged \
+    -e DOCKER_IN_DOCKER_ENABLED=true \
     -v $ROOT:/go/src/github.com/pingcap/advanced-statefulset \
     -w /go/src/github.com/pingcap/advanced-statefulset \
-    golang:1.13.4-stretch \
+    --entrypoint /usr/local/bin/runner.sh \
+    gcr.io/k8s-testimages/kubekins-e2e:v20191108-9467d02-master \
     "${args[@]}"

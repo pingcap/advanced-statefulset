@@ -50,3 +50,5 @@ stage('Summary') {
     echo(slackmsg)
     slackSend channel: '#cloud_jenkins', color: color, teamDomain: 'pingcap', tokenCredentialId: 'slack-pingcap-token', message: "${slackmsg}"
 }
+
+// vim: et
