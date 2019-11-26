@@ -25,8 +25,26 @@ if [ $# -gt 0 ]; then
     args=($@)
 fi
 
-docker run -it --rm --privileged \
-    -e DOCKER_IN_DOCKER_ENABLED=true \
+docker_args=(
+    -it --rm
+)
+
+# required by dind
+docker_args+=(
+    --privileged
+    -e DOCKER_IN_DOCKER_ENABLED=true
+    # Docker in Docker expects it to be a volume
+    --tmpfs /var/lib/docker
+    --tmpfs /docker-graph # legacy path for cr.io/k8s-testimages/kubekins-e2e
+)
+
+# required by kind
+docker_args+=(
+    -v /lib/modules:/lib/modules
+    -v /sys/fs/cgroup:/sys/fs/cgroup
+)
+
+docker run ${docker_args[@]} \
     -v $ROOT:/go/src/github.com/pingcap/advanced-statefulset \
     -w /go/src/github.com/pingcap/advanced-statefulset \
     --entrypoint /usr/local/bin/runner.sh \
