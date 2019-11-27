@@ -27,7 +27,7 @@ node {
         ]
     
     def jenkins = load "hack/jenkins/build.groovy"
-    jenkins.build(GIT_URL, GIT_REF)
+    jenkins.call(GIT_URL, GIT_REF)
 }
 
 // vim: et
