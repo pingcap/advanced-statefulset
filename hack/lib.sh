@@ -88,7 +88,7 @@ hack::install_etcd() {
 
 function hack::verify_kind() {
     if test -x "$KIND_BIN"; then
-        [[ "$($KIND_BIN --version | cut -d ' ' -f 3)" == "v$KIND_VERSION" ]]
+        [[ "$($KIND_BIN --version 2>&1 | cut -d ' ' -f 3)" == "$KIND_VERSION" ]]
         return
     fi
     return 1
