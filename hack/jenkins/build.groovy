@@ -122,12 +122,12 @@ def call(GIT_URL, GIT_REF) {
             build(GIT_URL, GIT_REF, "make test-integration", "")
         }
         builds["E2E v1.16.3"] = {
-            build(GIT_URL, GIT_REF, "KUBE_VERSION=v1.16.3 GINKGO_NODES=8 DOCKER_IO_MIRROR=https://dockerhub.azk8s.cn ./hack/e2e.sh -- --ginkgo.focus='delete\\sslots\\s\\[podManagementPolicy=Parallel\\]' --report-dir=artifacts --report-prefix=v1.16.3", "artifacts")
+            build(GIT_URL, GIT_REF, "KUBE_VERSION=v1.16.3 GINKGO_NODES=8 DOCKER_IO_MIRROR=https://dockerhub.azk8s.cn ./hack/e2e.sh -- --report-dir=artifacts --report-prefix=v1.16.3", "artifacts")
         }
         builds["E2E v1.12.10"] = {
-            build(GIT_URL, GIT_REF, "KUBE_VERSION=v1.12.10 GINKGO_NODES=8 DOCKER_IO_MIRROR=https://dockerhub.azk8s.cn t./hack/e2e.sh -- --ginkgo.focus='delete\\sslots\\s\\[podManagementPolicy=Parallel\\]' --report-dir=artifacts --report-prefix=v1.12.10", "artifacts")
+            build(GIT_URL, GIT_REF, "KUBE_VERSION=v1.12.10 GINKGO_NODES=8 DOCKER_IO_MIRROR=https://dockerhub.azk8s.cn ./hack/e2e.sh -- --report-dir=artifacts --report-prefix=v1.12.10", "artifacts")
         }
-        builds.failFast = true
+        builds.failFast = false
         parallel builds
     }
 }
