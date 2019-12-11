@@ -23,7 +23,7 @@ ARCH=$(go env GOARCH)
 OUTPUT=${ROOT}/output
 OUTPUT_BIN=${OUTPUT}/bin/${OS}
 ETCD_VERSION=${ETCD_VERSION:-3.3.17}
-KIND_VERSION=0.6.0
+KIND_VERSION=0.6.1
 KIND_BIN=$OUTPUT_BIN/kind
 KUBECTL_VERSION=1.16.0
 KUBECTL_BIN=$OUTPUT_BIN/kubectl
@@ -144,4 +144,9 @@ function hack::ensure_ginkgo() {
         echo "info: installed ginkgo ($GINKGO_BIN) does not match expected version $GINKGO_VERSION"
         exit 1
     fi
+}
+
+# hack::version_ge "$v1" "$v2" checks whether "v1" is greater or equal to "v2"
+function hack::version_ge() {
+    [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
 }

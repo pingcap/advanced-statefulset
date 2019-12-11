@@ -58,7 +58,7 @@ spec:
     emptyDir: {}
 '''
 
-def build(GIT_URL, GIT_REF, SHELL_CODE) {
+def build(GIT_URL, GIT_REF, SHELL_CODE, ARTIFACTS) {
     podTemplate(yaml: podYAML) {
         node(POD_LABEL) {
             container('main') {
@@ -98,6 +98,10 @@ def build(GIT_URL, GIT_REF, SHELL_CODE) {
                         export GOPATH=/home/jenkins/agent/workspace/go
                         ${SHELL_CODE}
                         """
+                        if (ARTIFACTS != "") {
+                            archiveArtifacts artifacts: "${ARTIFACTS}/**/*"
+                            junit "${ARTIFACTS}/**/*.xml"
+                        }
                     }
                 }
             }
@@ -108,20 +112,20 @@ def build(GIT_URL, GIT_REF, SHELL_CODE) {
 def call(GIT_URL, GIT_REF) {
     timeout(60) {
         stage("Verify") {
-            build(GIT_URL, GIT_REF, "make verify")
+            build(GIT_URL, GIT_REF, "make verify", "")
         }
         def builds = [:]
         builds["Build and Test"] = {
-            build(GIT_URL, GIT_REF, "make build test")
+            build(GIT_URL, GIT_REF, "make build test", "")
         }
         builds["Integration"] = {
-            build(GIT_URL, GIT_REF, "make test-integration")
+            build(GIT_URL, GIT_REF, "make test-integration", "")
         }
         builds["E2E v1.16.3"] = {
-            build(GIT_URL, GIT_REF, "KUBE_VERSION=v1.16.3 GINKGO_NODES=8 make e2e")
+            build(GIT_URL, GIT_REF, "KUBE_VERSION=v1.16.3 GINKGO_NODES=8 DOCKER_IO_MIRROR=https://dockerhub.azk8s.cn ./hack/e2e.sh -- --ginkgo.focus='delete\\sslots\\s\\[podManagementPolicy=Parallel\\]' --report-dir=artifacts --report-prefix=v1.16.3", "artifacts")
         }
         builds["E2E v1.12.10"] = {
-            build(GIT_URL, GIT_REF, "KUBE_VERSION=v1.12.10 GINKGO_NODES=8 make e2e")
+            build(GIT_URL, GIT_REF, "KUBE_VERSION=v1.12.10 GINKGO_NODES=8 DOCKER_IO_MIRROR=https://dockerhub.azk8s.cn t./hack/e2e.sh -- --ginkgo.focus='delete\\sslots\\s\\[podManagementPolicy=Parallel\\]' --report-dir=artifacts --report-prefix=v1.12.10", "artifacts")
         }
         builds.failFast = true
         parallel builds

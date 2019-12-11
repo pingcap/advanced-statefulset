@@ -1,2 +1,3 @@
 /output/
 /vendor/k8s.io/kubernetes/pkg/generated/openapi/zz_generated.openapi.go
+/artifacts/
