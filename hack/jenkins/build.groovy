@@ -58,7 +58,10 @@ spec:
     emptyDir: {}
 '''
 
-def build(GIT_URL, GIT_REF, SHELL_CODE) {
+@Field
+def ARTIFACTS = "/home/jenkins/agent/workspace/go/src/github.com/pingcap/advanced-statefulset/artifacts"
+
+def build(GIT_URL, GIT_REF, SHELL_CODE, ARTIFACTS = "") {
     podTemplate(yaml: podYAML) {
         node(POD_LABEL) {
             container('main') {
@@ -99,6 +102,12 @@ def build(GIT_URL, GIT_REF, SHELL_CODE) {
                         ${SHELL_CODE}
                         """
                     }
+                    if (ARTIFACTS != "") {
+                        dir(ARTIFACTS) {
+                            archiveArtifacts artifacts: "**"
+                            junit "*.xml"
+                        }
+                    }
                 }
             }
         }
@@ -118,12 +127,12 @@ def call(GIT_URL, GIT_REF) {
             build(GIT_URL, GIT_REF, "make test-integration")
         }
         builds["E2E v1.16.3"] = {
-            build(GIT_URL, GIT_REF, "KUBE_VERSION=v1.16.3 GINKGO_NODES=8 make e2e")
+            build(GIT_URL, GIT_REF, "KUBE_VERSION=v1.16.3 GINKGO_NODES=8 DOCKER_IO_MIRROR=https://dockerhub.azk8s.cn ./hack/e2e.sh -- --report-dir=${ARTIFACTS} --report-prefix=v1.16.3_", ARTIFACTS)
         }
         builds["E2E v1.12.10"] = {
-            build(GIT_URL, GIT_REF, "KUBE_VERSION=v1.12.10 GINKGO_NODES=8 make e2e")
+            build(GIT_URL, GIT_REF, "KUBE_VERSION=v1.12.10 GINKGO_NODES=8 DOCKER_IO_MIRROR=https://dockerhub.azk8s.cn ./hack/e2e.sh -- --report-dir=${ARTIFACTS} --report-prefix=v1.12.10_", ARTIFACTS)
         }
-        builds.failFast = true
+        builds.failFast = false
         parallel builds
     }
 }
