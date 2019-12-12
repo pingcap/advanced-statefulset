@@ -87,25 +87,28 @@ def build(GIT_URL, GIT_REF, SHELL_CODE, ARTIFACTS = "") {
                     }
                 }
                 stage('Run') {
-                    dir("/home/jenkins/agent/workspace/go/src/github.com/pingcap/advanced-statefulset") {
-                        sh """
-                        echo "====== shell env ======"
-                        echo "pwd: \$(pwd)"
-                        env
-                        echo "====== go env ======"
-                        go env
-                        echo "====== docker version ======"
-                        docker version
-                        """
-                        sh """
-                        export GOPATH=/home/jenkins/agent/workspace/go
-                        ${SHELL_CODE}
-                        """
-                    }
-                    if (ARTIFACTS != "") {
-                        dir(ARTIFACTS) {
-                            archiveArtifacts artifacts: "**"
-                            junit "*.xml"
+                    try {
+                        dir("/home/jenkins/agent/workspace/go/src/github.com/pingcap/advanced-statefulset") {
+                            sh """
+                            echo "====== shell env ======"
+                            echo "pwd: \$(pwd)"
+                            env
+                            echo "====== go env ======"
+                            go env
+                            echo "====== docker version ======"
+                            docker version
+                            """
+                            sh """
+                            export GOPATH=/home/jenkins/agent/workspace/go
+                            ${SHELL_CODE}
+                            """
+                        }
+                    } finally {
+                        if (ARTIFACTS != "") {
+                            dir(ARTIFACTS) {
+                                archiveArtifacts artifacts: "**", allowEmptyArchive: true
+                                junit testResults: "*.xml", allowEmptyResults: true
+                            }
                         }
                     }
                 }

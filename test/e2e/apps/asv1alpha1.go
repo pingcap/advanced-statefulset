@@ -304,6 +304,7 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1alpha1]", func() {
 		})
 
 		ginkgo.It("migrate from Kubernetes StatefulSet", func() {
+			framework.Skipf("skip for v1alpha1 API because we migrated to v1 now")
 			ginkgo.By("Creating statefulset " + ssName + " in namespace " + ns)
 			*(ss.Spec.Replicas) = 3
 			e2esset.PauseNewPods(ss)
