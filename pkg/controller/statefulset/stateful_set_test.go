@@ -20,7 +20,7 @@ import (
 	"sort"
 	"testing"
 
-	apps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1"
+	apps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1"
 	"github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned/fake"
 	informers "github.com/pingcap/advanced-statefulset/pkg/client/informers/externalversions"
 	v1 "k8s.io/api/core/v1"
@@ -588,11 +588,11 @@ func newFakeStatefulSetController(initialObjects ...runtime.Object) (*StatefulSe
 	kubeClient := kubefake.NewSimpleClientset(coreObjs...)
 	informerFactory := informers.NewSharedInformerFactory(client, controller.NoResyncPeriodFunc())
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, controller.NoResyncPeriodFunc())
-	fpc := newFakeStatefulPodControl(kubeInformerFactory.Core().V1().Pods(), informerFactory.Apps().V1alpha1().StatefulSets())
-	ssu := newFakeStatefulSetStatusUpdater(informerFactory.Apps().V1alpha1().StatefulSets())
+	fpc := newFakeStatefulPodControl(kubeInformerFactory.Core().V1().Pods(), informerFactory.Apps().V1().StatefulSets())
+	ssu := newFakeStatefulSetStatusUpdater(informerFactory.Apps().V1().StatefulSets())
 	ssc := NewStatefulSetController(
 		kubeInformerFactory.Core().V1().Pods(),
-		informerFactory.Apps().V1alpha1().StatefulSets(),
+		informerFactory.Apps().V1().StatefulSets(),
 		kubeInformerFactory.Core().V1().PersistentVolumeClaims(),
 		kubeInformerFactory.Apps().V1().ControllerRevisions(),
 		kubeClient,

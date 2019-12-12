@@ -24,7 +24,7 @@ import (
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
-	"github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1/helper"
+	"github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1/helper"
 	asclientset "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -63,7 +63,7 @@ var _ = SIGDescribe("StatefulSet", func() {
 
 	ginkgo.BeforeEach(func() {
 		ns = f.Namespace.Name
-		// We didn't modify the code except hijacking the client.
+		// We didn't modify the code. Instead we hijack the client.
 		config, err := framework.LoadConfig()
 		framework.ExpectNoError(err)
 		asc, err := asclientset.NewForConfig(config)

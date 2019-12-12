@@ -21,11 +21,11 @@ import (
 	"reflect"
 	"time"
 
-	apps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1"
+	apps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1"
 	clientset "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned"
 	asscheme "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned/scheme"
-	appsinformers "github.com/pingcap/advanced-statefulset/pkg/client/informers/externalversions/apps/v1alpha1"
-	appslisters "github.com/pingcap/advanced-statefulset/pkg/client/listers/apps/v1alpha1"
+	appsinformers "github.com/pingcap/advanced-statefulset/pkg/client/informers/externalversions/apps/v1"
+	appslisters "github.com/pingcap/advanced-statefulset/pkg/client/listers/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -301,7 +301,7 @@ func (ssc *StatefulSetController) getPodsForStatefulSet(set *apps.StatefulSet, s
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing Pods (see #42639).
 	canAdoptFunc := controller.RecheckDeletionTimestamp(func() (metav1.Object, error) {
-		fresh, err := ssc.pcClient.AppsV1alpha1().StatefulSets(set.Namespace).Get(set.Name, metav1.GetOptions{})
+		fresh, err := ssc.pcClient.AppsV1().StatefulSets(set.Namespace).Get(set.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -329,7 +329,7 @@ func (ssc *StatefulSetController) adoptOrphanRevisions(set *apps.StatefulSet) er
 		}
 	}
 	if hasOrphans {
-		fresh, err := ssc.pcClient.AppsV1alpha1().StatefulSets(set.Namespace).Get(set.Name, metav1.GetOptions{})
+		fresh, err := ssc.pcClient.AppsV1().StatefulSets(set.Namespace).Get(set.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
