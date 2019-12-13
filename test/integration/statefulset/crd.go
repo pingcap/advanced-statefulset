@@ -18,7 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// read from deployment/crd.v1.yaml
+// TODO read from deployment/crd.v1beta1.yaml
 func getCustomResourceDefinitionData() []*apiextensionsv1beta1.CustomResourceDefinition {
 	return []*apiextensionsv1beta1.CustomResourceDefinition{
 		{
@@ -26,9 +26,8 @@ func getCustomResourceDefinitionData() []*apiextensionsv1beta1.CustomResourceDef
 				Name: "statefulsets.apps.pingcap.com",
 			},
 			Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
-				Group:   "apps.pingcap.com",
-				Version: "v1alpha1",
-				Scope:   apiextensionsv1beta1.NamespaceScoped,
+				Group: "apps.pingcap.com",
+				Scope: apiextensionsv1beta1.NamespaceScoped,
 				Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
 					Plural:   "statefulsets",
 					Singular: "statefulset",
@@ -39,9 +38,14 @@ func getCustomResourceDefinitionData() []*apiextensionsv1beta1.CustomResourceDef
 				},
 				Versions: []apiextensionsv1beta1.CustomResourceDefinitionVersion{
 					{
-						Name:    "v1alpha1",
+						Name:    "v1",
 						Served:  true,
 						Storage: true,
+					},
+					{
+						Name:    "v1alpha1",
+						Served:  true,
+						Storage: false,
 					},
 				},
 				Subresources: &apiextensionsv1beta1.CustomResourceSubresources{
