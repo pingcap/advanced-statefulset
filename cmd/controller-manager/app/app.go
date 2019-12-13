@@ -54,7 +54,7 @@ func Run(cc *config.CompletedConfig, stopCh <-chan struct{}) error {
 		pcInformerFactory := pcinformers.NewSharedInformerFactory(cc.PCClient, cc.GenericComponent.MinResyncPeriod.Duration)
 		stsCtrl := statefulset.NewStatefulSetController(
 			informerFactory.Core().V1().Pods(),
-			pcInformerFactory.Apps().V1alpha1().StatefulSets(),
+			pcInformerFactory.Apps().V1().StatefulSets(),
 			informerFactory.Core().V1().PersistentVolumeClaims(),
 			informerFactory.Apps().V1().ControllerRevisions(),
 			cc.Client,

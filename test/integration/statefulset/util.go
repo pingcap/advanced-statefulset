@@ -23,10 +23,10 @@ import (
 	"testing"
 	"time"
 
-	appsv1alpha1 "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1"
-	"github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1/helper"
+	appsv1 "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1"
+	"github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1/helper"
 	pcclientset "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned"
-	typedappsv1alpha1 "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned/typed/apps/v1alpha1"
+	typedappsv1 "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned/typed/apps/v1"
 	pcinformers "github.com/pingcap/advanced-statefulset/pkg/client/informers/externalversions"
 	"github.com/pingcap/advanced-statefulset/pkg/controller/statefulset"
 	v1 "k8s.io/api/core/v1"
@@ -77,9 +77,9 @@ func newHeadlessService(namespace string) *v1.Service {
 }
 
 // newSTS returns a StatefulSet with a fake container image
-func newSTS(name, namespace string, replicas int) *appsv1alpha1.StatefulSet {
+func newSTS(name, namespace string, replicas int) *appsv1.StatefulSet {
 	replicasCopy := int32(replicas)
-	sts := &appsv1alpha1.StatefulSet{
+	sts := &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "StatefulSet",
 			APIVersion: "apps/v1",
@@ -88,8 +88,8 @@ func newSTS(name, namespace string, replicas int) *appsv1alpha1.StatefulSet {
 			Namespace: namespace,
 			Name:      name,
 		},
-		Spec: appsv1alpha1.StatefulSetSpec{
-			PodManagementPolicy: appsv1alpha1.ParallelPodManagement,
+		Spec: appsv1.StatefulSetSpec{
+			PodManagementPolicy: appsv1.ParallelPodManagement,
 			Replicas:            &replicasCopy,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labelMap(),
@@ -130,8 +130,8 @@ func newSTS(name, namespace string, replicas int) *appsv1alpha1.StatefulSet {
 				},
 			},
 			ServiceName: "fake-service-name",
-			UpdateStrategy: appsv1alpha1.StatefulSetUpdateStrategy{
-				Type: appsv1alpha1.RollingUpdateStatefulSetStrategyType,
+			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
+				Type: appsv1.RollingUpdateStatefulSetStrategyType,
 			},
 			VolumeClaimTemplates: []v1.PersistentVolumeClaim{
 				// for volume mount "datadir"
@@ -140,7 +140,7 @@ func newSTS(name, namespace string, replicas int) *appsv1alpha1.StatefulSet {
 		},
 	}
 	// When using CRD, we must set defaults in client-side.
-	appsv1alpha1.SetObjectDefaults_StatefulSet(sts)
+	appsv1.SetObjectDefaults_StatefulSet(sts)
 	return sts
 }
 
@@ -193,7 +193,7 @@ func scSetup(t *testing.T) (framework.CloseFunc, *statefulset.StatefulSetControl
 
 	sc := statefulset.NewStatefulSetController(
 		informers.Core().V1().Pods(),
-		pcinformers.Apps().V1alpha1().StatefulSets(),
+		pcinformers.Apps().V1().StatefulSets(),
 		informers.Core().V1().PersistentVolumeClaims(),
 		informers.Apps().V1().ControllerRevisions(),
 		clientset.NewForConfigOrDie(restclient.AddUserAgent(&config, "statefulset-controller")),
@@ -219,11 +219,11 @@ func createHeadlessService(t *testing.T, clientSet clientset.Interface, headless
 	}
 }
 
-func createSTSsPods(t *testing.T, clientSet clientset.Interface, pcclientSet pcclientset.Interface, stss []*appsv1alpha1.StatefulSet, pods []*v1.Pod) ([]*appsv1alpha1.StatefulSet, []*v1.Pod) {
-	var createdSTSs []*appsv1alpha1.StatefulSet
+func createSTSsPods(t *testing.T, clientSet clientset.Interface, pcclientSet pcclientset.Interface, stss []*appsv1.StatefulSet, pods []*v1.Pod) ([]*appsv1.StatefulSet, []*v1.Pod) {
+	var createdSTSs []*appsv1.StatefulSet
 	var createdPods []*v1.Pod
 	for _, sts := range stss {
-		createdSTS, err := pcclientSet.AppsV1alpha1().StatefulSets(sts.Namespace).Create(sts)
+		createdSTS, err := pcclientSet.AppsV1().StatefulSets(sts.Namespace).Create(sts)
 		if err != nil {
 			t.Fatalf("failed to create sts %s: %v", sts.Name, err)
 		}
@@ -241,8 +241,8 @@ func createSTSsPods(t *testing.T, clientSet clientset.Interface, pcclientSet pcc
 }
 
 // Verify .Status.Replicas is equal to .Spec.Replicas
-func waitSTSStable(t *testing.T, pcclientSet pcclientset.Interface, sts *appsv1alpha1.StatefulSet) {
-	stsClient := pcclientSet.AppsV1alpha1().StatefulSets(sts.Namespace)
+func waitSTSStable(t *testing.T, pcclientSet pcclientset.Interface, sts *appsv1.StatefulSet) {
+	stsClient := pcclientSet.AppsV1().StatefulSets(sts.Namespace)
 	desiredGeneration := sts.Generation
 	if err := wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
 		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
@@ -300,8 +300,8 @@ func getPods(t *testing.T, podClient typedv1.PodInterface, labelMap map[string]s
 	return pods
 }
 
-func updateSTS(t *testing.T, stsClient typedappsv1alpha1.StatefulSetInterface, stsName string, updateFunc func(*appsv1alpha1.StatefulSet)) *appsv1alpha1.StatefulSet {
-	var sts *appsv1alpha1.StatefulSet
+func updateSTS(t *testing.T, stsClient typedappsv1.StatefulSetInterface, stsName string, updateFunc func(*appsv1.StatefulSet)) *appsv1.StatefulSet {
+	var sts *appsv1.StatefulSet
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		newSTS, err := stsClient.Get(stsName, metav1.GetOptions{})
 		if err != nil {
@@ -317,8 +317,8 @@ func updateSTS(t *testing.T, stsClient typedappsv1alpha1.StatefulSetInterface, s
 }
 
 // Update .Spec.Replicas to replicas and verify .Status.Replicas is changed accordingly
-func scaleSTS(t *testing.T, c pcclientset.Interface, sts *appsv1alpha1.StatefulSet, replicas int32) {
-	stsClient := c.AppsV1alpha1().StatefulSets(sts.Namespace)
+func scaleSTS(t *testing.T, c pcclientset.Interface, sts *appsv1.StatefulSet, replicas int32) {
+	stsClient := c.AppsV1().StatefulSets(sts.Namespace)
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
 		if err != nil {
@@ -333,8 +333,8 @@ func scaleSTS(t *testing.T, c pcclientset.Interface, sts *appsv1alpha1.StatefulS
 	waitSTSStable(t, c, sts)
 }
 
-func scaleSTSWithDeleteSlots(t *testing.T, c pcclientset.Interface, sts *appsv1alpha1.StatefulSet, replicas int32, deleteSlots sets.Int) {
-	stsClient := c.AppsV1alpha1().StatefulSets(sts.Namespace)
+func scaleSTSWithDeleteSlots(t *testing.T, c pcclientset.Interface, sts *appsv1.StatefulSet, replicas int32, deleteSlots sets.Int) {
+	stsClient := c.AppsV1().StatefulSets(sts.Namespace)
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
 		if err != nil {
@@ -350,12 +350,12 @@ func scaleSTSWithDeleteSlots(t *testing.T, c pcclientset.Interface, sts *appsv1a
 	waitSTSStable(t, c, sts)
 }
 
-func scaleInSTSByDeletingSlots(t *testing.T, c pcclientset.Interface, sts *appsv1alpha1.StatefulSet, ids ...int) {
+func scaleInSTSByDeletingSlots(t *testing.T, c pcclientset.Interface, sts *appsv1.StatefulSet, ids ...int) {
 	set := sets.NewInt(ids...)
 	if set.Len() <= 0 {
 		t.Fatalf("no slots")
 	}
-	stsClient := c.AppsV1alpha1().StatefulSets(sts.Namespace)
+	stsClient := c.AppsV1().StatefulSets(sts.Namespace)
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
 		if err != nil {
@@ -375,7 +375,7 @@ func scaleInSTSByDeletingSlots(t *testing.T, c pcclientset.Interface, sts *appsv
 	waitSTSStable(t, c, sts)
 }
 
-func checkPodIdentifiers(t *testing.T, c clientset.Interface, sts *appsv1alpha1.StatefulSet, ids ...int) {
+func checkPodIdentifiers(t *testing.T, c clientset.Interface, sts *appsv1.StatefulSet, ids ...int) {
 	expectedIDs := sets.NewInt(ids...)
 	podClient := c.CoreV1().Pods(sts.Namespace)
 	pods := getPods(t, podClient, labelMap())

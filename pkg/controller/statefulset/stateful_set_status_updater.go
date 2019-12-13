@@ -19,9 +19,9 @@ package statefulset
 import (
 	"fmt"
 
-	apps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1"
+	apps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1"
 	clientset "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned"
-	statefulsetlisters "github.com/pingcap/advanced-statefulset/pkg/client/listers/apps/v1alpha1"
+	statefulsetlisters "github.com/pingcap/advanced-statefulset/pkg/client/listers/apps/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/util/retry"
 )
@@ -53,7 +53,7 @@ func (ssu *realStatefulSetStatusUpdater) UpdateStatefulSetStatus(
 	// don't wait due to limited number of clients, but backoff after the default number of steps
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		set.Status = *status
-		_, updateErr := ssu.client.AppsV1alpha1().StatefulSets(set.Namespace).UpdateStatus(set)
+		_, updateErr := ssu.client.AppsV1().StatefulSets(set.Namespace).UpdateStatus(set)
 		if updateErr == nil {
 			return nil
 		}

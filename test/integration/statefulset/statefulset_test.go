@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"testing"
 
-	appsv1alpha1 "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1alpha1"
+	appsv1 "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1"
 	integrationutil "github.com/pingcap/advanced-statefulset/test/integration/util"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,7 +37,7 @@ func TestSpecReplicasChange(t *testing.T) {
 
 	createHeadlessService(t, c, newHeadlessService(ns.Name))
 	sts := newSTS("sts", ns.Name, 2)
-	stss, _ := createSTSsPods(t, c, pcc, []*appsv1alpha1.StatefulSet{sts}, []*v1.Pod{})
+	stss, _ := createSTSsPods(t, c, pcc, []*appsv1.StatefulSet{sts}, []*v1.Pod{})
 	sts = stss[0]
 	waitSTSStable(t, pcc, sts)
 
@@ -48,9 +48,9 @@ func TestSpecReplicasChange(t *testing.T) {
 
 	// Add a template annotation change to test STS's status does update
 	// without .Spec.Replicas change
-	stsClient := pcc.AppsV1alpha1().StatefulSets(ns.Name)
+	stsClient := pcc.AppsV1().StatefulSets(ns.Name)
 	var oldGeneration int64
-	newSTS := updateSTS(t, stsClient, sts.Name, func(sts *appsv1alpha1.StatefulSet) {
+	newSTS := updateSTS(t, stsClient, sts.Name, func(sts *appsv1.StatefulSet) {
 		oldGeneration = sts.Generation
 		sts.Spec.Template.Annotations = map[string]string{"test": "annotation"}
 	})
@@ -80,7 +80,7 @@ func TestDeletingAndFailedPods(t *testing.T) {
 
 	labelMap := labelMap()
 	sts := newSTS("sts", ns.Name, 2)
-	stss, _ := createSTSsPods(t, c, pcc, []*appsv1alpha1.StatefulSet{sts}, []*v1.Pod{})
+	stss, _ := createSTSsPods(t, c, pcc, []*appsv1.StatefulSet{sts}, []*v1.Pod{})
 	sts = stss[0]
 	waitSTSStable(t, pcc, sts)
 

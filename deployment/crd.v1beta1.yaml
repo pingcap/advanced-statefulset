@@ -5,7 +5,6 @@ metadata:
   name: statefulsets.apps.pingcap.com
 spec:
   group: apps.pingcap.com
-  version: v1alpha1
   scope: Namespaced
   names:
     plural: statefulsets
@@ -13,6 +12,13 @@ spec:
     kind: StatefulSet
     shortNames:
     - asts
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: false
+  - name: v1
+    served: true
+    storage: true
   validation:
     openAPIV3Schema:
       type: object
@@ -44,10 +50,6 @@ spec:
             revisionHistoryLimit:
               type: integer
               minimum: 0
-  versions:
-    - name: v1alpha1
-      served: true
-      storage: true
   # subresources describes the subresources for custom resources.
   subresources:
     # status enables the status subresource.

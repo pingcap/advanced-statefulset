@@ -32,6 +32,7 @@ Usage: hack/e2e.sh [-h] -- [extra test args]
 
 Environments:
 
+    SKIP_BUILD          skip building binaries/images
     KUBE_VERSION        the version of Kubernetes to test against
     KUBE_WORKERS        the number of worker nodes (excludes master nodes), defaults: 1
     DOCKER_IO_MIRROR    configure mirror for docker.io
@@ -282,5 +283,6 @@ hack/run-e2e.sh --kubectl-path=$KUBECTL_BIN \
     --context=kind-$CLUSTER \
     --provider=skeleton \
     --clean-start=true \
+    --delete-namespace-on-failure=false \
     --repo-root=$ROOT \
     "$@"
