@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	deleteSlotsAnn = "delete-slots"
+	DeleteSlotsAnn = "delete-slots"
 )
 
 func GetDeleteSlots(set metav1.Object) (deleteSlots sets.Int) {
@@ -30,7 +30,7 @@ func GetDeleteSlots(set metav1.Object) (deleteSlots sets.Int) {
 	if annotations == nil {
 		return
 	}
-	value, ok := annotations[deleteSlotsAnn]
+	value, ok := annotations[DeleteSlotsAnn]
 	if !ok {
 		return
 	}
@@ -47,7 +47,7 @@ func SetDeleteSlots(set metav1.Object, deleteSlots sets.Int) (err error) {
 	annotations := set.GetAnnotations()
 	if deleteSlots == nil || deleteSlots.Len() == 0 {
 		// clear
-		delete(annotations, deleteSlotsAnn)
+		delete(annotations, DeleteSlotsAnn)
 	} else {
 		// set
 		b, err := json.Marshal(deleteSlots.List())
@@ -57,7 +57,7 @@ func SetDeleteSlots(set metav1.Object, deleteSlots sets.Int) (err error) {
 		if annotations == nil {
 			annotations = make(map[string]string)
 		}
-		annotations[deleteSlotsAnn] = string(b)
+		annotations[DeleteSlotsAnn] = string(b)
 	}
 	set.SetAnnotations(annotations)
 	return
@@ -80,4 +80,16 @@ func GetMaxReplicaCountAndDeleteSlots(replicas int, deleteSlots sets.Int) (int, 
 		}
 	}
 	return replicaCount, deleteSlots
+}
+
+// GetDesiredPodOrdinals gets desired pod ordinals of given statefulset set.
+func GetDesiredPodOrdinals(replicas int, set metav1.Object) sets.Int {
+	maxReplicaCount, deleteSlots := GetMaxReplicaCountAndDeleteSlots(replicas, GetDeleteSlots(set))
+	podOrdinals := sets.NewInt()
+	for i := 0; i < maxReplicaCount; i++ {
+		if !deleteSlots.Has(i) {
+			podOrdinals.Insert(i)
+		}
+	}
+	return podOrdinals
 }
