@@ -35,11 +35,11 @@ test -d "$OUTPUT_BIN" || mkdir -p "$OUTPUT_BIN"
 hack::download_file() {
   local -r url=$1
   local -r destination_file=$2
-      
+
   rm "${destination_file}" 2&> /dev/null || true
-      
+
   for i in $(seq 5)
-  do  
+  do
     if ! curl -fsSL --retry 3 --keepalive-time 2 "${url}" -o "${destination_file}"; then
       echo "Downloading ${url} failed. $((5-i)) retries left."
       sleep 1
@@ -80,7 +80,7 @@ hack::install_etcd() {
       tar xzf "${download_file}"
       ln -fns "etcd-v${ETCD_VERSION}-linux-${arch}" etcd
       rm "${download_file}"
-    fi  
+    fi
     echo "info: etcd v${ETCD_VERSION} installed. To use:"
     echo "info: export PATH=\"$(pwd)/etcd:\${PATH}\""
   )
@@ -149,4 +149,25 @@ function hack::ensure_ginkgo() {
 # hack::version_ge "$v1" "$v2" checks whether "v1" is greater or equal to "v2"
 function hack::version_ge() {
     [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
+}
+
+# Usage:
+#
+#	hack::wait_for_success 120 5 "cmd arg1 arg2 ... argn"
+#
+# Returns 0 if the shell command get output, 1 otherwise.
+# From https://github.com/kubernetes/kubernetes/blob/v1.17.0/hack/lib/util.sh#L70
+function hack::wait_for_success() {
+    local wait_time="$1"
+    local sleep_time="$2"
+    local cmd="$3"
+    while [ "$wait_time" -gt 0 ]; do
+        if eval "$cmd"; then
+            return 0
+        else
+            sleep "$sleep_time"
+            wait_time=$((wait_time-sleep_time))
+        fi
+    done
+    return 1
 }

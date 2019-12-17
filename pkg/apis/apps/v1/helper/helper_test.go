@@ -17,7 +17,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	apps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1"
+	asappsv1 "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -25,22 +25,22 @@ import (
 func TestGetDeleteSlots(t *testing.T) {
 	tests := []struct {
 		name string
-		sts  apps.StatefulSet
+		sts  asappsv1.StatefulSet
 		want sets.Int
 	}{
 		{
 			name: "no annotation",
-			sts: apps.StatefulSet{
+			sts: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{},
 			},
 			want: nil,
 		},
 		{
 			name: "empty annotation",
-			sts: apps.StatefulSet{
+			sts: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "",
+						DeleteSlotsAnn: "",
 					},
 				},
 			},
@@ -48,10 +48,10 @@ func TestGetDeleteSlots(t *testing.T) {
 		},
 		{
 			name: "invalid annotation",
-			sts: apps.StatefulSet{
+			sts: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "invalid",
+						DeleteSlotsAnn: "invalid",
 					},
 				},
 			},
@@ -59,10 +59,10 @@ func TestGetDeleteSlots(t *testing.T) {
 		},
 		{
 			name: "vailid annotation with one value",
-			sts: apps.StatefulSet{
+			sts: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "[1]",
+						DeleteSlotsAnn: "[1]",
 					},
 				},
 			},
@@ -70,10 +70,10 @@ func TestGetDeleteSlots(t *testing.T) {
 		},
 		{
 			name: "vailid annotation with multiple values",
-			sts: apps.StatefulSet{
+			sts: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "[1, 2, 3]",
+						DeleteSlotsAnn: "[1, 2, 3]",
 					},
 				},
 			},
@@ -81,10 +81,10 @@ func TestGetDeleteSlots(t *testing.T) {
 		},
 		{
 			name: "vailid annotation with duplicate values",
-			sts: apps.StatefulSet{
+			sts: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "[1, 2, 3, 3]",
+						DeleteSlotsAnn: "[1, 2, 3, 3]",
 					},
 				},
 			},
@@ -105,21 +105,21 @@ func TestGetDeleteSlots(t *testing.T) {
 func TestSetDeleteSlots(t *testing.T) {
 	tests := []struct {
 		name string
-		sts  apps.StatefulSet
+		sts  asappsv1.StatefulSet
 		set  sets.Int
-		want apps.StatefulSet
+		want asappsv1.StatefulSet
 	}{
 		{
 			name: "nil int set",
-			sts: apps.StatefulSet{
+			sts: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "[1]",
+						DeleteSlotsAnn: "[1]",
 					},
 				},
 			},
 			set: nil,
-			want: apps.StatefulSet{
+			want: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{},
 				},
@@ -127,15 +127,15 @@ func TestSetDeleteSlots(t *testing.T) {
 		},
 		{
 			name: "empty int set",
-			sts: apps.StatefulSet{
+			sts: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "[1]",
+						DeleteSlotsAnn: "[1]",
 					},
 				},
 			},
 			set: sets.NewInt(),
-			want: apps.StatefulSet{
+			want: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{},
 				},
@@ -143,28 +143,28 @@ func TestSetDeleteSlots(t *testing.T) {
 		},
 		{
 			name: "one int set",
-			sts: apps.StatefulSet{
+			sts: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{},
 			},
 			set: sets.NewInt(3),
-			want: apps.StatefulSet{
+			want: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "[3]",
+						DeleteSlotsAnn: "[3]",
 					},
 				},
 			},
 		},
 		{
 			name: "multiple ints set",
-			sts: apps.StatefulSet{
+			sts: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{},
 			},
 			set: sets.NewInt(3, 4, 1),
-			want: apps.StatefulSet{
+			want: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						deleteSlotsAnn: "[1,3,4]",
+						DeleteSlotsAnn: "[1,3,4]",
 					},
 				},
 			},
@@ -175,6 +175,65 @@ func TestSetDeleteSlots(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_ = SetDeleteSlots(&tt.sts, tt.set)
 			if diff := cmp.Diff(tt.want, tt.sts); diff != "" {
+				t.Errorf("unexpected result (-want, +got): %s", diff)
+			}
+		})
+	}
+}
+
+func int32ptr(i int32) *int32 {
+	return &i
+}
+
+func TestGetDesiredPodOrdinals(t *testing.T) {
+	tests := []struct {
+		name string
+		sts  asappsv1.StatefulSet
+		want sets.Int
+	}{
+		{
+			name: "no delete slots",
+			sts: asappsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{},
+				Spec: asappsv1.StatefulSetSpec{
+					Replicas: int32ptr(3),
+				},
+			},
+			want: sets.NewInt(0, 1, 2),
+		},
+		{
+			name: "delete slots in [0, replicas)",
+			sts: asappsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						DeleteSlotsAnn: "[0, 2]",
+					},
+				},
+				Spec: asappsv1.StatefulSetSpec{
+					Replicas: int32ptr(3),
+				},
+			},
+			want: sets.NewInt(1, 3, 4),
+		},
+		{
+			name: "delete slots not in [0, replicas)",
+			sts: asappsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						DeleteSlotsAnn: "[4, 5]",
+					},
+				},
+				Spec: asappsv1.StatefulSetSpec{
+					Replicas: int32ptr(3),
+				},
+			},
+			want: sets.NewInt(0, 1, 2),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetDesiredPodOrdinals(int(*tt.sts.Spec.Replicas), &tt.sts)
+			if diff := cmp.Diff(tt.want.List(), got.List()); diff != "" {
 				t.Errorf("unexpected result (-want, +got): %s", diff)
 			}
 		})
