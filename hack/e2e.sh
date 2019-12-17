@@ -260,7 +260,13 @@ kubeadmConfigPatches:
       "v": "4"
 EOF
     fi
-    $KIND_BIN create cluster --config $KUBECONFIG --name $CLUSTER --image $image --config $tmpfile -v 4
+
+    # Retry on error. Sometimes, kind will fail with the following error:
+    #
+    # OCI runtime create failed: container_linux.go:346: starting container process caused "process_linux.go:319: getting the final child's pid from pipe caused \"EOF\"": unknown
+    #
+    # TODO this error should be related docker or linux kernel, find the root cause.
+    hack::wait_for_success 120 5 "$KIND_BIN create cluster --config $KUBECONFIG --name $CLUSTER --image $image --config $tmpfile -v 4"
 }
 
 trap 'e2e::down' EXIT
