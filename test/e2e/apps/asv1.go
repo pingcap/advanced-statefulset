@@ -84,30 +84,37 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 		for _, policy := range []appsv1.PodManagementPolicyType{appsv1.OrderedReadyPodManagement, appsv1.ParallelPodManagement} {
 			tmpPolicy := policy
 			ginkgo.It(fmt.Sprintf("scale in/out with delete slots [podManagementPolicy=%s]", tmpPolicy), func() {
+				replicas := int32(3)
+				deleteSlots := sets.NewInt()
+
 				ginkgo.By(fmt.Sprintf("Creating statefulset %s in namespace %s with pod management policy %s", ssName, ns, tmpPolicy))
-				*(ss.Spec.Replicas) = 3
+				*(ss.Spec.Replicas) = replicas
 				ss.Spec.PodManagementPolicy = tmpPolicy
 
-				ginkgo.By(fmt.Sprintf("Creating statefulset %q with %d replicas and delete slots %v", ss.Name, 3, []int{}))
+				ginkgo.By(fmt.Sprintf("Creating statefulset %q with %d replicas and delete slots %v", ss.Name, replicas, deleteSlots.List()))
 				ss, err := hc.AppsV1().StatefulSets(ns).Create(ss)
 				framework.ExpectNoError(err)
-				e2esset.WaitForStatusReplicas(hc, ss, 3)
+				e2esset.WaitForStatusReplicas(hc, ss, replicas)
 
-				ginkgo.By(fmt.Sprintf("Scaling statefulset %q to %d replicas with delete slots %v", ss.Name, 2, []int{1}))
+				deleteSlots.Insert(1)
+				replicas -= 1
+				ginkgo.By(fmt.Sprintf("Scaling statefulset %q to %d replicas with delete slots %v", ss.Name, replicas, deleteSlots.List()))
 				ss, err = e2esset.UpdateStatefulSetWithRetries(hc, ns, ss.Name, func(update *appsv1.StatefulSet) {
-					*(update.Spec.Replicas) = 2
-					helper.AddDeleteSlots(update, sets.NewInt(1))
+					*(update.Spec.Replicas) = replicas
+					helper.SetDeleteSlots(update, deleteSlots)
 				})
 				framework.ExpectNoError(err)
-				e2esset.WaitForStatusReplicas(hc, ss, 2)
+				e2esset.WaitForStatusReplicas(hc, ss, replicas)
 
-				ginkgo.By(fmt.Sprintf("Scaling statefulset %q to %d replicas with delete slots %v", ss.Name, 10, []int{1, 3}))
+				deleteSlots.Insert(3)
+				replicas = 10
+				ginkgo.By(fmt.Sprintf("Scaling statefulset %q to %d replicas with delete slots %v", ss.Name, replicas, deleteSlots.List()))
 				ss, err = e2esset.UpdateStatefulSetWithRetries(hc, ns, ss.Name, func(update *appsv1.StatefulSet) {
-					*(update.Spec.Replicas) = 10
-					helper.AddDeleteSlots(update, sets.NewInt(1, 3))
+					*(update.Spec.Replicas) = replicas
+					helper.SetDeleteSlots(update, deleteSlots)
 				})
 				framework.ExpectNoError(err)
-				e2esset.WaitForStatusReplicas(hc, ss, 10)
+				e2esset.WaitForStatusReplicas(hc, ss, replicas)
 			})
 		}
 
