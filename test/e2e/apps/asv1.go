@@ -96,6 +96,7 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 				framework.ExpectNoError(err)
 				e2esset.WaitForStatusReplicas(hc, ss, replicas)
 
+				// scaling in at arbitrary position
 				deleteSlots.Insert(1)
 				replicas -= 1
 				ginkgo.By(fmt.Sprintf("Scaling statefulset %q to %d replicas with delete slots %v", ss.Name, replicas, deleteSlots.List()))
@@ -106,7 +107,20 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 				framework.ExpectNoError(err)
 				e2esset.WaitForStatusReplicas(hc, ss, replicas)
 
+				// scaling out and delete at the same time
 				deleteSlots.Insert(3)
+				replicas = 10
+				ginkgo.By(fmt.Sprintf("Scaling statefulset %q to %d replicas with delete slots %v", ss.Name, replicas, deleteSlots.List()))
+				ss, err = e2esset.UpdateStatefulSetWithRetries(hc, ns, ss.Name, func(update *appsv1.StatefulSet) {
+					*(update.Spec.Replicas) = replicas
+					helper.SetDeleteSlots(update, deleteSlots)
+				})
+				framework.ExpectNoError(err)
+				e2esset.WaitForStatusReplicas(hc, ss, replicas)
+
+				// change delete slots
+				deleteSlots.Delete(3)
+				deleteSlots.Insert(4)
 				replicas = 10
 				ginkgo.By(fmt.Sprintf("Scaling statefulset %q to %d replicas with delete slots %v", ss.Name, replicas, deleteSlots.List()))
 				ss, err = e2esset.UpdateStatefulSetWithRetries(hc, ns, ss.Name, func(update *appsv1.StatefulSet) {
