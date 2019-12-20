@@ -81,6 +81,7 @@ func (s *hijackStatefulset) Update(sts *appsv1.StatefulSet) (*appsv1.StatefulSet
 	if err != nil {
 		return nil, err
 	}
+	asv1.SetObjectDefaults_StatefulSet(pcsts) // required if defaulting is not enabled in kube-apiserver
 	pcsts, err = s.StatefulSetInterface.Update(pcsts)
 	if err != nil {
 		return nil, err
