@@ -15,12 +15,10 @@ In addition to official StatefulSet, it adds one feature:
 
 ### start a cluster
 
-kind `v0.5.1` is required.
-
 ```
-curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/v0.5.1/kind-$(uname)-amd64
+curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/v0.6.1/kind-$(uname)-amd64
 chmod +x ./kind
-./kind create cluster --image kindest/node:v1.16.1 --config hack/kindconfig.v1.16.1.yaml --name advanced-statefulset
+./kind create cluster --image kindest/node:v1.16.3 --config hack/kindconfig.v1.16.3.yaml --name advanced-statefulset
 export KUBECONFIG=$(kind get kubeconfig-path --name advanced-statefulset)
 ```
 
