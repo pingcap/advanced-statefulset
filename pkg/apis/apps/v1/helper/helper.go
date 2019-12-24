@@ -82,8 +82,7 @@ func GetMaxReplicaCountAndDeleteSlots(replicas int32, deleteSlots sets.Int32) (i
 	return replicaCount, deleteSlots
 }
 
-// GetDesiredPodOrdinals gets desired pod ordinals of given statefulset set.
-func GetDesiredPodOrdinals(replicas int32, set metav1.Object) sets.Int32 {
+func GetPodOrdinals(replicas int32, set metav1.Object) sets.Int32 {
 	maxReplicaCount, deleteSlots := GetMaxReplicaCountAndDeleteSlots(replicas, GetDeleteSlots(set))
 	podOrdinals := sets.NewInt32()
 	for i := int32(0); i < maxReplicaCount; i++ {
