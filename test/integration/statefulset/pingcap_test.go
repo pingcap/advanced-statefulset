@@ -52,15 +52,15 @@ func TestDeleteSlots(t *testing.T) {
 	checkPodIdentifiers(t, c, sts, 0, 2)
 
 	t.Logf(fmt.Sprintf("scale to replicas %d with delete slots %v", 0, []int{1}))
-	scaleSTSWithDeleteSlots(t, pcc, sts, 0, sets.NewInt(1))
+	scaleSTSWithDeleteSlots(t, pcc, sts, 0, sets.NewInt32(1))
 	checkPodIdentifiers(t, c, sts)
 
 	t.Logf(fmt.Sprintf("scale to replicas %d with delete slots %v", 4, []int{}))
-	scaleSTSWithDeleteSlots(t, pcc, sts, 4, sets.NewInt())
+	scaleSTSWithDeleteSlots(t, pcc, sts, 4, sets.NewInt32())
 	checkPodIdentifiers(t, c, sts, 0, 1, 2, 3)
 
 	t.Logf(fmt.Sprintf("scale to replicas %d with delete slots %v", 3, []int{0}))
-	scaleSTSWithDeleteSlots(t, pcc, sts, 3, sets.NewInt(0))
+	scaleSTSWithDeleteSlots(t, pcc, sts, 3, sets.NewInt32(0))
 	checkPodIdentifiers(t, c, sts, 1, 2, 3)
 
 	// Add a template annotation change to test STS's status does update

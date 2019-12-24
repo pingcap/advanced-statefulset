@@ -333,7 +333,7 @@ func scaleSTS(t *testing.T, c pcclientset.Interface, sts *appsv1.StatefulSet, re
 	waitSTSStable(t, c, sts)
 }
 
-func scaleSTSWithDeleteSlots(t *testing.T, c pcclientset.Interface, sts *appsv1.StatefulSet, replicas int32, deleteSlots sets.Int) {
+func scaleSTSWithDeleteSlots(t *testing.T, c pcclientset.Interface, sts *appsv1.StatefulSet, replicas int32, deleteSlots sets.Int32) {
 	stsClient := c.AppsV1().StatefulSets(sts.Namespace)
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
@@ -350,8 +350,8 @@ func scaleSTSWithDeleteSlots(t *testing.T, c pcclientset.Interface, sts *appsv1.
 	waitSTSStable(t, c, sts)
 }
 
-func scaleInSTSByDeletingSlots(t *testing.T, c pcclientset.Interface, sts *appsv1.StatefulSet, ids ...int) {
-	set := sets.NewInt(ids...)
+func scaleInSTSByDeletingSlots(t *testing.T, c pcclientset.Interface, sts *appsv1.StatefulSet, ids ...int32) {
+	set := sets.NewInt32(ids...)
 	if set.Len() <= 0 {
 		t.Fatalf("no slots")
 	}
@@ -375,14 +375,14 @@ func scaleInSTSByDeletingSlots(t *testing.T, c pcclientset.Interface, sts *appsv
 	waitSTSStable(t, c, sts)
 }
 
-func checkPodIdentifiers(t *testing.T, c clientset.Interface, sts *appsv1.StatefulSet, ids ...int) {
-	expectedIDs := sets.NewInt(ids...)
+func checkPodIdentifiers(t *testing.T, c clientset.Interface, sts *appsv1.StatefulSet, ids ...int32) {
+	expectedIDs := sets.NewInt32(ids...)
 	podClient := c.CoreV1().Pods(sts.Namespace)
 	pods := getPods(t, podClient, labelMap())
 	if len(pods.Items) != expectedIDs.Len() {
 		t.Fatalf("len(pods) = %d, want %d", len(pods.Items), expectedIDs.Len())
 	}
-	gotIDs := sets.NewInt()
+	gotIDs := sets.NewInt32()
 	for _, pod := range pods.Items {
 		klog.Infof("pod name %s\n", pod.Name)
 		idStr := strings.TrimPrefix(pod.Name, sts.Name+"-")
@@ -390,7 +390,7 @@ func checkPodIdentifiers(t *testing.T, c clientset.Interface, sts *appsv1.Statef
 		if err != nil {
 			t.Fatalf("failed to parse string %q as an int: %v", idStr, err)
 		}
-		gotIDs.Insert(id)
+		gotIDs.Insert(int32(id))
 	}
 	if !expectedIDs.Equal(gotIDs) {
 		t.Fatalf("expected ids %v, got %v", expectedIDs.List(), gotIDs.List())
