@@ -185,7 +185,7 @@ func int32ptr(i int32) *int32 {
 	return &i
 }
 
-func TestGetDesiredPodOrdinals(t *testing.T) {
+func TestGetPodOrdinals(t *testing.T) {
 	tests := []struct {
 		name string
 		sts  asappsv1.StatefulSet
@@ -232,7 +232,7 @@ func TestGetDesiredPodOrdinals(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := GetDesiredPodOrdinals(*tt.sts.Spec.Replicas, &tt.sts)
+			got := GetPodOrdinals(*tt.sts.Spec.Replicas, &tt.sts)
 			if diff := cmp.Diff(tt.want.List(), got.List()); diff != "" {
 				t.Errorf("unexpected result (-want, +got): %s", diff)
 			}
