@@ -114,12 +114,12 @@ func WaitForRunning(c clientset.Interface, numPodsRunning, numPodsReady int32, s
 				return false, fmt.Errorf("too many pods scheduled, expected %d got %d", numPodsRunning, len(podList.Items))
 			}
 			deleteSlots := helper.GetDeleteSlots(ss)
-			replicaCount, deleteSlots := helper.GetMaxReplicaCountAndDeleteSlots(int(*ss.Spec.Replicas), deleteSlots)
+			replicaCount, deleteSlots := helper.GetMaxReplicaCountAndDeleteSlots(*ss.Spec.Replicas, deleteSlots)
 			for _, p := range podList.Items {
-				if deleteSlots.Has(getStatefulPodOrdinal(&p)) {
+				if deleteSlots.Has(int32(getStatefulPodOrdinal(&p))) {
 					return false, fmt.Errorf("unexpected pod ordinal: %d for stateful set %q", getStatefulPodOrdinal(&p), ss.Name)
 				}
-				shouldBeReady := getStatefulPodOrdinal(&p) < replicaCount
+				shouldBeReady := int32(getStatefulPodOrdinal(&p)) < replicaCount
 				isReady := podutil.IsPodReady(&p)
 				desiredReadiness := shouldBeReady == isReady
 				framework.Logf("Waiting for pod %v to enter %v - Ready=%v, currently %v - Ready=%v", p.Name, v1.PodRunning, shouldBeReady, p.Status.Phase, isReady)

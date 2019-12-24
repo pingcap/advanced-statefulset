@@ -85,7 +85,7 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 			tmpPolicy := policy
 			ginkgo.It(fmt.Sprintf("scale in/out with delete slots [podManagementPolicy=%s]", tmpPolicy), func() {
 				replicas := int32(3)
-				deleteSlots := sets.NewInt()
+				deleteSlots := sets.NewInt32()
 
 				ginkgo.By(fmt.Sprintf("Creating statefulset %s in namespace %s with pod management policy %s", ssName, ns, tmpPolicy))
 				*(ss.Spec.Replicas) = replicas
@@ -142,7 +142,7 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 			ginkgo.By("Creating statefulset " + ssName + " in namespace " + ns)
 			*(ss.Spec.Replicas) = 3
 			e2esset.SetHTTPProbe(ss)
-			deleteSlots := sets.NewInt(1)
+			deleteSlots := sets.NewInt32(1)
 			helper.AddDeleteSlots(ss, deleteSlots)
 			ss.Spec.UpdateStrategy = appsv1.StatefulSetUpdateStrategy{
 				Type: appsv1.RollingUpdateStatefulSetStrategyType,

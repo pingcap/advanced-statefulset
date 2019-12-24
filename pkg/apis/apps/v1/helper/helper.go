@@ -24,8 +24,8 @@ const (
 	DeleteSlotsAnn = "delete-slots"
 )
 
-func GetDeleteSlots(set metav1.Object) (deleteSlots sets.Int) {
-	deleteSlots = sets.NewInt()
+func GetDeleteSlots(set metav1.Object) (deleteSlots sets.Int32) {
+	deleteSlots = sets.NewInt32()
 	annotations := set.GetAnnotations()
 	if annotations == nil {
 		return
@@ -34,7 +34,7 @@ func GetDeleteSlots(set metav1.Object) (deleteSlots sets.Int) {
 	if !ok {
 		return
 	}
-	var slice []int
+	var slice []int32
 	err := json.Unmarshal([]byte(value), &slice)
 	if err != nil {
 		return
@@ -43,7 +43,7 @@ func GetDeleteSlots(set metav1.Object) (deleteSlots sets.Int) {
 	return
 }
 
-func SetDeleteSlots(set metav1.Object, deleteSlots sets.Int) (err error) {
+func SetDeleteSlots(set metav1.Object, deleteSlots sets.Int32) (err error) {
 	annotations := set.GetAnnotations()
 	if deleteSlots == nil || deleteSlots.Len() == 0 {
 		// clear
@@ -63,14 +63,14 @@ func SetDeleteSlots(set metav1.Object, deleteSlots sets.Int) (err error) {
 	return
 }
 
-func AddDeleteSlots(set metav1.Object, deleteSlots sets.Int) (err error) {
+func AddDeleteSlots(set metav1.Object, deleteSlots sets.Int32) (err error) {
 	currentDeleteSlots := GetDeleteSlots(set)
 	return SetDeleteSlots(set, currentDeleteSlots.Union(deleteSlots))
 }
 
 // GetMaxReplicaCountAndDeleteSlots returns the max replica count and delete
 // slots. The desired slots of this stateful set will be [0, replicaCount) - [delete slots].
-func GetMaxReplicaCountAndDeleteSlots(replicas int, deleteSlots sets.Int) (int, sets.Int) {
+func GetMaxReplicaCountAndDeleteSlots(replicas int32, deleteSlots sets.Int32) (int32, sets.Int32) {
 	replicaCount := replicas
 	for _, deleteSlot := range deleteSlots.List() {
 		if deleteSlot < replicaCount {
@@ -83,10 +83,10 @@ func GetMaxReplicaCountAndDeleteSlots(replicas int, deleteSlots sets.Int) (int, 
 }
 
 // GetDesiredPodOrdinals gets desired pod ordinals of given statefulset set.
-func GetDesiredPodOrdinals(replicas int, set metav1.Object) sets.Int {
+func GetDesiredPodOrdinals(replicas int32, set metav1.Object) sets.Int32 {
 	maxReplicaCount, deleteSlots := GetMaxReplicaCountAndDeleteSlots(replicas, GetDeleteSlots(set))
-	podOrdinals := sets.NewInt()
-	for i := 0; i < maxReplicaCount; i++ {
+	podOrdinals := sets.NewInt32()
+	for i := int32(0); i < maxReplicaCount; i++ {
 		if !deleteSlots.Has(i) {
 			podOrdinals.Insert(i)
 		}

@@ -280,7 +280,8 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 
 	// desired replica slots: [0, replicaCount) - [delete slots]
 	deleteSlots := helper.GetDeleteSlots(set)
-	replicaCount, deleteSlots := helper.GetMaxReplicaCountAndDeleteSlots(int(*set.Spec.Replicas), deleteSlots)
+	_replicaCount, deleteSlots := helper.GetMaxReplicaCountAndDeleteSlots(*set.Spec.Replicas, deleteSlots)
+	replicaCount := int(_replicaCount)
 
 	// slice that will contain all Pods such that 0 <= getOrdinal(pod) < set.Spec.Replicas and not in deleteSlots
 	replicas := make([]*v1.Pod, replicaCount)
@@ -309,12 +310,12 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 			}
 		}
 
-		if ord := getOrdinal(pods[i]); 0 <= ord && ord < replicaCount && !deleteSlots.Has(ord) {
+		if ord := getOrdinal(pods[i]); 0 <= ord && ord < replicaCount && !deleteSlots.Has(int32(ord)) {
 			// if the ordinal of the pod is within the range of the current number of replicas,
 			// insert it at the indirection of its ordinal
 			replicas[ord] = pods[i]
 
-		} else if ord >= replicaCount || deleteSlots.Has(ord) {
+		} else if ord >= replicaCount || deleteSlots.Has(int32(ord)) {
 			// if the ordinal is greater than the number of replicas add it to the condemned list
 			condemned = append(condemned, pods[i])
 		}
@@ -323,7 +324,7 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 
 	// for any empty indices in the sequence [0,set.Spec.Replicas) and do not exist in deleteSlots create a new Pod at the correct revision
 	for ord := 0; ord < replicaCount; ord++ {
-		if deleteSlots.Has(ord) {
+		if deleteSlots.Has(int32(ord)) {
 			continue
 		}
 		if replicas[ord] == nil {

@@ -26,7 +26,7 @@ func TestGetDeleteSlots(t *testing.T) {
 	tests := []struct {
 		name string
 		sts  asappsv1.StatefulSet
-		want sets.Int
+		want sets.Int32
 	}{
 		{
 			name: "no annotation",
@@ -66,7 +66,7 @@ func TestGetDeleteSlots(t *testing.T) {
 					},
 				},
 			},
-			want: sets.NewInt(1),
+			want: sets.NewInt32(1),
 		},
 		{
 			name: "vailid annotation with multiple values",
@@ -77,7 +77,7 @@ func TestGetDeleteSlots(t *testing.T) {
 					},
 				},
 			},
-			want: sets.NewInt(1, 2, 3),
+			want: sets.NewInt32(1, 2, 3),
 		},
 		{
 			name: "vailid annotation with duplicate values",
@@ -88,7 +88,7 @@ func TestGetDeleteSlots(t *testing.T) {
 					},
 				},
 			},
-			want: sets.NewInt(1, 2, 3),
+			want: sets.NewInt32(1, 2, 3),
 		},
 	}
 
@@ -106,7 +106,7 @@ func TestSetDeleteSlots(t *testing.T) {
 	tests := []struct {
 		name string
 		sts  asappsv1.StatefulSet
-		set  sets.Int
+		set  sets.Int32
 		want asappsv1.StatefulSet
 	}{
 		{
@@ -134,7 +134,7 @@ func TestSetDeleteSlots(t *testing.T) {
 					},
 				},
 			},
-			set: sets.NewInt(),
+			set: sets.NewInt32(),
 			want: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{},
@@ -146,7 +146,7 @@ func TestSetDeleteSlots(t *testing.T) {
 			sts: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{},
 			},
-			set: sets.NewInt(3),
+			set: sets.NewInt32(3),
 			want: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
@@ -160,7 +160,7 @@ func TestSetDeleteSlots(t *testing.T) {
 			sts: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{},
 			},
-			set: sets.NewInt(3, 4, 1),
+			set: sets.NewInt32(3, 4, 1),
 			want: asappsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
@@ -189,7 +189,7 @@ func TestGetDesiredPodOrdinals(t *testing.T) {
 	tests := []struct {
 		name string
 		sts  asappsv1.StatefulSet
-		want sets.Int
+		want sets.Int32
 	}{
 		{
 			name: "no delete slots",
@@ -199,7 +199,7 @@ func TestGetDesiredPodOrdinals(t *testing.T) {
 					Replicas: int32ptr(3),
 				},
 			},
-			want: sets.NewInt(0, 1, 2),
+			want: sets.NewInt32(0, 1, 2),
 		},
 		{
 			name: "delete slots in [0, replicas)",
@@ -213,7 +213,7 @@ func TestGetDesiredPodOrdinals(t *testing.T) {
 					Replicas: int32ptr(3),
 				},
 			},
-			want: sets.NewInt(1, 3, 4),
+			want: sets.NewInt32(1, 3, 4),
 		},
 		{
 			name: "delete slots not in [0, replicas)",
@@ -227,12 +227,12 @@ func TestGetDesiredPodOrdinals(t *testing.T) {
 					Replicas: int32ptr(3),
 				},
 			},
-			want: sets.NewInt(0, 1, 2),
+			want: sets.NewInt32(0, 1, 2),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := GetDesiredPodOrdinals(int(*tt.sts.Spec.Replicas), &tt.sts)
+			got := GetDesiredPodOrdinals(*tt.sts.Spec.Replicas, &tt.sts)
 			if diff := cmp.Diff(tt.want.List(), got.List()); diff != "" {
 				t.Errorf("unexpected result (-want, +got): %s", diff)
 			}
