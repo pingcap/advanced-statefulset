@@ -87,7 +87,11 @@ func GetMaxReplicaCountAndDeleteSlots(replicas int32, deleteSlots sets.Int32) (i
 }
 
 func GetPodOrdinals(replicas int32, set metav1.Object) sets.Int32 {
-	maxReplicaCount, deleteSlots := GetMaxReplicaCountAndDeleteSlots(replicas, GetDeleteSlots(set))
+	return GetPodOrdinalsFromReplicasAndDeleteSlots(replicas, GetDeleteSlots(set))
+}
+
+func GetPodOrdinalsFromReplicasAndDeleteSlots(replicas int32, deleteSlots sets.Int32) sets.Int32 {
+	maxReplicaCount, deleteSlots := GetMaxReplicaCountAndDeleteSlots(replicas, deleteSlots)
 	podOrdinals := sets.NewInt32()
 	for i := int32(0); i < maxReplicaCount; i++ {
 		if !deleteSlots.Has(i) {
