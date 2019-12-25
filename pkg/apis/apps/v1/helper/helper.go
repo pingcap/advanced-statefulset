@@ -72,14 +72,18 @@ func AddDeleteSlots(set metav1.Object, deleteSlots sets.Int32) (err error) {
 // slots. The desired slots of this stateful set will be [0, replicaCount) - [delete slots].
 func GetMaxReplicaCountAndDeleteSlots(replicas int32, deleteSlots sets.Int32) (int32, sets.Int32) {
 	replicaCount := replicas
-	for _, deleteSlot := range deleteSlots.List() {
+	deleteSlotsCopy := sets.NewInt32()
+	for k := range deleteSlots {
+		deleteSlotsCopy.Insert(k)
+	}
+	for _, deleteSlot := range deleteSlotsCopy.List() {
 		if deleteSlot < replicaCount {
 			replicaCount++
 		} else {
-			deleteSlots.Delete(deleteSlot)
+			deleteSlotsCopy.Delete(deleteSlot)
 		}
 	}
-	return replicaCount, deleteSlots
+	return replicaCount, deleteSlotsCopy
 }
 
 func GetPodOrdinals(replicas int32, set metav1.Object) sets.Int32 {
