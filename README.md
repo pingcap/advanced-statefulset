@@ -1,7 +1,7 @@
 # Advanced StatefulSet
 
 This is an Advanced StatefulSet CRD implementation based on official
-StatefulSet in Kubernetes 1.16.0.
+StatefulSet in Kubernetes 1.17.0.
 
 This is an experimental project.
 
@@ -10,6 +10,32 @@ This is an experimental project.
 In addition to official StatefulSet, it adds one feature:
 
 - Scale in at an arbitrary position: https://github.com/kubernetes/kubernetes/issues/83224
+
+## Development
+
+### Verify
+
+```
+make verify
+```
+
+### Unit Tests
+
+```
+make test
+```
+
+### Integration Tests
+
+```
+make test-integration
+```
+
+### E2E
+
+```
+make e2e
+```
 
 ## Test it out
 
