@@ -20,8 +20,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	asapps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1"
+	asappsv1 "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1"
 	asfake "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned/fake"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -136,5 +139,51 @@ func TestSharedInformerFactory(t *testing.T) {
 	_, err = stsLister.StatefulSets(ns).Get("does-not-exist")
 	if !apierrors.IsNotFound(err) {
 		t.Fatal(err)
+	}
+}
+
+func TestFromBuiltinStatefulSet(t *testing.T) {
+	tests := []struct {
+		name string
+		sts  *appsv1.StatefulSet
+		want *asappsv1.StatefulSet
+	}{
+		{
+			name: "basic",
+			sts: &appsv1.StatefulSet{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "StatefulSet",
+					APIVersion: appsv1.SchemeGroupVersion.String(),
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "sts",
+				},
+				Spec: appsv1.StatefulSetSpec{},
+			},
+			want: &asappsv1.StatefulSet{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "StatefulSet",
+					APIVersion: asappsv1.SchemeGroupVersion.String(),
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "sts",
+				},
+				Spec: asappsv1.StatefulSetSpec{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := FromBuiltinStatefulSet(tt.sts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !apiequality.Semantic.DeepEqual(tt.want, got) {
+				t.Errorf("want %v got %v", tt.want, got)
+			}
+		})
 	}
 }

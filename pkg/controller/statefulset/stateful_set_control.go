@@ -27,6 +27,7 @@ import (
 	apps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1"
 	"github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1/helper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/controller/history"
 )
@@ -124,7 +125,17 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*k
 	if err != nil {
 		return nil, err
 	}
-	return ssc.controllerHistory.ListControllerRevisions(set, selector)
+	revisions, err := ssc.controllerHistory.ListControllerRevisions(set, selector)
+	if err != nil {
+		return nil, err
+	}
+	revisinsToMigrate, err := ssc.controllerHistory.ListControllerRevisions(set, labels.SelectorFromValidatedSet(map[string]string{
+		helper.MigrateToAdvancedStatefulSetAnn: set.Name,
+	}))
+	if err != nil {
+		return nil, err
+	}
+	return append(revisions, revisinsToMigrate...), nil
 }
 
 func (ssc *defaultStatefulSetControl) AdoptOrphanRevisions(

@@ -22,10 +22,12 @@ import (
 	"time"
 
 	apps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1"
+	"github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1/helper"
 	clientset "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned"
 	asscheme "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned/scheme"
 	appsinformers "github.com/pingcap/advanced-statefulset/pkg/client/informers/externalversions/apps/v1"
 	appslisters "github.com/pingcap/advanced-statefulset/pkg/client/listers/apps/v1"
+	kubeapps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -315,6 +317,29 @@ func (ssc *StatefulSetController) getPodsForStatefulSet(set *apps.StatefulSet, s
 	return cm.ClaimPods(pods, filter)
 }
 
+func shouldSyncLabels(revision *kubeapps.ControllerRevision) bool {
+	labels := revision.ObjectMeta.Labels
+	if labels == nil {
+		return false
+	}
+	if _, ok := labels[helper.MigrateToAdvancedStatefulSetAnn]; ok {
+		return true
+	}
+	return false
+}
+
+func syncLabels(kubeClient kubernetes.Interface, set *apps.StatefulSet, revision *kubeapps.ControllerRevision) (*kubeapps.ControllerRevision, error) {
+	labels := revision.ObjectMeta.Labels
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	for k, v := range set.Spec.Template.Labels {
+		labels[k] = v
+	}
+	revision.ObjectMeta.Labels = labels
+	return kubeClient.AppsV1().ControllerRevisions(revision.Namespace).Update(revision)
+}
+
 // adoptOrphanRevisions adopts any orphaned ControllerRevisions matched by set's Selector.
 func (ssc *StatefulSetController) adoptOrphanRevisions(set *apps.StatefulSet) error {
 	revisions, err := ssc.control.ListRevisions(set)
@@ -329,6 +354,14 @@ func (ssc *StatefulSetController) adoptOrphanRevisions(set *apps.StatefulSet) er
 		}
 	}
 	if hasOrphans {
+		for i := range revisions {
+			if shouldSyncLabels(revisions[i]) {
+				revisions[i], err = syncLabels(ssc.kubeClient, set, revisions[i])
+				if err != nil {
+					return err
+				}
+			}
+		}
 		fresh, err := ssc.pcClient.AppsV1().StatefulSets(set.Namespace).Get(set.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
