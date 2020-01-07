@@ -129,11 +129,12 @@ def call(GIT_URL, GIT_REF) {
         builds["Integration"] = {
             build(GIT_URL, GIT_REF, "make test-integration")
         }
+        def MIRRORS = "DOCKER_IO_MIRROR=http://registry-proxy-docker-io.fuyecheng:5000"
         builds["E2E v1.16.3"] = {
-            build(GIT_URL, GIT_REF, "KUBE_VERSION=v1.16.3 GINKGO_NODES=8 DOCKER_IO_MIRROR=https://dockerhub.azk8s.cn ./hack/e2e.sh -- --report-dir=${ARTIFACTS} --report-prefix=v1.16.3_", ARTIFACTS)
+            build(GIT_URL, GIT_REF, "${MIRRORS} IKUBE_VERSION=v1.16.3 GINKGO_NODES=8 ./hack/e2e.sh -- --report-dir=${ARTIFACTS} --report-prefix=v1.16.3_", ARTIFACTS)
         }
         builds["E2E v1.12.10"] = {
-            build(GIT_URL, GIT_REF, "KUBE_VERSION=v1.12.10 GINKGO_NODES=8 DOCKER_IO_MIRROR=https://dockerhub.azk8s.cn ./hack/e2e.sh -- --report-dir=${ARTIFACTS} --report-prefix=v1.12.10_", ARTIFACTS)
+            build(GIT_URL, GIT_REF, "${MIRRORS} KUBE_VERSION=v1.12.10 GINKGO_NODES=8 ./hack/e2e.sh -- --report-dir=${ARTIFACTS} --report-prefix=v1.12.10_", ARTIFACTS)
         }
         builds.failFast = false
         parallel builds
