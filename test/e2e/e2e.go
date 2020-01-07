@@ -34,6 +34,7 @@ package e2e
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"testing"
@@ -51,14 +52,36 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2elog "k8s.io/kubernetes/test/e2e/framework/log"
+	imageutils "k8s.io/kubernetes/test/utils/image"
 )
 
 const (
 	asNamespace = "advanced-statefulset"
 )
 
+var (
+	images = []string{
+		imageutils.GetE2EImage(imageutils.Httpd),
+		imageutils.GetE2EImage(imageutils.HttpdNew),
+		imageutils.GetE2EImage(imageutils.Redis),
+		imageutils.GetE2EImage(imageutils.Kitten),
+		imageutils.GetE2EImage(imageutils.Nautilus),
+	}
+)
+
 var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	framework.SetupSuite()
+	// Load images
+	kindPath := filepath.Join(framework.TestContext.RepoRoot, "output/bin/linux/kind")
+	for _, image := range images {
+		e2elog.Logf("Loading image %s", image)
+		if err := exec.Command("docker", "pull", image).Run(); err != nil {
+			framework.ExpectNoError(err)
+		}
+		if err := exec.Command(kindPath, "load", "docker-image", "--name", "advanced-statefulset", image).Run(); err != nil {
+			framework.ExpectNoError(err)
+		}
+	}
 	// Get the client
 	config, err := framework.LoadConfig()
 	c, err := clientset.NewForConfig(config)
