@@ -324,7 +324,7 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 				updateRevision))
 		})
 
-		ginkgo.It("migrate from Kubernetes StatefulSet", func() {
+		ginkgo.It("upgrade from Kubernetes StatefulSet", func() {
 			ginkgo.By("Creating statefulset " + ssName + " in namespace " + ns)
 			*(ss.Spec.Replicas) = 3
 			e2esset.PauseNewPods(ss)
@@ -341,7 +341,7 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 			revisionListOptions := metav1.ListOptions{LabelSelector: selector.String()}
 			oldRevisionList, err := c.AppsV1().ControllerRevisions(ns).List(revisionListOptions)
 			framework.ExpectNoError(err)
-			migrateLabel := helper.MigrateToAdvancedStatefulSetAnn
+			upgradeLabel := helper.UpgradeToAdvancedStatefulSetAnn
 			for _, revision := range oldRevisionList.Items {
 				// It's important to empty statefulset selector labels,
 				// otherwise sts will adopt it again on delete event and then
@@ -350,7 +350,7 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 				for key := range ss.Spec.Selector.MatchLabels {
 					delete(revision.Labels, key)
 				}
-				revision.Labels[migrateLabel] = ss.Name // a special label to mark it should be adopted by the new sts
+				revision.Labels[upgradeLabel] = ss.Name // a special label to mark it should be adopted by the new sts
 				_, err = c.AppsV1().ControllerRevisions(ns).Update(&revision)
 				framework.ExpectNoError(err)
 			}
@@ -361,10 +361,10 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 				PropagationPolicy: &policy,
 			})
 
-			migrateSelector := labels.SelectorFromSet(map[string]string{
-				migrateLabel: ss.Name,
+			upgradeSelector := labels.SelectorFromSet(map[string]string{
+				upgradeLabel: ss.Name,
 			})
-			migrateRevisionListOption := metav1.ListOptions{LabelSelector: migrateSelector.String()}
+			upgradeRevisionListOption := metav1.ListOptions{LabelSelector: upgradeSelector.String()}
 
 			ginkgo.By("Waiting for pods/controllerrevisions to be orphaned")
 			err = wait.PollImmediate(time.Second, time.Minute, func() (done bool, err error) {
@@ -375,7 +375,7 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 						return false, nil
 					}
 				}
-				revisionList, err := c.AppsV1().ControllerRevisions(ns).List(migrateRevisionListOption)
+				revisionList, err := c.AppsV1().ControllerRevisions(ns).List(upgradeRevisionListOption)
 				framework.ExpectNoError(err)
 				gomega.Expect(revisionList.Items).To(gomega.HaveLen(len(oldRevisionList.Items)))
 
@@ -397,7 +397,7 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 					gomega.Expect(metav1.GetControllerOf(&pod)).To(gomega.BeNil())
 				}
 
-				revisionList, err := c.AppsV1().ControllerRevisions(ns).List(migrateRevisionListOption)
+				revisionList, err := c.AppsV1().ControllerRevisions(ns).List(upgradeRevisionListOption)
 				framework.ExpectNoError(err)
 				gomega.Expect(revisionList.Items).To(gomega.HaveLen(len(oldRevisionList.Items)))
 				for _, revision := range revisionList.Items {
@@ -414,10 +414,10 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 			framework.ExpectNoError(err)
 
 			ginkgo.By("Recovering controller revisions")
-			revisionList, err := c.AppsV1().ControllerRevisions(ns).List(migrateRevisionListOption)
+			revisionList, err := c.AppsV1().ControllerRevisions(ns).List(upgradeRevisionListOption)
 			framework.ExpectNoError(err)
 			for _, revision := range revisionList.Items {
-				delete(revision.Labels, migrateLabel)
+				delete(revision.Labels, upgradeLabel)
 				for key, val := range asts.Spec.Selector.MatchLabels {
 					revision.Labels[key] = val
 				}
@@ -458,7 +458,7 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 			framework.ExpectNoError(err)
 		})
 
-		ginkgo.It("migrate from Kubernetes StatefulSet with helper.Migrate", func() {
+		ginkgo.It("upgrade from Kubernetes StatefulSet with helper.Upgrade", func() {
 			ginkgo.By("Creating statefulset " + ssName + " in namespace " + ns)
 			*(ss.Spec.Replicas) = 3
 
@@ -473,8 +473,8 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 			oldRevisionList, err := c.AppsV1().ControllerRevisions(ns).List(revisionListOptions)
 			framework.ExpectNoError(err)
 
-			ginkgo.By(fmt.Sprintf("Migrating the builtin StatefulSet %s/%s", ss.Namespace, ss.Name))
-			asts, err := helper.Migrate(c, asc, ss)
+			ginkgo.By(fmt.Sprintf("Upgrading the builtin StatefulSet %s/%s", ss.Namespace, ss.Name))
+			asts, err := helper.Upgrade(c, asc, ss)
 			framework.ExpectNoError(err)
 
 			ginkgo.By(fmt.Sprintf("Wait for pods/controllerrevisions to be adopted by the new Advanced StatefulSet %s/%s", asts.Namespace, asts.Name))

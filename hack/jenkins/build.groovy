@@ -129,7 +129,7 @@ def call(GIT_URL, GIT_REF) {
         builds["Integration"] = {
             build(GIT_URL, GIT_REF, "make test-integration")
         }
-        def MIRRORS = "DOCKER_IO_MIRROR=http://registry-proxy-docker-io.fuyecheng:5000"
+        def MIRRORS = "DOCKER_IO_MIRROR=http://172.16.4.143:5000"
         builds["E2E v1.16.3"] = {
             build(GIT_URL, GIT_REF, "${MIRRORS} IKUBE_VERSION=v1.16.3 GINKGO_NODES=8 ./hack/e2e.sh -- --report-dir=${ARTIFACTS} --report-prefix=v1.16.3_", ARTIFACTS)
         }

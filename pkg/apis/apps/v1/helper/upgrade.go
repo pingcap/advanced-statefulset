@@ -24,12 +24,12 @@ import (
 )
 
 const (
-	// MigrateToAdvancedStatefulSetAnn represents the annotation key used to
+	// UpgradeToAdvancedStatefulSetAnn represents the annotation key used to
 	// help migration to Advanced StatefulSet
-	MigrateToAdvancedStatefulSetAnn = "apps.pingcap.com/migrate-to-asts"
+	UpgradeToAdvancedStatefulSetAnn = "apps.pingcap.com/upgrade-to-asts"
 )
 
-// Migrate migrates Kubernetes builtin StatefulSet to Advanced StatefulSet.
+// Upgrade upgrades Kubernetes builtin StatefulSet to Advanced StatefulSet.
 //
 // This method is idempotent. The last operation is deleting the builtin
 // StatefulSet, the caller must retry until the builtin StatefulSet is deleted
@@ -41,7 +41,7 @@ const (
 // - create advanced sts
 // - delete sts with DeletePropagationOrphan policy
 //
-func Migrate(c clientset.Interface, asc asclientset.Interface, sts *appsv1.StatefulSet) (*asv1.StatefulSet, error) {
+func Upgrade(c clientset.Interface, asc asclientset.Interface, sts *appsv1.StatefulSet) (*asv1.StatefulSet, error) {
 	selector, err := metav1.LabelSelectorAsSelector(sts.Spec.Selector)
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func Migrate(c clientset.Interface, asc asclientset.Interface, sts *appsv1.State
 		for key := range sts.Spec.Selector.MatchLabels {
 			delete(revision.Labels, key)
 		}
-		revision.Labels[MigrateToAdvancedStatefulSetAnn] = sts.Name
+		revision.Labels[UpgradeToAdvancedStatefulSetAnn] = sts.Name
 		_, err = c.AppsV1().ControllerRevisions(revision.Namespace).Update(&revision)
 		if err != nil {
 			return nil, err

@@ -322,7 +322,7 @@ func shouldSyncLabels(revision *kubeapps.ControllerRevision) bool {
 	if labels == nil {
 		return false
 	}
-	if _, ok := labels[helper.MigrateToAdvancedStatefulSetAnn]; ok {
+	if _, ok := labels[helper.UpgradeToAdvancedStatefulSetAnn]; ok {
 		return true
 	}
 	return false

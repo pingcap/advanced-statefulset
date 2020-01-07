@@ -129,13 +129,13 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*k
 	if err != nil {
 		return nil, err
 	}
-	revisinsToMigrate, err := ssc.controllerHistory.ListControllerRevisions(set, labels.SelectorFromValidatedSet(map[string]string{
-		helper.MigrateToAdvancedStatefulSetAnn: set.Name,
+	revisinsToUpgrade, err := ssc.controllerHistory.ListControllerRevisions(set, labels.SelectorFromValidatedSet(map[string]string{
+		helper.UpgradeToAdvancedStatefulSetAnn: set.Name,
 	}))
 	if err != nil {
 		return nil, err
 	}
-	return append(revisions, revisinsToMigrate...), nil
+	return append(revisions, revisinsToUpgrade...), nil
 }
 
 func (ssc *defaultStatefulSetControl) AdoptOrphanRevisions(
