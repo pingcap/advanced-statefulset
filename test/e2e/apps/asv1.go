@@ -410,20 +410,23 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 			ginkgo.By(fmt.Sprintf("Creating a new advanced sts %q", ss.Name))
 			asts, err := helper.FromBuiltinStatefulSet(ss)
 			framework.ExpectNoError(err)
+			// https://github.com/kubernetes/apiserver/blob/kubernetes-1.16.0/pkg/storage/etcd3/store.go#L141-L143
+			asts.ObjectMeta.ResourceVersion = ""
 			asts, err = asc.AppsV1().StatefulSets(ns).Create(asts)
 			framework.ExpectNoError(err)
 
-			ginkgo.By("Recovering controller revisions")
-			revisionList, err := c.AppsV1().ControllerRevisions(ns).List(upgradeRevisionListOption)
-			framework.ExpectNoError(err)
-			for _, revision := range revisionList.Items {
-				delete(revision.Labels, upgradeLabel)
-				for key, val := range asts.Spec.Selector.MatchLabels {
-					revision.Labels[key] = val
-				}
-				_, err = c.AppsV1().ControllerRevisions(ns).Update(&revision)
-				framework.ExpectNoError(err)
-			}
+			// Right now, asts controller will adopt upgraded controller revisions automaticallly
+			// ginkgo.By("Recovering controller revisions")
+			// revisionList, err := c.AppsV1().ControllerRevisions(ns).List(upgradeRevisionListOption)
+			// framework.ExpectNoError(err)
+			// for _, revision := range revisionList.Items {
+			// delete(revision.Labels, upgradeLabel)
+			// for key, val := range asts.Spec.Selector.MatchLabels {
+			// revision.Labels[key] = val
+			// }
+			// _, err = c.AppsV1().ControllerRevisions(ns).Update(&revision)
+			// framework.ExpectNoError(err)
+			// }
 
 			ginkgo.By(fmt.Sprintf("Wait for pods/controllerrevisions to be adopted"))
 			controllerKind := asv1.SchemeGroupVersion.WithKind("StatefulSet")

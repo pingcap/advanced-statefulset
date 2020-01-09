@@ -33,7 +33,6 @@ pingcap_files=($(find . -type f -not \( \
 ))
 
 pingcap_files+=(
-	./test/e2e/apps/asv1alpha1.go 
 	./test/e2e/apps/asv1.go 
 	./test/e2e/e2e.go
 	./test/e2e/e2e_test.go
