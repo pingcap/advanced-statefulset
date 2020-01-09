@@ -75,7 +75,7 @@ if [ "${1:-}" == "--" ]; then
     shift
 fi
 
-KEEP_CLUSTER=${KEEP_CLUSTER:-}
+SKIP_DOWN=${SKIP_DOWN:-}
 SKIP_BUILD=${SKIP_BUILD:-}
 REUSE_CLUSTER=${REUSE_CLUSTER:-}
 KUBE_VERSION=${KUBE_VERSION:-v1.16.3}
@@ -93,7 +93,7 @@ kind_node_images["v1.14.9"]="kindest/node:v1.14.9@sha256:bdd3731588fa3ce8f66c7c2
 kind_node_images["v1.15.6"]="kindest/node:v1.15.6@sha256:18c4ab6b61c991c249d29df778e651f443ac4bcd4e6bdd37e0c83c0d33eaae78"
 kind_node_images["v1.16.3"]="kindest/node:v1.16.3@sha256:70ce6ce09bee5c34ab14aec2b84d6edb260473a60638b1b095470a3a0f95ebec"
 
-echo "KEEP_CLUSTER: $KEEP_CLUSTER"
+echo "SKIP_DOWN: $SKIP_DOWN"
 echo "SKIP_BUILD: $SKIP_BUILD"
 echo "REUSE_CLUSTER: $REUSE_CLUSTER"
 echo "KUBE_VERSION: $KUBE_VERSION"
@@ -110,11 +110,13 @@ function e2e::cluster_exists() {
 }
 
 function e2e::down() {
-    if [ -z "$KEEP_CLUSTER" ]; then
-        if $KIND_BIN get clusters | grep $CLUSTER &>/dev/null; then
-            echo "info: deleting the cluster '$CLUSTER'"
-            $KIND_BIN delete cluster --name $CLUSTER
-        fi
+    if [ -n "$SKIP_DOWN" ]; then
+        echo "info: skip shutting down the cluster '$CLUSTER'"
+        return
+    fi
+    if $KIND_BIN get clusters | grep $CLUSTER &>/dev/null; then
+        echo "info: deleting the cluster '$CLUSTER'"
+        $KIND_BIN delete cluster --name $CLUSTER
     fi
 }
 
@@ -265,7 +267,7 @@ EOF
     #
     # OCI runtime create failed: container_linux.go:346: starting container process caused "process_linux.go:319: getting the final child's pid from pipe caused \"EOF\"": unknown
     #
-    # TODO this error should be related docker or linux kernel, find the root cause.
+    # TODO this error should be related to docker or linux kernel, find the root cause.
     hack::wait_for_success 120 5 "$KIND_BIN create cluster --config $KUBECONFIG --name $CLUSTER --image $image --config $tmpfile -v 4"
 }
 

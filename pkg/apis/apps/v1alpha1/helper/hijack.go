@@ -199,18 +199,6 @@ func FromBuiltinStatefulSet(sts *appsv1.StatefulSet) (*asv1alpha1.StatefulSet, e
 	return newSet, err
 }
 
-func ToMultiBuiltinStatefulSet(pcstss []*asv1alpha1.StatefulSet) ([]*appsv1.StatefulSet, error) {
-	stss := make([]*appsv1.StatefulSet, 0)
-	for _, pcsts := range pcstss {
-		sts, err := ToBuiltinStatefulSet(pcsts)
-		if err != nil {
-			return nil, err
-		}
-		stss = append(stss, sts)
-	}
-	return stss, nil
-}
-
 func ToBuiltinStatefulSet(sts *asv1alpha1.StatefulSet) (*appsv1.StatefulSet, error) {
 	data, err := json.Marshal(sts)
 	if err != nil {

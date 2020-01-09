@@ -197,19 +197,11 @@ func FromBuiltinStatefulSet(sts *appsv1.StatefulSet) (*asv1.StatefulSet, error) 
 	}
 	newSet := &asv1.StatefulSet{}
 	err = json.Unmarshal(data, newSet)
-	return newSet, err
-}
-
-func ToMultiBuiltinStatefulSet(pcstss []*asv1.StatefulSet) ([]*appsv1.StatefulSet, error) {
-	stss := make([]*appsv1.StatefulSet, 0)
-	for _, pcsts := range pcstss {
-		sts, err := ToBuiltinStatefulSet(pcsts)
-		if err != nil {
-			return nil, err
-		}
-		stss = append(stss, sts)
+	if err != nil {
+		return nil, err
 	}
-	return stss, nil
+	newSet.TypeMeta.APIVersion = asv1.SchemeGroupVersion.String()
+	return newSet, nil
 }
 
 func ToBuiltinStatefulSet(sts *asv1.StatefulSet) (*appsv1.StatefulSet, error) {
@@ -219,7 +211,11 @@ func ToBuiltinStatefulSet(sts *asv1.StatefulSet) (*appsv1.StatefulSet, error) {
 	}
 	newSet := &appsv1.StatefulSet{}
 	err = json.Unmarshal(data, newSet)
-	return newSet, err
+	if err != nil {
+		return nil, err
+	}
+	newSet.TypeMeta.APIVersion = appsv1.SchemeGroupVersion.String()
+	return newSet, nil
 }
 
 func ToBuiltinStetefulsetList(stsList *asv1.StatefulSetList) (*appsv1.StatefulSetList, error) {
@@ -227,7 +223,15 @@ func ToBuiltinStetefulsetList(stsList *asv1.StatefulSetList) (*appsv1.StatefulSe
 	if err != nil {
 		return nil, err
 	}
-	newSet := &appsv1.StatefulSetList{}
-	err = json.Unmarshal(data, newSet)
-	return newSet, err
+	newList := &appsv1.StatefulSetList{}
+	err = json.Unmarshal(data, newList)
+	if err != nil {
+		return nil, err
+	}
+	newList.TypeMeta.APIVersion = appsv1.SchemeGroupVersion.String()
+	for i, sts := range newList.Items {
+		sts.TypeMeta.APIVersion = appsv1.SchemeGroupVersion.String()
+		newList.Items[i] = sts
+	}
+	return newList, nil
 }

@@ -50,5 +50,7 @@ fi
 go test -c -o output/bin/e2e.test ./test/e2e
 
 echo "Running e2e tests:" >&2
+echo $GINKGO_BIN "${ginkgo_args[@]:-}" output/bin/e2e.test -- \
+    "${@:-}"
 $GINKGO_BIN "${ginkgo_args[@]:-}" output/bin/e2e.test -- \
     "${@:-}"
