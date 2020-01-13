@@ -477,8 +477,14 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 			framework.ExpectNoError(err)
 
 			ginkgo.By(fmt.Sprintf("Upgrading the builtin StatefulSet %s/%s", ss.Namespace, ss.Name))
+			ss, err = c.AppsV1().StatefulSets(ns).Get(ss.Name, metav1.GetOptions{})
+			framework.ExpectNoError(err)
 			asts, err := helper.Upgrade(c, asc, ss)
 			framework.ExpectNoError(err)
+			expectedAsts, err := helper.FromBuiltinStatefulSet(ss)
+			framework.ExpectNoError(err)
+			framework.ExpectEqual(asts.Spec, expectedAsts.Spec, "spec equal")
+			framework.ExpectEqual(asts.Status, expectedAsts.Status, "status equal")
 
 			ginkgo.By(fmt.Sprintf("Wait for pods/controllerrevisions to be adopted by the new Advanced StatefulSet %s/%s", asts.Namespace, asts.Name))
 			controllerKind := asv1.SchemeGroupVersion.WithKind("StatefulSet")

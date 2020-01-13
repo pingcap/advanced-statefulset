@@ -67,15 +67,18 @@ func Upgrade(c clientset.Interface, asc asclientset.Interface, sts *appsv1.State
 	}
 	klog.V(2).Infof("Succesfully marked all controller revisions (%d) of StatefulSet %s/%s", len(oldRevisionList.Items), sts.Namespace, sts.Name)
 
+	// Create or Update
 	asts, err := asc.AppsV1().StatefulSets(sts.Namespace).Get(sts.Name, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return nil, err
 	}
-	if apierrors.IsNotFound(err) {
-		asts, err = FromBuiltinStatefulSet(sts)
-		if err != nil {
-			return nil, err
-		}
+	notFound := apierrors.IsNotFound(err)
+	upgradedSts, err := FromBuiltinStatefulSet(sts)
+	if err != nil {
+		return nil, err
+	}
+	if notFound {
+		asts = upgradedSts.DeepCopy()
 		// https://github.com/kubernetes/apiserver/blob/kubernetes-1.16.0/pkg/storage/etcd3/store.go#L141-L143
 		asts.ObjectMeta.ResourceVersion = ""
 		asts, err = asc.AppsV1().StatefulSets(asts.Namespace).Create(asts)
@@ -84,15 +87,19 @@ func Upgrade(c clientset.Interface, asc asclientset.Interface, sts *appsv1.State
 		}
 		klog.V(2).Infof("Succesfully created the new Advanced StatefulSet %s/%s", asts.Namespace, asts.Name)
 	} else {
-		asts, err = FromBuiltinStatefulSet(sts)
-		if err != nil {
-			return nil, err
-		}
+		asts.Spec = upgradedSts.Spec
 		asts, err = asc.AppsV1().StatefulSets(asts.Namespace).Update(asts)
 		if err != nil {
 			return nil, err
 		}
 		klog.V(2).Infof("Succesfully updated the new Advanced StatefulSet %s/%s", asts.Namespace, asts.Name)
+	}
+
+	// Status must be updated via UpdateStatus
+	asts.Status = upgradedSts.Status
+	asts, err = asc.AppsV1().StatefulSets(asts.Namespace).UpdateStatus(asts)
+	if err != nil {
+		return nil, err
 	}
 
 	// At the last, delete the builtin StatefulSet
