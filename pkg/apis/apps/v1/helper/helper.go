@@ -107,7 +107,7 @@ func GetMaxPodOrdinal(replicas int32, set metav1.Object) int32 {
 	max = -1
 	for k, _ := range GetPodOrdinals(replicas, set) {
 		if k > max {
-			k = max
+			max = k
 		}
 	}
 	return max
@@ -118,7 +118,7 @@ func GetMinPodOrdinal(replicas int32, set metav1.Object) int32 {
 	min = math.MaxInt32
 	for k, _ := range GetPodOrdinals(replicas, set) {
 		if k < min {
-			k = min
+			min = k
 		}
 	}
 	return min
