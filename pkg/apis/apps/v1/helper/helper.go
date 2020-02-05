@@ -15,6 +15,7 @@ package helper
 
 import (
 	"encoding/json"
+	"math"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -99,4 +100,26 @@ func GetPodOrdinalsFromReplicasAndDeleteSlots(replicas int32, deleteSlots sets.I
 		}
 	}
 	return podOrdinals
+}
+
+func GetMaxPodOrdinal(replicas int32, set metav1.Object) int32 {
+	var max int32
+	max = -1
+	for k := range GetPodOrdinals(replicas, set) {
+		if k > max {
+			max = k
+		}
+	}
+	return max
+}
+
+func GetMinPodOrdinal(replicas int32, set metav1.Object) int32 {
+	var min int32
+	min = math.MaxInt32
+	for k := range GetPodOrdinals(replicas, set) {
+		if k < min {
+			min = k
+		}
+	}
+	return min
 }
