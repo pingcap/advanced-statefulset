@@ -100,3 +100,25 @@ func GetPodOrdinalsFromReplicasAndDeleteSlots(replicas int32, deleteSlots sets.I
 	}
 	return podOrdinals
 }
+
+func GetMaxPodOrdinal(replicas int32, set metav1.Object) int32 {
+	var max int32
+	max = -1
+	for k, _ := range GetPodOrdinals(replicas, set) {
+		if k > max {
+			k = max
+		}
+	}
+	return max
+}
+
+func GetMinPodOrdinal(replicas int32, set metav1.Object) int32 {
+	var min int32
+	min = 2147483647
+	for k, _ := range GetPodOrdinals(replicas, set) {
+		if k < min {
+			k = min
+		}
+	}
+	return min
+}
