@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [verify, build, test, test-integration, e2e-v1.16.1, e2e-v1.12.10]
+        target: [verify, build, test, test-integration, e2e-v1.16.3, e2e-v1.12.10]
     steps:
     - name: Set up Go 1.13.4
       uses: actions/setup-go@v1
