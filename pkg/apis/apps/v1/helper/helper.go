@@ -123,3 +123,23 @@ func GetMinPodOrdinal(replicas int32, set metav1.Object) int32 {
 	}
 	return min
 }
+
+// CalculateScaleOutPodOrdinal calculate the expected pod ordinal before the scaling out happens,
+// if the currentReplicas is 3, and the target Replicas is 5.
+// Then the current pod ordinal list is [0,1,3], and the delete slot list is [2,4],
+// the calculated return sets would be {5,6}
+func CalculateScaleOutPodOrdinal(currentReplicas, targetReplicas int32, set metav1.Object) sets.Int32 {
+	expectedOrdinalSets := sets.Int32{}
+	if currentReplicas >= targetReplicas {
+		return expectedOrdinalSets
+	}
+	slots := GetDeleteSlots(set)
+	maxOrdinal := GetMaxPodOrdinal(currentReplicas, set)
+	for i := 1; expectedOrdinalSets.Len() < int(targetReplicas-currentReplicas); i++ {
+		expectedOrdinal := maxOrdinal + int32(i)
+		if !slots.Has(expectedOrdinal) {
+			expectedOrdinalSets.Insert(expectedOrdinal)
+		}
+	}
+	return expectedOrdinalSets
+}
