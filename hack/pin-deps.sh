@@ -17,7 +17,15 @@
 # Pin all k8s.io dependencies to a specified version.
 #
 
-VERSION=1.16.0
+set -o errexit
+set -o nounset
+set -o pipefail
+
+ROOT=$(unset CDPATH && cd $(dirname "${BASH_SOURCE[0]}")/.. && pwd)
+cd $ROOT
+
+VERSION=1.17.3
+STAGING_VERSION=0.17.3 # // since 1.17
 
 go mod edit -require k8s.io/kubernetes@v$VERSION
 
@@ -25,8 +33,11 @@ STAGING_REPOS=($(curl -sS https://raw.githubusercontent.com/kubernetes/kubernete
 
 edit_args=()
 for repo in ${STAGING_REPOS[@]}; do
-    edit_args+=(-replace $repo=$repo@kubernetes-$VERSION)
+    # pre-1.17.0
+    # edit_args+=(-replace $repo=$repo@kubernetes-$VERSION)
+    edit_args+=(-replace $repo=$repo@v$STAGING_VERSION)
 done
 
 go mod edit ${edit_args[@]}
 go mod tidy
+go mod vendor
