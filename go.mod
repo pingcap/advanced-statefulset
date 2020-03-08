@@ -18,6 +18,7 @@ require (
 	k8s.io/component-base v0.17.3
 	k8s.io/klog v1.0.0
 	k8s.io/kubernetes v1.17.3
+	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
 )
 
 replace k8s.io/api => k8s.io/api v0.17.3

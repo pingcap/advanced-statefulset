@@ -707,7 +707,7 @@ var _ = SIGDescribe("StatefulSet", func() {
 					NodeName: node.Name,
 				},
 			}
-			pod, err := f.ClientSet.CoreV1().Pods(f.Namespace.Name).Create(pod)
+			pod, err = f.ClientSet.CoreV1().Pods(f.Namespace.Name).Create(pod)
 			framework.ExpectNoError(err)
 
 			ginkgo.By("Creating statefulset with conflicting port in namespace " + f.Namespace.Name)
