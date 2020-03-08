@@ -21,6 +21,15 @@ OS ?= $(shell go env GOOS)
 
 ALL_TARGETS := cmd/controller-manager
 SRC_PREFIX := github.com/pingcap/advanced-statefulset
+GIT_VERSION = $(shell ./hack/version.sh | awk -F': ' '/^GIT_VERSION:/ {print $$2}')
+
+# in GOPATH mode, we must the full path name related to $GOPATH
+# https://github.com/golang/go/issues/19000
+ifneq ($(VERSION),)
+    LDFLAGS += -X $(SRC_PREFIX)/vendor/k8s.io/component-base/version.gitVersion=${VERSION}
+else
+    LDFLAGS += -X $(SRC_PREFIX)/vendor/k8s.io/component-base/version.gitVersion=${GIT_VERSION}
+endif
 
 all: build
 .PHONY: all
@@ -33,7 +42,7 @@ build: $(ALL_TARGETS)
 .PHONY: all
 
 $(ALL_TARGETS):
-	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 $(GO) build -o output/bin/$(OS)/$(ARCH)/$@ $(SRC_PREFIX)/$@
+	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 $(GO) build -ldflags "${LDFLAGS}" -o output/bin/$(OS)/$(ARCH)/$@ $(SRC_PREFIX)/$@
 .PHONY: $(ALL_TARGETS)
 
 test:
@@ -47,6 +56,10 @@ test-integration: vendor/k8s.io/kubernetes/pkg/generated/openapi/zz_generated.op
 e2e:
 	hack/e2e.sh
 .PHONY: e2e
+
+e2e-examples:
+	hack/e2e-examples.sh
+.PHONY: e2e-examples
 
 vendor/k8s.io/kubernetes/pkg/generated/openapi/zz_generated.openapi.go:
 	hack/generate-kube-openapi.sh

@@ -41,17 +41,12 @@ make e2e
 
 ### start a cluster
 
+[kind](https://kind.sigs.k8s.io/) `v0.7.0+` is recommended.
+
 ```
-curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/v0.6.1/kind-$(uname)-amd64
+curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/v0.7.0/kind-$(uname)-amd64
 chmod +x ./kind
-./kind create cluster --image kindest/node:v1.16.3 --config hack/kindconfig.v1.16.3.yaml --name advanced-statefulset
-export KUBECONFIG=$(kind get kubeconfig-path --name advanced-statefulset)
-```
-
-### install CRD
-
-```
-kubectl apply -f deployment/crd.v1.yaml
+./kind create cluster
 ```
 
 ### run advanced statefulset controller locally
