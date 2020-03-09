@@ -21,14 +21,16 @@ fi
 OS=$(go env GOOS)
 ARCH=$(go env GOARCH)
 OUTPUT=${ROOT}/output
-OUTPUT_BIN=${OUTPUT}/bin/${OS}
+OUTPUT_BIN=${OUTPUT}/bin
 ETCD_VERSION=${ETCD_VERSION:-3.3.17}
-KIND_VERSION=0.6.1
+KIND_VERSION=0.7.0
 KIND_BIN=$OUTPUT_BIN/kind
 KUBECTL_VERSION=1.16.0
 KUBECTL_BIN=$OUTPUT_BIN/kubectl
-GINKGO_VERSION=1.8.0
+GINKGO_VERSION=1.10.1
 GINKGO_BIN=$OUTPUT_BIN/ginkgo
+JQ_VERSION=1.6
+JQ_BIN=$OUTPUT_BIN/jq
 
 test -d "$OUTPUT_BIN" || mkdir -p "$OUTPUT_BIN"
 
@@ -146,6 +148,27 @@ function hack::ensure_ginkgo() {
     fi
 }
 
+function hack::verify_jq() {
+    if test -x "$JQ_BIN"; then
+        [[ "$($JQ_BIN --version | awk -F- '{print $2}' )" == "$JQ_VERSION" ]]
+        return
+    fi
+    return 1
+}
+
+function hack::ensure_jq() {
+    if hack::verify_jq; then
+        return 0
+    fi
+    echo "Installing jq v$JQ_VERSION..."
+    if [[ "$OS" == "linux" ]]; then
+        hack::download_file https://github.com/stedolan/jq/releases/download/jq-$JQ_VERSION/jq-linux64 $JQ_BIN
+    elif [[ "$OS" == "darwin" ]]; then
+        hack::download_file https://github.com/stedolan/jq/releases/download/jq-$JQ_VERSION/jq-osx-amd64 $JQ_BIN
+    fi
+    chmod +x $JQ_BIN
+}
+
 # hack::version_ge "$v1" "$v2" checks whether "v1" is greater or equal to "v2"
 function hack::version_ge() {
     [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
@@ -170,4 +193,20 @@ function hack::wait_for_success() {
         fi
     done
     return 1
+}
+
+# Reads in stdin and adds it line by line to the array provided. This can be
+# used instead of "mapfile -t", and is bash 3 compatible.
+#
+# Assumed vars:
+#   $1 (name of array to create/modify)
+#
+# Example usage:
+# hack::read-array files < <(ls -1)
+#
+function hack::read-array {
+	local i=0
+	unset -v "$1"
+	while IFS= read -r "$1[i++]"; do :; done
+	eval "[[ \${$1[--i]} ]]" || unset "$1[i]" # ensures last element isn't empty
 }

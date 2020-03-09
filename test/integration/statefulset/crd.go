@@ -18,7 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// TODO read from deployment/crd.v1beta1.yaml
+// TODO read from manifests/crd.v1beta1.yaml
 func getCustomResourceDefinitionData() []*apiextensionsv1beta1.CustomResourceDefinition {
 	return []*apiextensionsv1beta1.CustomResourceDefinition{
 		{

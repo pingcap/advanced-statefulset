@@ -25,6 +25,7 @@ import (
 	"github.com/pingcap/advanced-statefulset/cmd/controller-manager/options"
 	pcinformers "github.com/pingcap/advanced-statefulset/pkg/client/informers/externalversions"
 	"github.com/pingcap/advanced-statefulset/pkg/controller/statefulset"
+	"github.com/pingcap/advanced-statefulset/pkg/verflag"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -33,6 +34,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/cli/globalflag"
+	"k8s.io/component-base/version"
 	"k8s.io/klog"
 	utilflag "k8s.io/kubernetes/pkg/util/flag"
 )
@@ -49,6 +51,9 @@ func ResyncPeriod(c *config.CompletedConfig) func() time.Duration {
 
 // Run runs the controller-manager. This should never exit.
 func Run(cc *config.CompletedConfig, stopCh <-chan struct{}) error {
+	// To help debugging, immediately log version
+	klog.Infof("Version: %+v", version.Get())
+
 	run := func(ctx context.Context) {
 		informerFactory := informers.NewSharedInformerFactory(cc.Client, cc.GenericComponent.MinResyncPeriod.Duration)
 		pcInformerFactory := pcinformers.NewSharedInformerFactory(cc.PCClient, cc.GenericComponent.MinResyncPeriod.Duration)
@@ -106,6 +111,7 @@ func NewControllerManagerCommand() *cobra.Command {
 		Use:  "controller-manager",
 		Long: `Advanced StatefulSet Controller`,
 		Run: func(cmd *cobra.Command, args []string) {
+			verflag.PrintAndExitIfRequested()
 			utilflag.PrintFlags(flag.CommandLine)
 
 			c, err := opts.Config()
@@ -122,6 +128,7 @@ func NewControllerManagerCommand() *cobra.Command {
 	}
 
 	namedFlagSets := opts.Flags()
+	verflag.AddFlags(namedFlagSets.FlagSet("global"))
 	globalflag.AddGlobalFlags(namedFlagSets.FlagSet("global"), cmd.Name())
 	for _, f := range namedFlagSets.FlagSets {
 		flag.CommandLine.AddFlagSet(f)

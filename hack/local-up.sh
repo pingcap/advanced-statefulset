@@ -17,7 +17,26 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+ROOT=$(unset CDPATH && cd $(dirname "${BASH_SOURCE[0]}")/.. && pwd)
+cd $ROOT
+
+source "${ROOT}/hack/lib.sh"
+
+CLUSTER=${CLUSTER:-kind}
+
 make cmd/controller-manager
-export KUBECONFIG=/home/vagrant/.kube/kind-config-advanced-statefulset
-kubectl -n kube-system delete ep advanced-statefulset-controller --ignore-not-found
-./output/bin/linux/amd64/cmd/controller-manager --kubeconfig $KUBECONFIG -v 4 --leader-elect-resource-name advanced-statefulset-controller  --leader-elect-resource-namespace kube-system
+
+cfgfile=$(mktemp)
+trap "test -f $cfgfile && rm $cfgfile" EXIT
+kind get kubeconfig --name "$CLUSTER" > $cfgfile
+
+KUBE_VERSION=$(kubectl version --short | awk '/Server Version:/ {print $3}')
+
+if hack::version_ge $KUBE_VERSION "v1.16.0"; then
+    kubectl --kubeconfig $cfgfile apply -f manifests/crd.v1.yaml
+else
+    kubectl --kubeconfig $cfgfile apply -f manifests/crd.v1beta1.yaml
+fi
+
+kubectl --kubeconfig $cfgfile -n kube-system delete ep advanced-statefulset-controller --ignore-not-found
+./output/bin/linux/amd64/cmd/controller-manager --kubeconfig $cfgfile -v 4 --leader-elect-resource-name advanced-statefulset-controller --leader-elect-resource-namespace kube-system
