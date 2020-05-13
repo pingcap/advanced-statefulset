@@ -38,7 +38,7 @@ import (
 	"k8s.io/klog"
 )
 
-// ControllerManagerOptions is the main context object for the kirk-controller-manager.
+// ControllerManagerOptions is the main context object for the advanced-statefulset-controller-manager.
 type ControllerManagerOptions struct {
 	GenericComponent *options.GenericComponentOptions
 
@@ -119,7 +119,7 @@ func (s *ControllerManagerOptions) Validate() error {
 // Config configures configuration.
 func (s *ControllerManagerOptions) Config() (*controllermanagerconfig.Config, error) {
 	c := &controllermanagerconfig.Config{}
-	if err := s.ApplyTo(c, "advanced-statefulset"); err != nil {
+	if err := s.ApplyTo(c, "advanced-statefulset-controller-manager"); err != nil {
 		return nil, err
 	}
 
@@ -163,6 +163,6 @@ func makeLeaderElectionConfig(config componentbaseconfig.LeaderElectionConfigura
 		RenewDeadline: config.RenewDeadline.Duration,
 		RetryPeriod:   config.RetryPeriod.Duration,
 		WatchDog:      leaderelection.NewLeaderHealthzAdaptor(time.Second * 20),
-		Name:          "controller-manager",
+		Name:          "advanced-statefulset-controller-manager",
 	}, nil
 }

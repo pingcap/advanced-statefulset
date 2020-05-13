@@ -82,6 +82,9 @@ func Upgrade(c clientset.Interface, asc asclientset.Interface, sts *appsv1.State
 		// https://github.com/kubernetes/apiserver/blob/kubernetes-1.16.0/pkg/storage/etcd3/store.go#L141-L143
 		asts.ObjectMeta.ResourceVersion = ""
 		// https://kubernetes.io/docs/reference/using-api/api-concepts/#server-side-apply
+		// old ManagedFields belongs to apps/v1 and kube-controller-manager,
+		// nil it and the ownership will be transferred to
+		// advanced-statefulset-controller-manager
 		asts.ObjectMeta.ManagedFields = nil
 		asts, err = asc.AppsV1().StatefulSets(asts.Namespace).Create(asts)
 		if err != nil {

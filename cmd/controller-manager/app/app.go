@@ -109,7 +109,7 @@ func NewControllerManagerCommand() *cobra.Command {
 	opts := options.NewControllerManagerOptions()
 	cmd := &cobra.Command{
 		Use:  "controller-manager",
-		Long: `Advanced StatefulSet Controller`,
+		Long: `Advanced StatefulSet Controller Manager`,
 		Run: func(cmd *cobra.Command, args []string) {
 			verflag.PrintAndExitIfRequested()
 			utilflag.PrintFlags(flag.CommandLine)

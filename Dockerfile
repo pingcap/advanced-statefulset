@@ -20,5 +20,5 @@ RUN make cmd/controller-manager
 # https://github.com/kubernetes/kubernetes/blob/master/build/debian-base/
 FROM k8s.gcr.io/debian-base:v1.0.0
 
-COPY --from=builder /go/src/github.com/pingcap/advanced-statefulset/output/bin/linux/amd64/cmd/controller-manager  /usr/local/bin/controller-manager
-ENTRYPOINT ["/usr/local/bin/controller-manager"]
+COPY --from=builder /go/src/github.com/pingcap/advanced-statefulset/output/bin/linux/amd64/cmd/controller-manager  /usr/local/bin/advanced-statefulset-controller-manager
+ENTRYPOINT ["/usr/local/bin/advanced-statefulset-controller-manager"]
