@@ -35,7 +35,7 @@ import (
 	e2esset "k8s.io/kubernetes/test/e2e/framework/statefulset"
 )
 
-var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
+var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 	f := framework.NewDefaultFramework("statefulset")
 	var ns string
 	var c clientset.Interface

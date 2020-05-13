@@ -104,7 +104,7 @@ func PrintAndExitIfRequested() {
 		fmt.Printf("%#v\n", version.Get())
 		os.Exit(0)
 	} else if *versionFlag == VersionTrue {
-		fmt.Printf("AdvancedStatefulSet %s\n", version.Get())
+		fmt.Printf("Advanced StatefulSet Controller Manager %s\n", version.Get())
 		os.Exit(0)
 	}
 }

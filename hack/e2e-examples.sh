@@ -38,7 +38,7 @@ function cleanup() {
 	echo "info: deleting the cluster"
     kind delete cluster
 
-	echo "info: killing the controller"
+	echo "info: killing the controller manager"
     [[ -n "${CONTROLLER_PID:-}" ]] && hack::read-array CONTROLLER_PIDS < <(pgrep -P "${CONTROLLER_PID}" ; ps -o pid= -p "${CONTROLLER_PID}")
     [[ -n "${CONTROLLER_PIDS:-}" ]] && sudo kill "${CONTROLLER_PIDS[@]}" 2>/dev/null
 
@@ -46,14 +46,14 @@ function cleanup() {
         return
 	fi
 
-    echo "info: logs of controller"
+    echo "info: logs of controller manager"
     cat $logfile
     rm $logfile
 }
 
 trap "cleanup" EXIT
 
-echo "info: start Advanced StatefulSet controller"
+echo "info: start advanced statefulset controller manager"
 hack/local-up.sh &> $logfile &
 CONTROLLER_PID=$!
 
