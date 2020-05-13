@@ -33,6 +33,10 @@ Usage: hack/e2e.sh [-h] -- [extra test args]
 Environments:
 
     SKIP_BUILD          skip building binaries/images
+    SKIP_UP             skip starting the cluster
+    SKIP_DOWN           skip shutting down the cluster
+    SKIP_TEST           skip running the test
+    REUSE_CLUSTER       reuse previous cluster in up phase
     KUBE_VERSION        the version of Kubernetes to test against
     KUBE_WORKERS        the number of worker nodes (excludes master nodes), defaults: 1
     DOCKER_IO_MIRROR    configure mirror for docker.io
@@ -75,14 +79,26 @@ if [ "${1:-}" == "--" ]; then
     shift
 fi
 
-SKIP_DOWN=${SKIP_DOWN:-}
 SKIP_BUILD=${SKIP_BUILD:-}
+SKIP_UP=${SKIP_UP:-}
+SKIP_DOWN=${SKIP_DOWN:-}
+SKIP_TEST=${SKIP_TEST:-}
 REUSE_CLUSTER=${REUSE_CLUSTER:-}
 KUBE_VERSION=${KUBE_VERSION:-v1.18}
 KUBECONFIG=${KUBECONFIG:-~/.kube/config}
 CLUSTER=${CLUSTER:-advanced-statefulset}
 DOCKER_IO_MIRROR=${DOCKER_IO_MIRROR:-}
 KUBE_WORKERS=${KUBE_WORKERS:-1}
+
+echo "SKIP_UP: $SKIP_UP"
+echo "SKIP_DOWN: $SKIP_DOWN"
+echo "SKIP_TEST: $SKIP_TEST"
+echo "SKIP_BUILD: $SKIP_BUILD"
+echo "REUSE_CLUSTER: $REUSE_CLUSTER"
+echo "KUBE_VERSION: $KUBE_VERSION"
+echo "CLUSTER: $CLUSTER"
+echo "DOCKER_IO_MIRROR: $DOCKER_IO_MIRROR"
+echo "KUBE_WORKERS: $KUBE_WORKERS"
 
 # https://github.com/kubernetes-sigs/kind/releases/tag/v0.8.1
 declare -A kind_node_images
@@ -94,14 +110,6 @@ kind_node_images["v1.15.11"]="kindest/node:v1.15.11@sha256:6cc31f3533deb138792db
 kind_node_images["v1.16.9"]="kindest/node:v1.16.9@sha256:7175872357bc85847ec4b1aba46ed1d12fa054c83ac7a8a11f5c268957fd5765"
 kind_node_images["v1.17.5"]="kindest/node:v1.17.5@sha256:ab3f9e6ec5ad8840eeb1f76c89bb7948c77bbf76bcebe1a8b59790b8ae9a283a"
 kind_node_images["v1.18.2"]="kindest/node:v1.18.2@sha256:7b27a6d0f2517ff88ba444025beae41491b016bc6af573ba467b70c5e8e0d85f"
-
-echo "SKIP_DOWN: $SKIP_DOWN"
-echo "SKIP_BUILD: $SKIP_BUILD"
-echo "REUSE_CLUSTER: $REUSE_CLUSTER"
-echo "KUBE_VERSION: $KUBE_VERSION"
-echo "CLUSTER: $CLUSTER"
-echo "DOCKER_IO_MIRROR: $DOCKER_IO_MIRROR"
-echo "KUBE_WORKERS: $KUBE_WORKERS"
 
 hack::ensure_kind
 hack::ensure_kubectl
@@ -144,6 +152,11 @@ function e2e::__restart_docker() {
 }
 
 function e2e::up() {
+    if [ -n "$SKIP_UP" ]; then
+        echo "info: up phase is skipped"
+        return
+    fi
+
     if e2e::cluster_exists $CLUSTER; then
         if [ -z "$REUSE_CLUSTER" ]; then
             echo "info: deleting the cluster '$CLUSTER'"
@@ -168,15 +181,20 @@ cat <<EOF > /etc/docker/daemon.json
 EOF
         e2e::__restart_docker
     fi
-
     local image=""
     for v in ${!kind_node_images[*]}; do
-        if [[ "$KUBE_VERSION" == "$v" ]]; then
+        if [[ "$KUBE_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ && "$KUBE_VERSION" == "$v" ]]; then
             image=${kind_node_images[$v]}
             echo "info: image for $KUBE_VERSION: $image"
-            break
+        elif [[ "$KUBE_VERSION" =~ ^v[0-9]+\.[0-9]+$ && "$KUBE_VERSION" == "${v%.*}" ]]; then
+            image=${kind_node_images[$v]}
+            echo "info: image for $KUBE_VERSION: $image"
         fi
     done
+    if [ -z "$image" ]; then
+        echo "error: no image for $KUBE_VERSION, exit"
+        exit 1
+    fi
     if [ -z "$image" ]; then
         echo "error: no image for $KUBE_VERSION, exit"
         exit 1
@@ -207,11 +225,66 @@ EOF
 EOF
     }
     # kubeadm config patches
-    if hack::version_ge $KUBE_VERSION "v1.16.0"; then
+    if hack::version_ge $KUBE_VERSION "v1.18.0"; then
+        # CustomResourceDefaulting feature gate is removed in https://github.com/kubernetes/kubernetes/pull/87475.
         cat <<EOF >> $tmpfile
 kubeadmConfigPatches:
 - |
   apiVersion: kubeadm.k8s.io/v1beta2
+  kind: ClusterConfiguration
+  metadata:
+    name: config
+  apiServer:
+    extraArgs:
+      "v": "4"
+  scheduler:
+    extraArgs:
+      "v": "4"
+  controllerManager:
+    extraArgs:
+      "v": "4"
+- |
+  apiVersion: kubeadm.k8s.io/v1beta2
+  kind: InitConfiguration
+  metadata:
+    name: config
+  nodeRegistration:
+    kubeletExtraArgs:
+      "v": "4"
+EOF
+    elif hack::version_ge $KUBE_VERSION "v1.16.0"; then
+        # CustomResourceDefaulting is promoted to beta and defaults to true in 1.16.
+        cat <<EOF >> $tmpfile
+kubeadmConfigPatches:
+- |
+  apiVersion: kubeadm.k8s.io/v1beta2
+  kind: ClusterConfiguration
+  metadata:
+    name: config
+  apiServer:
+    extraArgs:
+      "v": "4"
+  scheduler:
+    extraArgs:
+      "v": "4"
+  controllerManager:
+    extraArgs:
+      "v": "4"
+- |
+  apiVersion: kubeadm.k8s.io/v1beta2
+  kind: InitConfiguration
+  metadata:
+    name: config
+  nodeRegistration:
+    kubeletExtraArgs:
+      "v": "4"
+EOF
+    elif hack::version_ge $KUBE_VERSION "v1.15.0"; then
+        # CustomResourceDefaulting is introduced as alpha feature and defaults to false in 1.15.
+        cat <<EOF >> $tmpfile
+kubeadmConfigPatches:
+- |
+  apiVersion: kubeadm.k8s.io/v1alpha3
   kind: ClusterConfiguration
   metadata:
     name: config
@@ -228,7 +301,7 @@ kubeadmConfigPatches:
       "feature-gates": "CustomResourceDefaulting=true"
       "v": "4"
 - |
-  apiVersion: kubeadm.k8s.io/v1beta2
+  apiVersion: kubeadm.k8s.io/v1alpha3
   kind: InitConfiguration
   metadata:
     name: config
@@ -245,15 +318,12 @@ kubeadmConfigPatches:
   kind: ClusterConfiguration
   metadata:
     name: config
-  apiServer:
-    extraArgs:
-      "v": "4"
-  scheduler:
-    extraArgs:
-      "v": "4"
-  controllerManager:
-    extraArgs:
-      "v": "4"
+  apiServerExtraArgs:
+    v: "4"
+  schedulerExtraArgs:
+    v: "4"
+  controllerManagerExtraArgs:
+    v: "4"
 - |
   apiVersion: kubeadm.k8s.io/v1alpha3
   kind: InitConfiguration
@@ -273,26 +343,36 @@ EOF
     hack::wait_for_success 120 5 "$KIND_BIN create cluster --config $KUBECONFIG --name $CLUSTER --image $image --config $tmpfile -v 4"
 }
 
-trap 'e2e::down' EXIT
-e2e::up
+function e2e::test() {
+    if [ -n "$SKIP_TEST" ]; then
+        echo "info: test phase is skipped"
+        return
+    fi
+    echo "info: loading image $CONTROLLER_IMAGE"
+    $KIND_BIN load docker-image --name $CLUSTER $CONTROLLER_IMAGE
+
+    hack/run-e2e.sh --kubectl-path=$KUBECTL_BIN \
+        --kubeconfig=$KUBECONFIG \
+        --context=kind-$CLUSTER \
+        --provider=skeleton \
+        --clean-start=true \
+        --delete-namespace-on-failure=false \
+        --repo-root=$ROOT \
+        "$@"
+}
+
+function e2e::build() {
+	if [ -n "$SKIP_BUILD" ]; then
+        echo "info: build phase is skipped"
+        return
+	fi
+	echo "info: building image $CONTROLLER_IMAGE"
+	docker build -t $CONTROLLER_IMAGE .
+}
 
 export CONTROLLER_IMAGE=pingcap/advanced-statefulset:latest
 
-if [ -z "$SKIP_BUILD" ]; then
-    echo "info: building image $CONTROLLER_IMAGE"
-    docker build -t $CONTROLLER_IMAGE .
-else
-    echo "info: skip building images"
-fi
-
-echo "info: loading image $CONTROLLER_IMAGE"
-$KIND_BIN load docker-image --name $CLUSTER $CONTROLLER_IMAGE
-
-hack/run-e2e.sh --kubectl-path=$KUBECTL_BIN \
-    --kubeconfig=$KUBECONFIG \
-    --context=kind-$CLUSTER \
-    --provider=skeleton \
-    --clean-start=true \
-    --delete-namespace-on-failure=false \
-    --repo-root=$ROOT \
-    "$@"
+trap 'e2e::down' EXIT
+e2e::up
+e2e::build
+e2e::test "$@"

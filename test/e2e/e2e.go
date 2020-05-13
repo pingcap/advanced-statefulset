@@ -94,6 +94,7 @@ func setupSuite() {
 				metav1.NamespaceDefault,
 				metav1.NamespacePublic,
 				v1.NamespaceNodeLease,
+				"local-path-storage",
 			})
 		if err != nil {
 			framework.Failf("Error deleting orphaned namespaces: %v", err)
