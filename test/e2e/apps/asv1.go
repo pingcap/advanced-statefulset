@@ -77,8 +77,6 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 			if ginkgo.CurrentGinkgoTestDescription().Failed {
 				framework.DumpDebugInfo(c, ns)
 			}
-			framework.Logf("Deleting all advanced statefulset in ns %v", ns)
-			e2esset.DeleteAllStatefulSets(hc, ns)
 		})
 
 		for _, policy := range []appsv1.PodManagementPolicyType{appsv1.OrderedReadyPodManagement, appsv1.ParallelPodManagement} {
@@ -412,6 +410,8 @@ var _ = SIGDescribe("AdvancedStatefulSet[V1]", func() {
 			framework.ExpectNoError(err)
 			// https://github.com/kubernetes/apiserver/blob/kubernetes-1.16.0/pkg/storage/etcd3/store.go#L141-L143
 			asts.ObjectMeta.ResourceVersion = ""
+			// https://kubernetes.io/docs/reference/using-api/api-concepts/#server-side-apply
+			asts.ObjectMeta.ManagedFields = nil
 			asts, err = asc.AppsV1().StatefulSets(ns).Create(asts)
 			framework.ExpectNoError(err)
 

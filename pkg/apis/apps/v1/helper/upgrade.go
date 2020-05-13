@@ -81,6 +81,8 @@ func Upgrade(c clientset.Interface, asc asclientset.Interface, sts *appsv1.State
 		asts = upgradedSts.DeepCopy()
 		// https://github.com/kubernetes/apiserver/blob/kubernetes-1.16.0/pkg/storage/etcd3/store.go#L141-L143
 		asts.ObjectMeta.ResourceVersion = ""
+		// https://kubernetes.io/docs/reference/using-api/api-concepts/#server-side-apply
+		asts.ObjectMeta.ManagedFields = nil
 		asts, err = asc.AppsV1().StatefulSets(asts.Namespace).Create(asts)
 		if err != nil {
 			return nil, err
@@ -92,7 +94,7 @@ func Upgrade(c clientset.Interface, asc asclientset.Interface, sts *appsv1.State
 		if err != nil {
 			return nil, err
 		}
-		klog.V(2).Infof("Succesfully updated the new Advanced StatefulSet %s/%s", asts.Namespace, asts.Name)
+		klog.V(2).Infof("Succesfully updated the Advanced StatefulSet %s/%s", asts.Namespace, asts.Name)
 	}
 
 	// Status must be updated via UpdateStatus
