@@ -4,6 +4,11 @@ on:
   pull_request:
     branches:
     - master
+  push:
+    branches:
+    - master
+  schedule:
+    - cron: '0 1 * * *'
 
 jobs:
 
@@ -12,7 +17,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [verify, build, test, test-integration, e2e-v1.16.3, e2e-v1.12.10, e2e-examples]
+        target:
+        - verify
+        - build
+        - test
+        - test-integration
+        - e2e-examples
+        - e2e-v1.12
+        - e2e-v1.13
+        - e2e-v1.14
+        - e2e-v1.15
+        - e2e-v1.16
+        - e2e-v1.17
+        - e2e-v1.18
     steps:
     - name: Set up Go 1.13.4
       uses: actions/setup-go@v1

@@ -23,7 +23,7 @@ ALL_TARGETS := cmd/controller-manager
 SRC_PREFIX := github.com/pingcap/advanced-statefulset
 GIT_VERSION = $(shell ./hack/version.sh | awk -F': ' '/^GIT_VERSION:/ {print $$2}')
 
-# in GOPATH mode, we must the full path name related to $GOPATH
+# in GOPATH mode, we must use the full path name related to $GOPATH
 # https://github.com/golang/go/issues/19000
 ifneq ($(VERSION),)
     LDFLAGS += -X $(SRC_PREFIX)/vendor/k8s.io/component-base/version.gitVersion=${VERSION}

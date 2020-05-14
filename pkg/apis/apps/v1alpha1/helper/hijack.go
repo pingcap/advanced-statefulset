@@ -54,16 +54,16 @@ type hijackAppsV1Client struct {
 var _ clientsetappsv1.AppsV1Interface = &hijackAppsV1Client{}
 
 func (c hijackAppsV1Client) StatefulSets(namespace string) clientsetappsv1.StatefulSetInterface {
-	return &hijackStatefulset{c.pingcapV1alpha1Client.StatefulSets(namespace)}
+	return &hijackStatefulSet{c.pingcapV1alpha1Client.StatefulSets(namespace)}
 }
 
-type hijackStatefulset struct {
+type hijackStatefulSet struct {
 	appsv1alpha1.StatefulSetInterface
 }
 
-var _ clientsetappsv1.StatefulSetInterface = &hijackStatefulset{}
+var _ clientsetappsv1.StatefulSetInterface = &hijackStatefulSet{}
 
-func (s *hijackStatefulset) Create(sts *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
+func (s *hijackStatefulSet) Create(sts *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
 	pcsts, err := FromBuiltinStatefulSet(sts)
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func (s *hijackStatefulset) Create(sts *appsv1.StatefulSet) (*appsv1.StatefulSet
 	return ToBuiltinStatefulSet(pcsts)
 }
 
-func (s *hijackStatefulset) Update(sts *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
+func (s *hijackStatefulSet) Update(sts *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
 	pcsts, err := FromBuiltinStatefulSet(sts)
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func (s *hijackStatefulset) Update(sts *appsv1.StatefulSet) (*appsv1.StatefulSet
 	return ToBuiltinStatefulSet(pcsts)
 }
 
-func (s *hijackStatefulset) UpdateStatus(sts *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
+func (s *hijackStatefulSet) UpdateStatus(sts *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
 	pcsts, err := FromBuiltinStatefulSet(sts)
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func (s *hijackStatefulset) UpdateStatus(sts *appsv1.StatefulSet) (*appsv1.State
 	return ToBuiltinStatefulSet(pcsts)
 }
 
-func (s *hijackStatefulset) Get(name string, options metav1.GetOptions) (*appsv1.StatefulSet, error) {
+func (s *hijackStatefulSet) Get(name string, options metav1.GetOptions) (*appsv1.StatefulSet, error) {
 	pcsts, err := s.StatefulSetInterface.Get(name, options)
 	if err != nil {
 		return nil, err
@@ -108,7 +108,7 @@ func (s *hijackStatefulset) Get(name string, options metav1.GetOptions) (*appsv1
 	return ToBuiltinStatefulSet(pcsts)
 }
 
-func (s *hijackStatefulset) List(opts metav1.ListOptions) (*appsv1.StatefulSetList, error) {
+func (s *hijackStatefulSet) List(opts metav1.ListOptions) (*appsv1.StatefulSetList, error) {
 	list, err := s.StatefulSetInterface.List(opts)
 	if err != nil {
 		return nil, err
@@ -116,7 +116,7 @@ func (s *hijackStatefulset) List(opts metav1.ListOptions) (*appsv1.StatefulSetLi
 	return ToBuiltinStetefulsetList(list)
 }
 
-func (s *hijackStatefulset) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (s *hijackStatefulSet) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	watch, err := s.StatefulSetInterface.Watch(opts)
 	if err != nil {
 		return nil, err
@@ -181,7 +181,7 @@ func (w *hijackWatch) ResultChan() <-chan watch.Event {
 	return w.result
 }
 
-func (s *hijackStatefulset) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *appsv1.StatefulSet, err error) {
+func (s *hijackStatefulSet) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *appsv1.StatefulSet, err error) {
 	pcsts, err := s.StatefulSetInterface.Patch(name, pt, data, subresources...)
 	if err != nil {
 		return nil, err
