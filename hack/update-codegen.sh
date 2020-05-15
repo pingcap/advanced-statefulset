@@ -49,7 +49,7 @@ git checkout pkg/client/listers/apps/v1alpha1/expansion_generated.go
 git checkout pkg/client/listers/apps/v1/expansion_generated.go
 
 #
-# This requires GOPATH/src/k8s.io/kubernetes/vendor/k8s.io/api/core/v1 to exist.
+# This requires GOPATH/src/k8s.io/kubernetes/vendor/k8s.io/k8s.io/api/core/v1 to exist.
 # We run it manually for now.
 # TODO: fix it
 #

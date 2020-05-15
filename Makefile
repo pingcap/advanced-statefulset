@@ -49,6 +49,10 @@ test:
 	hack/make-rules/test.sh $(WHAT)
 .PHONY: test
 
+test-client:
+	make -C client test
+.PHONY: test-client
+
 test-integration: vendor/k8s.io/kubernetes/pkg/generated/openapi/zz_generated.openapi.go
 	hack/make-rules/test-integration.sh $(WHAT)
 .PHONY: test-integration

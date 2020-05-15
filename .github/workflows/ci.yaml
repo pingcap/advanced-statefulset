@@ -21,6 +21,7 @@ jobs:
         - verify
         - build
         - test
+        - test-client
         - test-integration
         - e2e-examples
         - e2e-v1.12
