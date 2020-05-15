@@ -11,5 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-all:
+all: test
+.PHONY: all
+
+test:
 	go test ./apis/... ./client/...	
+.PHONY: test
