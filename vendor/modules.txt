@@ -142,7 +142,7 @@ github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
-# github.com/google/go-cmp v0.3.0
+# github.com/google/go-cmp v0.3.1
 github.com/google/go-cmp/cmp
 github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
@@ -281,6 +281,19 @@ github.com/onsi/gomega/types
 github.com/opencontainers/go-digest
 # github.com/pelletier/go-toml v1.2.0
 github.com/pelletier/go-toml
+# github.com/pingcap/advanced-statefulset/client v0.0.0 => ./client
+github.com/pingcap/advanced-statefulset/client/apis/apps/v1
+github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper
+github.com/pingcap/advanced-statefulset/client/client/clientset/versioned
+github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/fake
+github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/scheme
+github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/typed/apps/v1
+github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/typed/apps/v1/fake
+github.com/pingcap/advanced-statefulset/client/client/informers/externalversions
+github.com/pingcap/advanced-statefulset/client/client/informers/externalversions/apps
+github.com/pingcap/advanced-statefulset/client/client/informers/externalversions/apps/v1
+github.com/pingcap/advanced-statefulset/client/client/informers/externalversions/internalinterfaces
+github.com/pingcap/advanced-statefulset/client/client/listers/apps/v1
 # github.com/pkg/errors v0.8.1
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
@@ -594,7 +607,7 @@ gopkg.in/tomb.v1
 gopkg.in/warnings.v0
 # gopkg.in/yaml.v2 v2.2.8
 gopkg.in/yaml.v2
-# k8s.io/api v0.17.3 => k8s.io/api v0.17.3
+# k8s.io/api v0.17.3 => k8s.io/api v0.17.0
 k8s.io/api/admission/v1
 k8s.io/api/admission/v1beta1
 k8s.io/api/admissionregistration/v1
@@ -638,7 +651,7 @@ k8s.io/api/settings/v1alpha1
 k8s.io/api/storage/v1
 k8s.io/api/storage/v1alpha1
 k8s.io/api/storage/v1beta1
-# k8s.io/apiextensions-apiserver v0.0.0 => k8s.io/apiextensions-apiserver v0.17.3
+# k8s.io/apiextensions-apiserver v0.0.0 => k8s.io/apiextensions-apiserver v0.17.0
 k8s.io/apiextensions-apiserver/pkg/apihelpers
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/install
@@ -686,7 +699,7 @@ k8s.io/apiextensions-apiserver/pkg/generated/openapi
 k8s.io/apiextensions-apiserver/pkg/registry/customresource
 k8s.io/apiextensions-apiserver/pkg/registry/customresource/tableconvertor
 k8s.io/apiextensions-apiserver/pkg/registry/customresourcedefinition
-# k8s.io/apimachinery v0.17.3 => k8s.io/apimachinery v0.17.3
+# k8s.io/apimachinery v0.17.3 => k8s.io/apimachinery v0.17.0
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
 k8s.io/apimachinery/pkg/api/meta
@@ -746,7 +759,7 @@ k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/third_party/forked/golang/json
 k8s.io/apimachinery/third_party/forked/golang/netutil
 k8s.io/apimachinery/third_party/forked/golang/reflect
-# k8s.io/apiserver v0.17.3 => k8s.io/apiserver v0.17.3
+# k8s.io/apiserver v0.17.0 => k8s.io/apiserver v0.17.0
 k8s.io/apiserver/pkg/admission
 k8s.io/apiserver/pkg/admission/configuration
 k8s.io/apiserver/pkg/admission/initializer
@@ -863,7 +876,7 @@ k8s.io/apiserver/plugin/pkg/authenticator/request/basicauth
 k8s.io/apiserver/plugin/pkg/authenticator/token/oidc
 k8s.io/apiserver/plugin/pkg/authenticator/token/webhook
 k8s.io/apiserver/plugin/pkg/authorizer/webhook
-# k8s.io/client-go v0.17.3 => k8s.io/client-go v0.17.3
+# k8s.io/client-go v0.17.3 => k8s.io/client-go v0.17.0
 k8s.io/client-go/discovery
 k8s.io/client-go/discovery/cached/memory
 k8s.io/client-go/discovery/fake
@@ -1097,19 +1110,19 @@ k8s.io/client-go/util/jsonpath
 k8s.io/client-go/util/keyutil
 k8s.io/client-go/util/retry
 k8s.io/client-go/util/workqueue
-# k8s.io/cloud-provider v0.17.3 => k8s.io/cloud-provider v0.17.3
+# k8s.io/cloud-provider v0.17.0 => k8s.io/cloud-provider v0.17.0
 k8s.io/cloud-provider
 k8s.io/cloud-provider/node/helpers
 k8s.io/cloud-provider/service/helpers
 k8s.io/cloud-provider/volume
 k8s.io/cloud-provider/volume/errors
 k8s.io/cloud-provider/volume/helpers
-# k8s.io/cluster-bootstrap v0.0.0 => k8s.io/cluster-bootstrap v0.17.3
+# k8s.io/cluster-bootstrap v0.0.0 => k8s.io/cluster-bootstrap v0.17.0
 k8s.io/cluster-bootstrap/token/api
 k8s.io/cluster-bootstrap/token/util
 k8s.io/cluster-bootstrap/util/secrets
 k8s.io/cluster-bootstrap/util/tokens
-# k8s.io/code-generator v0.17.3 => k8s.io/code-generator v0.17.3
+# k8s.io/code-generator v0.17.3 => k8s.io/code-generator v0.17.0
 k8s.io/code-generator
 k8s.io/code-generator/cmd/client-gen
 k8s.io/code-generator/cmd/client-gen/args
@@ -1143,7 +1156,7 @@ k8s.io/code-generator/cmd/set-gen
 k8s.io/code-generator/pkg/namer
 k8s.io/code-generator/pkg/util
 k8s.io/code-generator/third_party/forked/golang/reflect
-# k8s.io/component-base v0.17.3 => k8s.io/component-base v0.17.3
+# k8s.io/component-base v0.17.0 => k8s.io/component-base v0.17.0
 k8s.io/component-base/cli/flag
 k8s.io/component-base/cli/globalflag
 k8s.io/component-base/config
@@ -1157,9 +1170,9 @@ k8s.io/component-base/metrics/prometheus/workqueue
 k8s.io/component-base/metrics/testutil
 k8s.io/component-base/version
 k8s.io/component-base/version/verflag
-# k8s.io/cri-api v0.0.0 => k8s.io/cri-api v0.17.3
+# k8s.io/cri-api v0.0.0 => k8s.io/cri-api v0.17.0
 k8s.io/cri-api/pkg/apis/runtime/v1alpha2
-# k8s.io/csi-translation-lib v0.17.3 => k8s.io/csi-translation-lib v0.17.3
+# k8s.io/csi-translation-lib v0.17.0 => k8s.io/csi-translation-lib v0.17.0
 k8s.io/csi-translation-lib
 k8s.io/csi-translation-lib/plugins
 # k8s.io/gengo v0.0.0-20190822140433-26a664648505
@@ -1175,7 +1188,7 @@ k8s.io/gengo/parser
 k8s.io/gengo/types
 # k8s.io/klog v1.0.0
 k8s.io/klog
-# k8s.io/kube-aggregator v0.0.0 => k8s.io/kube-aggregator v0.17.3
+# k8s.io/kube-aggregator v0.0.0 => k8s.io/kube-aggregator v0.17.0
 k8s.io/kube-aggregator/pkg/apis/apiregistration
 k8s.io/kube-aggregator/pkg/apis/apiregistration/install
 k8s.io/kube-aggregator/pkg/apis/apiregistration/v1
@@ -1215,7 +1228,7 @@ k8s.io/kube-openapi/pkg/schemaconv
 k8s.io/kube-openapi/pkg/util
 k8s.io/kube-openapi/pkg/util/proto
 k8s.io/kube-openapi/pkg/util/sets
-# k8s.io/kubectl v0.0.0 => k8s.io/kubectl v0.17.3
+# k8s.io/kubectl v0.0.0 => k8s.io/kubectl v0.17.0
 k8s.io/kubectl/pkg/scale
 # k8s.io/kubernetes v1.17.3
 k8s.io/kubernetes/cmd/kube-apiserver/app
@@ -1661,7 +1674,7 @@ k8s.io/kubernetes/third_party/forked/gonum/graph
 k8s.io/kubernetes/third_party/forked/gonum/graph/internal/linear
 k8s.io/kubernetes/third_party/forked/gonum/graph/simple
 k8s.io/kubernetes/third_party/forked/gonum/graph/traverse
-# k8s.io/legacy-cloud-providers v0.0.0 => k8s.io/legacy-cloud-providers v0.17.3
+# k8s.io/legacy-cloud-providers v0.0.0 => k8s.io/legacy-cloud-providers v0.17.0
 k8s.io/legacy-cloud-providers/aws
 k8s.io/legacy-cloud-providers/azure
 k8s.io/legacy-cloud-providers/azure/auth

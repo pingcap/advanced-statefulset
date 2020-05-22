@@ -21,9 +21,9 @@ import (
 	"runtime"
 	"time"
 
+	pcinformers "github.com/pingcap/advanced-statefulset/client/client/informers/externalversions"
 	"github.com/pingcap/advanced-statefulset/cmd/controller-manager/config"
 	"github.com/pingcap/advanced-statefulset/cmd/controller-manager/options"
-	pcinformers "github.com/pingcap/advanced-statefulset/pkg/client/informers/externalversions"
 	"github.com/pingcap/advanced-statefulset/pkg/controller/statefulset"
 	"github.com/pingcap/advanced-statefulset/pkg/verflag"
 	"github.com/spf13/cobra"

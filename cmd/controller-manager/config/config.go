@@ -14,7 +14,7 @@
 package config
 
 import (
-	pcclientset "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned"
+	pcclientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
 	"github.com/pingcap/advanced-statefulset/pkg/component/config"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"

@@ -18,7 +18,7 @@ set -o nounset
 set -o pipefail
 
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ./vendor/k8s.io/code-generator 2>/dev/null || echo ../code-generator)}
+CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ../vendor/k8s.io/code-generator 2>/dev/null || echo ../code-generator)}
 
 export GO111MODULE=off
 
@@ -29,6 +29,9 @@ bash "${CODEGEN_PKG}"/generate-groups.sh "deepcopy,client,informer,lister" \
   github.com/pingcap/advanced-statefulset/client/apis \
   "apps:v1" \
   --go-header-file "${SCRIPT_ROOT}"/../hack/boilerplate/boilerplate.k8s.go.txt
+
+# work around for https://github.com/kubernetes/code-generator/issues/84
+git checkout client/listers/apps/v1/expansion_generated.go
 
 #
 # This requires GOPATH/src/k8s.io/kubernetes/vendor/k8s.io/k8s.io/api/core/v1 to exist.
