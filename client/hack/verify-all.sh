@@ -1,4 +1,6 @@
-# Copyright 2020 PingCAP, Inc.
+#!/bin/bash
+
+# Copyright 2019 PingCAP, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,16 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-all: test
-.PHONY: all
+set -o errexit
+set -o nounset
+set -o pipefail
 
-# Enable GO111MODULE=on explicitly
-export GO111MODULE := on
+ROOT=$(unset CDPATH && cd $(dirname "${BASH_SOURCE[0]}")/.. && pwd)
+cd $ROOT
 
-verify:
-	./hack/verify-all.sh
-.PHONY: verify
-
-test:
-	go test ./apis/... ./client/...	
-.PHONY: test
+./hack/verify-codegen.sh

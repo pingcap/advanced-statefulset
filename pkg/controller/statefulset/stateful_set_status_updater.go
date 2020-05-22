@@ -19,9 +19,9 @@ package statefulset
 import (
 	"fmt"
 
-	apps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1"
-	clientset "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned"
-	statefulsetlisters "github.com/pingcap/advanced-statefulset/pkg/client/listers/apps/v1"
+	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
+	clientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
+	statefulsetlisters "github.com/pingcap/advanced-statefulset/client/client/listers/apps/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/util/retry"
 )

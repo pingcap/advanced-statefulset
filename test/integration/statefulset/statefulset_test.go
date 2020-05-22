@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"testing"
 
-	appsv1 "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1"
+	appsv1 "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
 	integrationutil "github.com/pingcap/advanced-statefulset/test/integration/util"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

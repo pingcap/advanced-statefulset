@@ -22,6 +22,5 @@ cd $ROOT
 
 ./hack/verify-goversion.sh
 ./hack/verify-gofmt.sh
-./hack/verify-codegen.sh
 ./hack/verify-boilerplate.sh
 ./hack/verify-vendor.sh

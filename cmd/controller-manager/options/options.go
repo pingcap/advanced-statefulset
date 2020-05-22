@@ -18,8 +18,8 @@ import (
 	"os"
 	"time"
 
+	pcclientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
 	controllermanagerconfig "github.com/pingcap/advanced-statefulset/cmd/controller-manager/config"
-	pcclientset "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned"
 	"github.com/pingcap/advanced-statefulset/pkg/component/config"
 	"github.com/pingcap/advanced-statefulset/pkg/component/options"
 	v1 "k8s.io/api/core/v1"

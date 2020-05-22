@@ -34,9 +34,13 @@ endif
 all: build
 .PHONY: all
 
-verify:
-	./hack/verify-all.sh 
+verify: verify-client
+	./hack/verify-all.sh
 .PHONY: verify
+
+verify-client:
+	make -C client verify
+.PHONY: verify-client
 
 build: $(ALL_TARGETS)
 .PHONY: all
@@ -45,7 +49,7 @@ $(ALL_TARGETS):
 	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 $(GO) build -ldflags "${LDFLAGS}" -o output/bin/$(OS)/$(ARCH)/$@ $(SRC_PREFIX)/$@
 .PHONY: $(ALL_TARGETS)
 
-test:
+test: test-client
 	hack/make-rules/test.sh $(WHAT)
 .PHONY: test
 

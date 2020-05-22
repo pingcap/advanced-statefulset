@@ -24,8 +24,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 
-	apps "github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1"
-	"github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1/helper"
+	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
+	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/record"
