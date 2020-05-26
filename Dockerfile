@@ -16,9 +16,8 @@ WORKDIR /go/src/github.com/pingcap/advanced-statefulset
 ADD . .
 RUN make cmd/controller-manager
 
-# For security, we use kubernetes community maintained debian base image.
-# https://github.com/kubernetes/kubernetes/blob/master/build/debian-base/
-FROM k8s.gcr.io/debian-base:v1.0.0
+# https://github.com/GoogleContainerTools/distroless#why-should-i-use-distroless-images
+FROM gcr.io/distroless/static:latest
 
 COPY --from=builder /go/src/github.com/pingcap/advanced-statefulset/output/bin/linux/amd64/cmd/controller-manager  /usr/local/bin/advanced-statefulset-controller-manager
 ENTRYPOINT ["/usr/local/bin/advanced-statefulset-controller-manager"]
