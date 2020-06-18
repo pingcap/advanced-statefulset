@@ -19,8 +19,13 @@ try {
             }
 
             stage('Build and push docker image'){
-                withDockerServer([uri: "tcp://localhost:2375", credentialsId: "ucloud-registry"]) {
-                    docker.build("pingcap/advanced-statefulset:${IMAGE_TAG}", ".").push()
+                withDockerServer([uri: "tcp://localhost:2375"]) {
+                    def image = docker.build("pingcap/advanced-statefulset:${IMAGE_TAG}")
+                    image.push()
+                    docker.withRegistry("https://registry.cn-beijing.aliyuncs.com", "ACR_TIDB_ACCOUNT") {
+                        sh "docker tag pingcap/advanced-statefulset:${IMAGE_TAG} registry.cn-beijing.aliyuncs.com/tidb/advanced-statefulset:${IMAGE_TAG}"
+                        sh "docker push registry.cn-beijing.aliyuncs.com/tidb/advanced-statefulset:${IMAGE_TAG}"
+                    }
                 }
             }
         }
