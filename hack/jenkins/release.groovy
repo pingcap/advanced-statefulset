@@ -12,21 +12,37 @@ def REPO_GIT_URL = "git@github.com:pingcap/advanced-statefulset.git"
 try {
     node('delivery') {
         container("delivery") {
-            def WORKSPACE = pwd()
             deleteDir()
-            stage('Checkout repository'){
-                checkout changelog: false, poll: false, scm: [$class: 'GitSCM', branches: [[name: "${BUILD_REF}"]], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'github-sre-bot-ssh', refspec: '+refs/pull/*:refs/remotes/origin/pr/*', url: "${REPO_GIT_URL}"]]]
+
+            stage('Checkout repository') {
+                checkout scm: [
+                        $class: 'GitSCM',
+                        branches: [[name: "${BUILD_REF}"]],
+                        userRemoteConfigs: [[
+                            credentialsId: 'github-sre-bot-ssh',
+                            refspec: '+refs/pull/*:refs/remotes/origin/pr/*',
+                            url: "${REPO_GIT_URL}",
+                        ]]
+                    ]
             }
 
-            stage('Build and push docker image'){
-                withDockerServer([uri: "tcp://localhost:2375", credentialsId: "ucloud-registry"]) {
-                    docker.build("pingcap/advanced-statefulset:${IMAGE_TAG}", ".").push()
+            stage('Build and push docker image') {
+                withDockerServer([uri: "tcp://localhost:2375"]) {
+                    def image = docker.build("pingcap/advanced-statefulset:${IMAGE_TAG}")
+                    image.push()
+                    withDockerRegistry([url: "https://registry.cn-beijing.aliyuncs.com", credentialsId: "ACR_TIDB_ACCOUNT"]) {
+                        sh """
+                        docker tag pingcap/advanced-statefulset:${IMAGE_TAG} registry.cn-beijing.aliyuncs.com/tidb/advanced-statefulset:${IMAGE_TAG}
+                        docker push registry.cn-beijing.aliyuncs.com/tidb/advanced-statefulset:${IMAGE_TAG}
+                        """
+                    }
                 }
             }
         }
     }
     currentBuild.result = "SUCCESS"
 } catch (err) {
+    println("Exception: " + err)
     currentBuild.result = 'FAILURE'
 }
 
@@ -46,8 +62,6 @@ stage('Summary') {
         slackmsg = "${slackmsg}" + "\n" + "advanced-statefulset Docker Image: `pingcap/advanced-statefulset:${IMAGE_TAG}`" + "\n"
     }
 
-    echo(color)
-    echo(slackmsg)
     slackSend channel: '#cloud_jenkins', color: color, teamDomain: 'pingcap', tokenCredentialId: 'slack-pingcap-token', message: "${slackmsg}"
 }
 
