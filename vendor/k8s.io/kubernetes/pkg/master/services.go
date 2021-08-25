@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"net"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/integer"
 	utilnet "k8s.io/utils/net"
 
@@ -40,7 +40,7 @@ func ServiceIPRange(passedServiceClusterIPRange net.IPNet) (net.IPNet, net.IP, e
 
 	size := integer.Int64Min(utilnet.RangeSize(&serviceClusterIPRange), 1<<16)
 	if size < 8 {
-		return net.IPNet{}, net.IP{}, fmt.Errorf("The service cluster IP range must be at least %d IP addresses", 8)
+		return net.IPNet{}, net.IP{}, fmt.Errorf("the service cluster IP range must be at least %d IP addresses", 8)
 	}
 
 	// Select the first valid IP from ServiceClusterIPRange to use as the GenericAPIServer service IP.
