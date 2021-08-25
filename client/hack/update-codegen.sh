@@ -18,9 +18,14 @@ set -o nounset
 set -o pipefail
 
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ../vendor/k8s.io/code-generator 2>/dev/null || echo ../code-generator)}
 
-export GO111MODULE=off
+cd $SCRIPT_ROOT
+
+export GO111MODULE=on
+
+go mod vendor
+
+CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ../vendor/k8s.io/code-generator 2>/dev/null || echo ../code-generator)}
 
 function codegen::join() { local IFS="$1"; shift; echo "$*"; }
 
@@ -28,7 +33,10 @@ bash "${CODEGEN_PKG}"/generate-groups.sh "deepcopy,client,informer,lister" \
   github.com/pingcap/advanced-statefulset/client/client \
   github.com/pingcap/advanced-statefulset/client/apis \
   "apps:v1" \
+  --output-base $SCRIPT_ROOT \
   --go-header-file "${SCRIPT_ROOT}"/../hack/boilerplate/boilerplate.k8s.go.txt
+
+cp -r github.com/pingcap/advanced-statefulset/client . && rm -rf github.com
 
 # work around for https://github.com/kubernetes/code-generator/issues/84
 git checkout client/listers/apps/v1/expansion_generated.go
