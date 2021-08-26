@@ -17,6 +17,7 @@ limitations under the License.
 package statefulset
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"time"
@@ -303,7 +304,7 @@ func (ssc *StatefulSetController) getPodsForStatefulSet(set *apps.StatefulSet, s
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing Pods (see #42639).
 	canAdoptFunc := controller.RecheckDeletionTimestamp(func() (metav1.Object, error) {
-		fresh, err := ssc.pcClient.AppsV1().StatefulSets(set.Namespace).Get(set.Name, metav1.GetOptions{})
+		fresh, err := ssc.pcClient.AppsV1().StatefulSets(set.Namespace).Get(context.TODO(), set.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -337,7 +338,7 @@ func syncLabels(kubeClient kubernetes.Interface, set *apps.StatefulSet, revision
 		labels[k] = v
 	}
 	revision.ObjectMeta.Labels = labels
-	return kubeClient.AppsV1().ControllerRevisions(revision.Namespace).Update(revision)
+	return kubeClient.AppsV1().ControllerRevisions(revision.Namespace).Update(context.TODO(), revision, metav1.UpdateOptions{})
 }
 
 // adoptOrphanRevisions adopts any orphaned ControllerRevisions matched by set's Selector.
@@ -362,7 +363,7 @@ func (ssc *StatefulSetController) adoptOrphanRevisions(set *apps.StatefulSet) er
 				}
 			}
 		}
-		fresh, err := ssc.pcClient.AppsV1().StatefulSets(set.Namespace).Get(set.Name, metav1.GetOptions{})
+		fresh, err := ssc.pcClient.AppsV1().StatefulSets(set.Namespace).Get(context.TODO(), set.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}

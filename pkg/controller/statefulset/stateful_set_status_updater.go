@@ -17,11 +17,13 @@ limitations under the License.
 package statefulset
 
 import (
+	"context"
 	"fmt"
 
 	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
 	clientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
 	statefulsetlisters "github.com/pingcap/advanced-statefulset/client/client/listers/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/util/retry"
 )
@@ -53,7 +55,7 @@ func (ssu *realStatefulSetStatusUpdater) UpdateStatefulSetStatus(
 	// don't wait due to limited number of clients, but backoff after the default number of steps
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		set.Status = *status
-		_, updateErr := ssu.client.AppsV1().StatefulSets(set.Namespace).UpdateStatus(set)
+		_, updateErr := ssu.client.AppsV1().StatefulSets(set.Namespace).UpdateStatus(context.TODO(), set, metav1.UpdateOptions{})
 		if updateErr == nil {
 			return nil
 		}

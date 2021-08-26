@@ -36,7 +36,6 @@ import (
 	"k8s.io/component-base/term"
 	"k8s.io/component-base/version"
 	"k8s.io/klog"
-	utilflag "k8s.io/kubernetes/pkg/util/flag"
 )
 
 // ResyncPeriod returns a function which generates a duration each time it is
@@ -112,7 +111,7 @@ func NewControllerManagerCommand() *cobra.Command {
 		Long: `Advanced StatefulSet Controller Manager`,
 		Run: func(cmd *cobra.Command, args []string) {
 			verflag.PrintAndExitIfRequested()
-			utilflag.PrintFlags(flag.CommandLine)
+			cliflag.PrintFlags(flag.CommandLine)
 
 			c, err := opts.Config()
 			if err != nil {

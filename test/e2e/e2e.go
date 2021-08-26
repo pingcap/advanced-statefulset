@@ -32,6 +32,7 @@ limitations under the License.
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -55,6 +56,7 @@ import (
 	"k8s.io/component-base/version"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/test/e2e/framework"
+	e2ekubectl "k8s.io/kubernetes/test/e2e/framework/kubectl"
 	e2elog "k8s.io/kubernetes/test/e2e/framework/log"
 	e2enode "k8s.io/kubernetes/test/e2e/framework/node"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
@@ -100,7 +102,7 @@ func setupSuite() {
 			framework.Failf("Error deleting orphaned namespaces: %v", err)
 		}
 		klog.Infof("Waiting for deletion of the following namespaces: %v", deleted)
-		if err := framework.WaitForNamespacesDeleted(c, deleted, framework.NamespaceCleanupTimeout); err != nil {
+		if err := framework.WaitForNamespacesDeleted(c, deleted, framework.DefaultNamespaceDeletionTimeout); err != nil {
 			framework.Failf("Failed to delete orphaned namespaces %v: %v", deleted, err)
 		}
 	}
@@ -128,7 +130,7 @@ func setupSuite() {
 	// number equal to the number of allowed not-ready nodes).
 	if err := e2epod.WaitForPodsRunningReady(c, metav1.NamespaceSystem, int32(framework.TestContext.MinStartupPods), int32(framework.TestContext.AllowedNotReadyNodes), podStartupTimeout, map[string]string{}); err != nil {
 		framework.DumpAllNamespaceInfo(c, metav1.NamespaceSystem)
-		framework.LogFailedContainers(c, metav1.NamespaceSystem, framework.Logf)
+		e2ekubectl.LogFailedContainers(c, metav1.NamespaceSystem, framework.Logf)
 		framework.Failf("Error waiting for all pods to be running and ready: %v", err)
 	}
 
@@ -159,7 +161,7 @@ func waitForDaemonSets(c clientset.Interface, ns string, allowedNotReadyNodes in
 		timeout, ns)
 
 	return wait.PollImmediate(framework.Poll, timeout, func() (bool, error) {
-		dsList, err := c.AppsV1().DaemonSets(ns).List(metav1.ListOptions{})
+		dsList, err := c.AppsV1().DaemonSets(ns).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			framework.Logf("Error getting daemonsets in namespace: '%s': %v", ns, err)
 			if testutils.IsRetryableAPIError(err) {
@@ -191,7 +193,7 @@ func waitForDaemonSets(c clientset.Interface, ns string, allowedNotReadyNodes in
 // but we can detect if a cluster is dual stack because pods have two addresses (one per family)
 func getDefaultClusterIPFamily(c clientset.Interface) string {
 	// Get the ClusterIP of the kubernetes service created in the default namespace
-	svc, err := c.CoreV1().Services(metav1.NamespaceDefault).Get("kubernetes", metav1.GetOptions{})
+	svc, err := c.CoreV1().Services(metav1.NamespaceDefault).Get(context.TODO(), "kubernetes", metav1.GetOptions{})
 	if err != nil {
 		framework.Failf("Failed to get kubernetes service ClusterIP: %v", err)
 	}
@@ -249,11 +251,11 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	}
 	framework.RunKubectlOrDie("wait", "--for=condition=Established", "crds/statefulsets.apps.pingcap.com")
 	// Install Controller
-	_, err = c.CoreV1().Namespaces().Create(&v1.Namespace{
+	_, err = c.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: asNamespace,
 		},
-	})
+	}, metav1.CreateOptions{})
 	framework.ExpectNoError(err, "failed to create namespace")
 	framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/rbac.yaml"))
 	framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/deployment.yaml"))
@@ -265,9 +267,9 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 })
 
 var _ = ginkgo.SynchronizedAfterSuite(func() {
-	framework.CleanupSuite()
+	CleanupSuite()
 }, func() {
-	framework.AfterSuiteActions()
+	AfterSuiteActions()
 })
 
 // RunE2ETests checks configuration parameters (specified through flags) and then runs
@@ -280,7 +282,7 @@ func RunE2ETests(t *testing.T) {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	gomega.RegisterFailHandler(e2elog.Fail)
+	gomega.RegisterFailHandler(framework.Fail)
 
 	// Disable skipped tests unless they are explicitly requested.
 	if config.GinkgoConfig.FocusString == "" && config.GinkgoConfig.SkipString == "" {
