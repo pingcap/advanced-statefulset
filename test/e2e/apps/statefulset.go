@@ -920,18 +920,16 @@ func (z *zookeeperTester) deploy(ns string) *appsv1.StatefulSet {
 
 func (z *zookeeperTester) write(statefulPodIndex int, kv map[string]string) {
 	name := fmt.Sprintf("%v-%d", z.ss.Name, statefulPodIndex)
-	ns := fmt.Sprintf("--namespace=%v", z.ss.Namespace)
 	for k, v := range kv {
 		cmd := fmt.Sprintf("/opt/zookeeper/bin/zkCli.sh create /%v %v", k, v)
-		framework.Logf(framework.RunKubectlOrDie("exec", ns, name, "--", "/bin/sh", "-c", cmd))
+		framework.Logf(framework.RunKubectlOrDie(z.ss.Namespace, "exec", name, "--", "/bin/sh", "-c", cmd))
 	}
 }
 
 func (z *zookeeperTester) read(statefulPodIndex int, key string) string {
 	name := fmt.Sprintf("%v-%d", z.ss.Name, statefulPodIndex)
-	ns := fmt.Sprintf("--namespace=%v", z.ss.Namespace)
 	cmd := fmt.Sprintf("/opt/zookeeper/bin/zkCli.sh get /%v", key)
-	return lastLine(framework.RunKubectlOrDie("exec", ns, name, "--", "/bin/sh", "-c", cmd))
+	return lastLine(framework.RunKubectlOrDie(z.ss.Namespace, "exec", name, "--", "/bin/sh", "-c", cmd))
 }
 
 type mysqlGaleraTester struct {
@@ -988,7 +986,7 @@ func (m *redisTester) name() string {
 
 func (m *redisTester) redisExec(cmd, ns, podName string) string {
 	cmd = fmt.Sprintf("/opt/redis/redis-cli -h %v %v", podName, cmd)
-	return framework.RunKubectlOrDie(fmt.Sprintf("--namespace=%v", ns), "exec", podName, "--", "/bin/sh", "-c", cmd)
+	return framework.RunKubectlOrDie(ns, "exec", podName, "--", "/bin/sh", "-c", cmd)
 }
 
 func (m *redisTester) deploy(ns string) *appsv1.StatefulSet {
@@ -1019,7 +1017,7 @@ func (c *cockroachDBTester) name() string {
 
 func (c *cockroachDBTester) cockroachDBExec(cmd, ns, podName string) string {
 	cmd = fmt.Sprintf("/cockroach/cockroach sql --insecure --host %s.cockroachdb -e \"%v\"", podName, cmd)
-	return framework.RunKubectlOrDie(fmt.Sprintf("--namespace=%v", ns), "exec", podName, "--", "/bin/sh", "-c", cmd)
+	return framework.RunKubectlOrDie(ns, "exec", podName, "--", "/bin/sh", "-c", cmd)
 }
 
 func (c *cockroachDBTester) deploy(ns string) *appsv1.StatefulSet {

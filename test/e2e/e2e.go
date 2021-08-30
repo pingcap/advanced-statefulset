@@ -245,11 +245,11 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	gte116, err := e2eutil.ServerVersionGTE(utilversion.MustParseSemantic("v1.16.0"), c.Discovery())
 	framework.ExpectNoError(err)
 	if gte116 {
-		framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/crd.v1.yaml"))
+		framework.RunKubectlOrDie("", "apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/crd.v1.yaml"))
 	} else {
-		framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/crd.v1beta1.yaml"))
+		framework.RunKubectlOrDie("", "apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/crd.v1beta1.yaml"))
 	}
-	framework.RunKubectlOrDie("wait", "--for=condition=Established", "crds/statefulsets.apps.pingcap.com")
+	framework.RunKubectlOrDie("", "wait", "--for=condition=Established", "crds/statefulsets.apps.pingcap.com")
 	// Install Controller
 	_, err = c.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -257,9 +257,9 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 		},
 	}, metav1.CreateOptions{})
 	framework.ExpectNoError(err, "failed to create namespace")
-	framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/rbac.yaml"))
-	framework.RunKubectlOrDie("apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/deployment.yaml"))
-	framework.RunKubectlOrDie("-n", asNamespace, "wait", "--for=condition=Available", "deploy/advanced-statefulset-controller")
+	framework.RunKubectlOrDie("", "apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/rbac.yaml"))
+	framework.RunKubectlOrDie("", "apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/deployment.yaml"))
+	framework.RunKubectlOrDie(asNamespace, "wait", "--for=condition=Available", "deploy/advanced-statefulset-controller")
 	return nil
 }, func(data []byte) {
 	// Run on all Ginkgo nodes
