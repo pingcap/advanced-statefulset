@@ -14,6 +14,7 @@
 package helper
 
 import (
+	"context"
 	"encoding/json"
 	"sync"
 
@@ -63,62 +64,62 @@ type hijackStatefulSet struct {
 
 var _ clientsetappsv1.StatefulSetInterface = &hijackStatefulSet{}
 
-func (s *hijackStatefulSet) Create(sts *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
+func (s *hijackStatefulSet) Create(ctx context.Context, sts *appsv1.StatefulSet, opts metav1.CreateOptions) (*appsv1.StatefulSet, error) {
 	pcsts, err := FromBuiltinStatefulSet(sts)
 	if err != nil {
 		return nil, err
 	}
 	asv1.SetObjectDefaults_StatefulSet(pcsts) // required if defaulting is not enabled in kube-apiserver
-	pcsts, err = s.StatefulSetInterface.Create(pcsts)
+	pcsts, err = s.StatefulSetInterface.Create(ctx, pcsts, opts)
 	if err != nil {
 		return nil, err
 	}
 	return ToBuiltinStatefulSet(pcsts)
 }
 
-func (s *hijackStatefulSet) Update(sts *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
+func (s *hijackStatefulSet) Update(ctx context.Context, sts *appsv1.StatefulSet, opts metav1.UpdateOptions) (*appsv1.StatefulSet, error) {
 	pcsts, err := FromBuiltinStatefulSet(sts)
 	if err != nil {
 		return nil, err
 	}
 	asv1.SetObjectDefaults_StatefulSet(pcsts) // required if defaulting is not enabled in kube-apiserver
-	pcsts, err = s.StatefulSetInterface.Update(pcsts)
+	pcsts, err = s.StatefulSetInterface.Update(ctx, pcsts, opts)
 	if err != nil {
 		return nil, err
 	}
 	return ToBuiltinStatefulSet(pcsts)
 }
 
-func (s *hijackStatefulSet) UpdateStatus(sts *appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
+func (s *hijackStatefulSet) UpdateStatus(ctx context.Context, sts *appsv1.StatefulSet, opts metav1.UpdateOptions) (*appsv1.StatefulSet, error) {
 	pcsts, err := FromBuiltinStatefulSet(sts)
 	if err != nil {
 		return nil, err
 	}
-	pcsts, err = s.StatefulSetInterface.UpdateStatus(pcsts)
+	pcsts, err = s.StatefulSetInterface.UpdateStatus(ctx, pcsts, opts)
 	if err != nil {
 		return nil, err
 	}
 	return ToBuiltinStatefulSet(pcsts)
 }
 
-func (s *hijackStatefulSet) Get(name string, options metav1.GetOptions) (*appsv1.StatefulSet, error) {
-	pcsts, err := s.StatefulSetInterface.Get(name, options)
+func (s *hijackStatefulSet) Get(ctx context.Context, name string, options metav1.GetOptions) (*appsv1.StatefulSet, error) {
+	pcsts, err := s.StatefulSetInterface.Get(ctx, name, options)
 	if err != nil {
 		return nil, err
 	}
 	return ToBuiltinStatefulSet(pcsts)
 }
 
-func (s *hijackStatefulSet) List(opts metav1.ListOptions) (*appsv1.StatefulSetList, error) {
-	list, err := s.StatefulSetInterface.List(opts)
+func (s *hijackStatefulSet) List(ctx context.Context, opts metav1.ListOptions) (*appsv1.StatefulSetList, error) {
+	list, err := s.StatefulSetInterface.List(ctx, opts)
 	if err != nil {
 		return nil, err
 	}
 	return ToBuiltinStetefulsetList(list)
 }
 
-func (s *hijackStatefulSet) Watch(opts metav1.ListOptions) (watch.Interface, error) {
-	watch, err := s.StatefulSetInterface.Watch(opts)
+func (s *hijackStatefulSet) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+	watch, err := s.StatefulSetInterface.Watch(ctx, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -182,8 +183,8 @@ func (w *hijackWatch) ResultChan() <-chan watch.Event {
 	return w.result
 }
 
-func (s *hijackStatefulSet) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *appsv1.StatefulSet, err error) {
-	pcsts, err := s.StatefulSetInterface.Patch(name, pt, data, subresources...)
+func (s *hijackStatefulSet) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *appsv1.StatefulSet, err error) {
+	pcsts, err := s.StatefulSetInterface.Patch(ctx, name, pt, data, opts, subresources...)
 	if err != nil {
 		return nil, err
 	}
