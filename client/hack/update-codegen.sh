@@ -48,3 +48,4 @@ git checkout client/listers/apps/v1/expansion_generated.go
     # -O zz_generated.defaults  \
     # --go-header-file "${SCRIPT_ROOT}"/../hack/boilerplate/boilerplate.k8s.go.txt \
     # -v 5
+
