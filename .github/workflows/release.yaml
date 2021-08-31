@@ -10,7 +10,7 @@ on:
 jobs:
 
   trigger:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - name: Check out the repository
       uses: actions/checkout@v1
