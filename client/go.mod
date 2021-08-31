@@ -8,7 +8,7 @@ require (
 	k8s.io/apimachinery v0.19.14
 	k8s.io/client-go v0.19.14
 	k8s.io/klog v1.0.0
-	k8s.io/kubernetes v1.19.0
+	k8s.io/kubernetes v1.19.14
 )
 
 replace k8s.io/api => k8s.io/api v0.19.14
