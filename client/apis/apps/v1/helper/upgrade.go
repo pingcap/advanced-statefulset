@@ -14,6 +14,8 @@
 package helper
 
 import (
+	"context"
+
 	asv1 "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
 	asclientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
 	appsv1 "k8s.io/api/apps/v1"
@@ -41,7 +43,7 @@ const (
 // - create advanced sts
 // - delete sts with DeletePropagationOrphan policy
 //
-func Upgrade(c clientset.Interface, asc asclientset.Interface, sts *appsv1.StatefulSet) (*asv1.StatefulSet, error) {
+func Upgrade(ctx context.Context, c clientset.Interface, asc asclientset.Interface, sts *appsv1.StatefulSet) (*asv1.StatefulSet, error) {
 	selector, err := metav1.LabelSelectorAsSelector(sts.Spec.Selector)
 	if err != nil {
 		return nil, err
@@ -51,7 +53,7 @@ func Upgrade(c clientset.Interface, asc asclientset.Interface, sts *appsv1.State
 	// GC will delete revisions because they are not orphans.
 	// https://github.com/kubernetes/kubernetes/issues/84982
 	revisionListOptions := metav1.ListOptions{LabelSelector: selector.String()}
-	oldRevisionList, err := c.AppsV1().ControllerRevisions(sts.Namespace).List(revisionListOptions)
+	oldRevisionList, err := c.AppsV1().ControllerRevisions(sts.Namespace).List(ctx, revisionListOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +62,7 @@ func Upgrade(c clientset.Interface, asc asclientset.Interface, sts *appsv1.State
 			delete(revision.Labels, key)
 		}
 		revision.Labels[UpgradeToAdvancedStatefulSetAnn] = sts.Name
-		_, err = c.AppsV1().ControllerRevisions(revision.Namespace).Update(&revision)
+		_, err = c.AppsV1().ControllerRevisions(revision.Namespace).Update(ctx, &revision, metav1.UpdateOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -68,7 +70,7 @@ func Upgrade(c clientset.Interface, asc asclientset.Interface, sts *appsv1.State
 	klog.V(2).Infof("Succesfully marked all controller revisions (%d) of StatefulSet %s/%s", len(oldRevisionList.Items), sts.Namespace, sts.Name)
 
 	// Create or Update
-	asts, err := asc.AppsV1().StatefulSets(sts.Namespace).Get(sts.Name, metav1.GetOptions{})
+	asts, err := asc.AppsV1().StatefulSets(sts.Namespace).Get(ctx, sts.Name, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return nil, err
 	}
@@ -86,14 +88,14 @@ func Upgrade(c clientset.Interface, asc asclientset.Interface, sts *appsv1.State
 		// nil it and the ownership will be transferred to
 		// advanced-statefulset-controller-manager
 		asts.ObjectMeta.ManagedFields = nil
-		asts, err = asc.AppsV1().StatefulSets(asts.Namespace).Create(asts)
+		asts, err = asc.AppsV1().StatefulSets(asts.Namespace).Create(ctx, asts, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
 		klog.V(2).Infof("Succesfully created the new Advanced StatefulSet %s/%s", asts.Namespace, asts.Name)
 	} else {
 		asts.Spec = upgradedSts.Spec
-		asts, err = asc.AppsV1().StatefulSets(asts.Namespace).Update(asts)
+		asts, err = asc.AppsV1().StatefulSets(asts.Namespace).Update(ctx, asts, metav1.UpdateOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -102,14 +104,14 @@ func Upgrade(c clientset.Interface, asc asclientset.Interface, sts *appsv1.State
 
 	// Status must be updated via UpdateStatus
 	asts.Status = upgradedSts.Status
-	asts, err = asc.AppsV1().StatefulSets(asts.Namespace).UpdateStatus(asts)
+	asts, err = asc.AppsV1().StatefulSets(asts.Namespace).UpdateStatus(ctx, asts, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	// At the last, delete the builtin StatefulSet
 	policy := metav1.DeletePropagationOrphan
-	err = c.AppsV1().StatefulSets(sts.Namespace).Delete(sts.Name, &metav1.DeleteOptions{
+	err = c.AppsV1().StatefulSets(sts.Namespace).Delete(ctx, sts.Name, metav1.DeleteOptions{
 		PropagationPolicy: &policy,
 	})
 	if err != nil && !apierrors.IsNotFound(err) {

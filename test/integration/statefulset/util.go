@@ -17,6 +17,7 @@ limitations under the License.
 package statefulset
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -213,7 +214,7 @@ func runControllerAndInformers(sc *statefulset.StatefulSetController, informers 
 }
 
 func createHeadlessService(t *testing.T, clientSet clientset.Interface, headlessService *v1.Service) {
-	_, err := clientSet.CoreV1().Services(headlessService.Namespace).Create(headlessService)
+	_, err := clientSet.CoreV1().Services(headlessService.Namespace).Create(context.TODO(), headlessService, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("failed creating headless service: %v", err)
 	}
@@ -223,14 +224,14 @@ func createSTSsPods(t *testing.T, clientSet clientset.Interface, pcclientSet pcc
 	var createdSTSs []*appsv1.StatefulSet
 	var createdPods []*v1.Pod
 	for _, sts := range stss {
-		createdSTS, err := pcclientSet.AppsV1().StatefulSets(sts.Namespace).Create(sts)
+		createdSTS, err := pcclientSet.AppsV1().StatefulSets(sts.Namespace).Create(context.TODO(), sts, metav1.CreateOptions{})
 		if err != nil {
 			t.Fatalf("failed to create sts %s: %v", sts.Name, err)
 		}
 		createdSTSs = append(createdSTSs, createdSTS)
 	}
 	for _, pod := range pods {
-		createdPod, err := clientSet.CoreV1().Pods(pod.Namespace).Create(pod)
+		createdPod, err := clientSet.CoreV1().Pods(pod.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 		if err != nil {
 			t.Fatalf("failed to create pod %s: %v", pod.Name, err)
 		}
@@ -245,7 +246,7 @@ func waitSTSStable(t *testing.T, pcclientSet pcclientset.Interface, sts *appsv1.
 	stsClient := pcclientSet.AppsV1().StatefulSets(sts.Namespace)
 	desiredGeneration := sts.Generation
 	if err := wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
-		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
+		newSTS, err := stsClient.Get(context.TODO(), sts.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
@@ -258,12 +259,12 @@ func waitSTSStable(t *testing.T, pcclientSet pcclientset.Interface, sts *appsv1.
 func updatePod(t *testing.T, podClient typedv1.PodInterface, podName string, updateFunc func(*v1.Pod)) *v1.Pod {
 	var pod *v1.Pod
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		newPod, err := podClient.Get(podName, metav1.GetOptions{})
+		newPod, err := podClient.Get(context.TODO(), podName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		updateFunc(newPod)
-		pod, err = podClient.Update(newPod)
+		pod, err = podClient.Update(context.TODO(), newPod, metav1.UpdateOptions{})
 		return err
 	}); err != nil {
 		t.Fatalf("failed to update pod %s: %v", podName, err)
@@ -274,12 +275,12 @@ func updatePod(t *testing.T, podClient typedv1.PodInterface, podName string, upd
 func updatePodStatus(t *testing.T, podClient typedv1.PodInterface, podName string, updateStatusFunc func(*v1.Pod)) *v1.Pod {
 	var pod *v1.Pod
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		newPod, err := podClient.Get(podName, metav1.GetOptions{})
+		newPod, err := podClient.Get(context.TODO(), podName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		updateStatusFunc(newPod)
-		pod, err = podClient.UpdateStatus(newPod)
+		pod, err = podClient.UpdateStatus(context.TODO(), newPod, metav1.UpdateOptions{})
 		return err
 	}); err != nil {
 		t.Fatalf("failed to update status of pod %s: %v", podName, err)
@@ -290,7 +291,7 @@ func updatePodStatus(t *testing.T, podClient typedv1.PodInterface, podName strin
 func getPods(t *testing.T, podClient typedv1.PodInterface, labelMap map[string]string) *v1.PodList {
 	podSelector := labels.Set(labelMap).AsSelector()
 	options := metav1.ListOptions{LabelSelector: podSelector.String()}
-	pods, err := podClient.List(options)
+	pods, err := podClient.List(context.TODO(), options)
 	if err != nil {
 		t.Fatalf("failed obtaining a list of pods that match the pod labels %v: %v", labelMap, err)
 	}
@@ -303,12 +304,12 @@ func getPods(t *testing.T, podClient typedv1.PodInterface, labelMap map[string]s
 func updateSTS(t *testing.T, stsClient typedappsv1.StatefulSetInterface, stsName string, updateFunc func(*appsv1.StatefulSet)) *appsv1.StatefulSet {
 	var sts *appsv1.StatefulSet
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		newSTS, err := stsClient.Get(stsName, metav1.GetOptions{})
+		newSTS, err := stsClient.Get(context.TODO(), stsName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		updateFunc(newSTS)
-		sts, err = stsClient.Update(newSTS)
+		sts, err = stsClient.Update(context.TODO(), newSTS, metav1.UpdateOptions{})
 		return err
 	}); err != nil {
 		t.Fatalf("failed to update sts %s: %v", stsName, err)
@@ -320,12 +321,12 @@ func updateSTS(t *testing.T, stsClient typedappsv1.StatefulSetInterface, stsName
 func scaleSTS(t *testing.T, c pcclientset.Interface, sts *appsv1.StatefulSet, replicas int32) {
 	stsClient := c.AppsV1().StatefulSets(sts.Namespace)
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
+		newSTS, err := stsClient.Get(context.TODO(), sts.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		*newSTS.Spec.Replicas = replicas
-		sts, err = stsClient.Update(newSTS)
+		sts, err = stsClient.Update(context.TODO(), newSTS, metav1.UpdateOptions{})
 		return err
 	}); err != nil {
 		t.Fatalf("failed to update .Spec.Replicas to %d for sts %s: %v", replicas, sts.Name, err)
@@ -336,13 +337,13 @@ func scaleSTS(t *testing.T, c pcclientset.Interface, sts *appsv1.StatefulSet, re
 func scaleSTSWithDeleteSlots(t *testing.T, c pcclientset.Interface, sts *appsv1.StatefulSet, replicas int32, deleteSlots sets.Int32) {
 	stsClient := c.AppsV1().StatefulSets(sts.Namespace)
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
+		newSTS, err := stsClient.Get(context.TODO(), sts.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		helper.SetDeleteSlots(newSTS, deleteSlots)
 		*newSTS.Spec.Replicas = replicas
-		sts, err = stsClient.Update(newSTS)
+		sts, err = stsClient.Update(context.TODO(), newSTS, metav1.UpdateOptions{})
 		return err
 	}); err != nil {
 		t.Fatalf("failed to update .Spec.Replicas to %d for sts %s: %v", replicas, sts.Name, err)
@@ -357,7 +358,7 @@ func scaleInSTSByDeletingSlots(t *testing.T, c pcclientset.Interface, sts *appsv
 	}
 	stsClient := c.AppsV1().StatefulSets(sts.Namespace)
 	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
+		newSTS, err := stsClient.Get(context.TODO(), sts.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -367,7 +368,7 @@ func scaleInSTSByDeletingSlots(t *testing.T, c pcclientset.Interface, sts *appsv
 			t.Fatalf("replicas should not be less than 0: %v", replicas)
 		}
 		*newSTS.Spec.Replicas = replicas
-		sts, err = stsClient.Update(newSTS)
+		sts, err = stsClient.Update(context.TODO(), newSTS, metav1.UpdateOptions{})
 		return err
 	}); err != nil {
 		t.Fatalf("failed to mark %d deleted for sts %s: %v", set, sts.Name, err)

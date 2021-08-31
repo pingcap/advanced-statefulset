@@ -18,7 +18,7 @@ import (
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	componentbaseconfig "k8s.io/component-base/config"
-	"k8s.io/kubernetes/pkg/client/leaderelectionconfig"
+	"k8s.io/component-base/config/options"
 )
 
 // GenericComponentOptions holds the options which are generic.
@@ -57,7 +57,7 @@ func (o *GenericComponentOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&o.KubeAPIBurst, "kube-api-burst", o.KubeAPIBurst, "Burst to use while talking with kubernetes apiserver.")
 	fs.DurationVar(&o.ControllerStartInterval.Duration, "controller-start-interval", o.ControllerStartInterval.Duration, "Interval between starting controller managers.")
 
-	leaderelectionconfig.BindFlags(&o.LeaderElection, fs)
+	options.BindLeaderElectionFlags(&o.LeaderElection, fs)
 }
 
 // Validate checks validation of GenericComponentOptions.

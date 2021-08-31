@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/apimachinery/pkg/util/net"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -50,7 +50,7 @@ type GenericWebhook struct {
 // Otherwise it returns false for an immediate fail.
 func DefaultShouldRetry(err error) bool {
 	// these errors indicate a transient error that should be retried.
-	if net.IsConnectionReset(err) || apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsTooManyRequests(err) {
+	if utilnet.IsConnectionReset(err) || apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsTooManyRequests(err) {
 		return true
 	}
 	// if the error sends the Retry-After header, we respect it as an explicit confirmation we should retry.
@@ -61,11 +61,11 @@ func DefaultShouldRetry(err error) bool {
 }
 
 // NewGenericWebhook creates a new GenericWebhook from the provided kubeconfig file.
-func NewGenericWebhook(scheme *runtime.Scheme, codecFactory serializer.CodecFactory, kubeConfigFile string, groupVersions []schema.GroupVersion, initialBackoff time.Duration) (*GenericWebhook, error) {
-	return newGenericWebhook(scheme, codecFactory, kubeConfigFile, groupVersions, initialBackoff, defaultRequestTimeout)
+func NewGenericWebhook(scheme *runtime.Scheme, codecFactory serializer.CodecFactory, kubeConfigFile string, groupVersions []schema.GroupVersion, initialBackoff time.Duration, customDial utilnet.DialFunc) (*GenericWebhook, error) {
+	return newGenericWebhook(scheme, codecFactory, kubeConfigFile, groupVersions, initialBackoff, defaultRequestTimeout, customDial)
 }
 
-func newGenericWebhook(scheme *runtime.Scheme, codecFactory serializer.CodecFactory, kubeConfigFile string, groupVersions []schema.GroupVersion, initialBackoff, requestTimeout time.Duration) (*GenericWebhook, error) {
+func newGenericWebhook(scheme *runtime.Scheme, codecFactory serializer.CodecFactory, kubeConfigFile string, groupVersions []schema.GroupVersion, initialBackoff, requestTimeout time.Duration, customDial utilnet.DialFunc) (*GenericWebhook, error) {
 	for _, groupVersion := range groupVersions {
 		if !scheme.IsVersionRegistered(groupVersion) {
 			return nil, fmt.Errorf("webhook plugin requires enabling extension resource: %s", groupVersion)
@@ -94,6 +94,8 @@ func newGenericWebhook(scheme *runtime.Scheme, codecFactory serializer.CodecFact
 
 	codec := codecFactory.LegacyCodec(groupVersions...)
 	clientConfig.ContentConfig.NegotiatedSerializer = serializer.NegotiatedSerializerWrapper(runtime.SerializerInfo{Serializer: codec})
+
+	clientConfig.Dial = customDial
 
 	restClient, err := rest.UnversionedRESTClientFor(clientConfig)
 	if err != nil {
@@ -129,20 +131,27 @@ func WithExponentialBackoff(ctx context.Context, initialBackoff time.Duration, w
 		Steps:    5,
 	}
 
-	var err error
-	wait.ExponentialBackoff(backoff, func() (bool, error) {
-		err = webhookFn()
-		if ctx.Err() != nil {
-			// we timed out or were cancelled, we should not retry
-			return true, err
-		}
-		if shouldRetry(err) {
+	// having a webhook error allows us to track the last actual webhook error for requests that
+	// are later cancelled or time out.
+	var webhookErr error
+	err := wait.ExponentialBackoffWithContext(ctx, backoff, func() (bool, error) {
+		webhookErr = webhookFn()
+		if shouldRetry(webhookErr) {
 			return false, nil
 		}
-		if err != nil {
-			return false, err
+		if webhookErr != nil {
+			return false, webhookErr
 		}
 		return true, nil
 	})
-	return err
+
+	switch {
+	// we check for webhookErr first, if webhookErr is set it's the most important error to return.
+	case webhookErr != nil:
+		return webhookErr
+	case err != nil:
+		return fmt.Errorf("webhook call failed: %s", err.Error())
+	default:
+		return nil
+	}
 }

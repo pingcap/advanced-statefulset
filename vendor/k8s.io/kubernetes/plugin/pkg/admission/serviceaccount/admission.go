@@ -216,7 +216,7 @@ func (s *Plugin) Validate(ctx context.Context, a admission.Attributes, o admissi
 		podutil.VisitPodSecretNames(pod, func(name string) bool {
 			hasSecrets = true
 			return false
-		})
+		}, podutil.AllContainers)
 		if hasSecrets {
 			return admission.NewForbidden(a, fmt.Errorf("a mirror pod may not reference secrets"))
 		}
@@ -315,7 +315,7 @@ func (s *Plugin) getServiceAccount(namespace string, name string) (*corev1.Servi
 		if i != 0 {
 			time.Sleep(retryInterval)
 		}
-		serviceAccount, err := s.client.CoreV1().ServiceAccounts(namespace).Get(name, metav1.GetOptions{})
+		serviceAccount, err := s.client.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err == nil {
 			return serviceAccount, nil
 		}
@@ -424,12 +424,19 @@ func (s *Plugin) limitSecretReferences(serviceAccount *corev1.ServiceAccount, po
 }
 
 func (s *Plugin) mountServiceAccountToken(serviceAccount *corev1.ServiceAccount, pod *api.Pod) error {
-	// Find the name of a referenced ServiceAccountToken secret we can mount
-	serviceAccountToken, err := s.getReferencedServiceAccountToken(serviceAccount)
-	if err != nil {
-		return fmt.Errorf("Error looking up service account token for %s/%s: %v", serviceAccount.Namespace, serviceAccount.Name, err)
+	var (
+		// serviceAccountToken holds the name of a secret containing a legacy service account token
+		serviceAccountToken string
+		err                 error
+	)
+	if !s.boundServiceAccountTokenVolume {
+		// Find the name of a referenced ServiceAccountToken secret we can mount
+		serviceAccountToken, err = s.getReferencedServiceAccountToken(serviceAccount)
+		if err != nil {
+			return fmt.Errorf("Error looking up service account token for %s/%s: %v", serviceAccount.Namespace, serviceAccount.Name, err)
+		}
 	}
-	if len(serviceAccountToken) == 0 {
+	if len(serviceAccountToken) == 0 && !s.boundServiceAccountTokenVolume {
 		// We don't have an API token to mount, so return
 		if s.RequireAPIToken {
 			// If a token is required, this is considered an error
@@ -460,9 +467,10 @@ func (s *Plugin) mountServiceAccountToken(serviceAccount *corev1.ServiceAccount,
 			tokenVolumeName = s.generateName(ServiceAccountVolumeName + "-")
 		} else {
 			// Try naming the volume the same as the serviceAccountToken, and uniquify if needed
-			tokenVolumeName = serviceAccountToken
+			// Replace dots because volumeMountName can't contain it
+			tokenVolumeName = strings.Replace(serviceAccountToken, ".", "-", -1)
 			if allVolumeNames.Has(tokenVolumeName) {
-				tokenVolumeName = s.generateName(fmt.Sprintf("%s-", serviceAccountToken))
+				tokenVolumeName = s.generateName(fmt.Sprintf("%s-", tokenVolumeName))
 			}
 		}
 	}
@@ -517,42 +525,7 @@ func (s *Plugin) createVolume(tokenVolumeName, secretName string) api.Volume {
 		return api.Volume{
 			Name: tokenVolumeName,
 			VolumeSource: api.VolumeSource{
-				Projected: &api.ProjectedVolumeSource{
-					Sources: []api.VolumeProjection{
-						{
-							ServiceAccountToken: &api.ServiceAccountTokenProjection{
-								Path:              "token",
-								ExpirationSeconds: 60 * 60,
-							},
-						},
-						{
-							ConfigMap: &api.ConfigMapProjection{
-								LocalObjectReference: api.LocalObjectReference{
-									Name: "kube-root-ca.crt",
-								},
-								Items: []api.KeyToPath{
-									{
-										Key:  "ca.crt",
-										Path: "ca.crt",
-									},
-								},
-							},
-						},
-						{
-							DownwardAPI: &api.DownwardAPIProjection{
-								Items: []api.DownwardAPIVolumeFile{
-									{
-										Path: "namespace",
-										FieldRef: &api.ObjectFieldSelector{
-											APIVersion: "v1",
-											FieldPath:  "metadata.namespace",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
+				Projected: TokenVolumeSource(),
 			},
 		}
 	}
@@ -561,6 +534,46 @@ func (s *Plugin) createVolume(tokenVolumeName, secretName string) api.Volume {
 		VolumeSource: api.VolumeSource{
 			Secret: &api.SecretVolumeSource{
 				SecretName: secretName,
+			},
+		},
+	}
+}
+
+// TokenVolumeSource returns the projected volume source for service account token.
+func TokenVolumeSource() *api.ProjectedVolumeSource {
+	return &api.ProjectedVolumeSource{
+		Sources: []api.VolumeProjection{
+			{
+				ServiceAccountToken: &api.ServiceAccountTokenProjection{
+					Path:              "token",
+					ExpirationSeconds: serviceaccount.WarnOnlyBoundTokenExpirationSeconds,
+				},
+			},
+			{
+				ConfigMap: &api.ConfigMapProjection{
+					LocalObjectReference: api.LocalObjectReference{
+						Name: "kube-root-ca.crt",
+					},
+					Items: []api.KeyToPath{
+						{
+							Key:  "ca.crt",
+							Path: "ca.crt",
+						},
+					},
+				},
+			},
+			{
+				DownwardAPI: &api.DownwardAPIProjection{
+					Items: []api.DownwardAPIVolumeFile{
+						{
+							Path: "namespace",
+							FieldRef: &api.ObjectFieldSelector{
+								APIVersion: "v1",
+								FieldPath:  "metadata.namespace",
+							},
+						},
+					},
+				},
 			},
 		},
 	}

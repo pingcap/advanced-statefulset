@@ -14,6 +14,7 @@
 package statefulset
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -78,7 +79,7 @@ func TestDeleteSlots(t *testing.T) {
 	}
 
 	if err := wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
-		newSTS, err := stsClient.Get(sts.Name, metav1.GetOptions{})
+		newSTS, err := stsClient.Get(context.TODO(), sts.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}

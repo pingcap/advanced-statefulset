@@ -49,15 +49,24 @@ var SpecialDefaultResourcePrefixes = map[schema.GroupResource]string{
 	{Group: "policy", Resource: "podsecuritypolicies"}:     "podsecuritypolicy",
 }
 
+// DefaultWatchCacheSizes defines default resources for which watchcache
+// should be disabled.
+func DefaultWatchCacheSizes() map[schema.GroupResource]int {
+	return map[schema.GroupResource]int{
+		{Resource: "events"}:                         0,
+		{Group: "events.k8s.io", Resource: "events"}: 0,
+	}
+}
+
 // NewStorageFactoryConfig returns a new StorageFactoryConfig set up with necessary resource overrides.
 func NewStorageFactoryConfig() *StorageFactoryConfig {
 
 	resources := []schema.GroupVersionResource{
 		batch.Resource("cronjobs").WithVersion("v1beta1"),
 		networking.Resource("ingresses").WithVersion("v1beta1"),
-		// TODO #83513 csinodes override can be removed in 1.18
-		apisstorage.Resource("csinodes").WithVersion("v1beta1"),
+		networking.Resource("ingressclasses").WithVersion("v1beta1"),
 		apisstorage.Resource("csidrivers").WithVersion("v1beta1"),
+		apisstorage.Resource("csistoragecapacities").WithVersion("v1alpha1"),
 	}
 
 	return &StorageFactoryConfig{

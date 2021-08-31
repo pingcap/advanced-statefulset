@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
@@ -15,7 +16,7 @@ func CreateTestingNamespace(baseName string, client kubernetes.Interface, t *tes
 			GenerateName: baseName,
 		},
 	}
-	ns, err := client.CoreV1().Namespaces().Create(ns)
+	ns, err := client.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
