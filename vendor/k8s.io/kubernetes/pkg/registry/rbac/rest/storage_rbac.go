@@ -17,10 +17,11 @@ limitations under the License.
 package rest
 
 import (
+	"context"
 	"fmt"
 	"time"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	rbacapiv1 "k8s.io/api/rbac/v1"
 	rbacapiv1alpha1 "k8s.io/api/rbac/v1alpha1"
@@ -164,6 +165,7 @@ func (p *PolicyData) EnsureRBACPolicy() genericapiserver.PostStartHookFunc {
 		// initializing roles is really important.  On some e2e runs, we've seen cases where etcd is down when the server
 		// starts, the roles don't initialize, and nothing works.
 		err := wait.Poll(1*time.Second, 30*time.Second, func() (done bool, err error) {
+			failedReconciliation := false
 
 			coreclientset, err := corev1client.NewForConfig(hookContext.LoopbackClientConfig)
 			if err != nil {
@@ -177,11 +179,11 @@ func (p *PolicyData) EnsureRBACPolicy() genericapiserver.PostStartHookFunc {
 				return false, nil
 			}
 			// Make sure etcd is responding before we start reconciling
-			if _, err := clientset.ClusterRoles().List(metav1.ListOptions{}); err != nil {
+			if _, err := clientset.ClusterRoles().List(context.TODO(), metav1.ListOptions{}); err != nil {
 				utilruntime.HandleError(fmt.Errorf("unable to initialize clusterroles: %v", err))
 				return false, nil
 			}
-			if _, err := clientset.ClusterRoleBindings().List(metav1.ListOptions{}); err != nil {
+			if _, err := clientset.ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{}); err != nil {
 				utilruntime.HandleError(fmt.Errorf("unable to initialize clusterrolebindings: %v", err))
 				return false, nil
 			}
@@ -223,6 +225,7 @@ func (p *PolicyData) EnsureRBACPolicy() genericapiserver.PostStartHookFunc {
 				if err != nil {
 					// don't fail on failures, try to create as many as you can
 					utilruntime.HandleError(fmt.Errorf("unable to reconcile clusterrole.%s/%s: %v", rbac.GroupName, clusterRole.Name, err))
+					failedReconciliation = true
 				}
 			}
 
@@ -253,6 +256,7 @@ func (p *PolicyData) EnsureRBACPolicy() genericapiserver.PostStartHookFunc {
 				if err != nil {
 					// don't fail on failures, try to create as many as you can
 					utilruntime.HandleError(fmt.Errorf("unable to reconcile clusterrolebinding.%s/%s: %v", rbac.GroupName, clusterRoleBinding.Name, err))
+					failedReconciliation = true
 				}
 			}
 
@@ -282,6 +286,7 @@ func (p *PolicyData) EnsureRBACPolicy() genericapiserver.PostStartHookFunc {
 					if err != nil {
 						// don't fail on failures, try to create as many as you can
 						utilruntime.HandleError(fmt.Errorf("unable to reconcile role.%s/%s in %v: %v", rbac.GroupName, role.Name, namespace, err))
+						failedReconciliation = true
 					}
 				}
 			}
@@ -314,8 +319,13 @@ func (p *PolicyData) EnsureRBACPolicy() genericapiserver.PostStartHookFunc {
 					if err != nil {
 						// don't fail on failures, try to create as many as you can
 						utilruntime.HandleError(fmt.Errorf("unable to reconcile rolebinding.%s/%s in %v: %v", rbac.GroupName, roleBinding.Name, namespace, err))
+						failedReconciliation = true
 					}
 				}
+			}
+			// failed to reconcile some objects, retry
+			if failedReconciliation {
+				return false, nil
 			}
 
 			return true, nil
@@ -337,7 +347,7 @@ func (p RESTStorageProvider) GroupName() string {
 // that were done to the legacy roles.
 func primeAggregatedClusterRoles(clusterRolesToAggregate map[string]string, clusterRoleClient rbacv1client.ClusterRolesGetter) error {
 	for oldName, newName := range clusterRolesToAggregate {
-		_, err := clusterRoleClient.ClusterRoles().Get(newName, metav1.GetOptions{})
+		_, err := clusterRoleClient.ClusterRoles().Get(context.TODO(), newName, metav1.GetOptions{})
 		if err == nil {
 			continue
 		}
@@ -345,7 +355,7 @@ func primeAggregatedClusterRoles(clusterRolesToAggregate map[string]string, clus
 			return err
 		}
 
-		existingRole, err := clusterRoleClient.ClusterRoles().Get(oldName, metav1.GetOptions{})
+		existingRole, err := clusterRoleClient.ClusterRoles().Get(context.TODO(), oldName, metav1.GetOptions{})
 		if apierrors.IsNotFound(err) {
 			continue
 		}
@@ -359,7 +369,7 @@ func primeAggregatedClusterRoles(clusterRolesToAggregate map[string]string, clus
 		klog.V(1).Infof("migrating %v to %v", existingRole.Name, newName)
 		existingRole.Name = newName
 		existingRole.ResourceVersion = "" // clear this so the object can be created.
-		if _, err := clusterRoleClient.ClusterRoles().Create(existingRole); err != nil && !apierrors.IsAlreadyExists(err) {
+		if _, err := clusterRoleClient.ClusterRoles().Create(context.TODO(), existingRole, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
 			return err
 		}
 	}
@@ -373,7 +383,7 @@ func primeAggregatedClusterRoles(clusterRolesToAggregate map[string]string, clus
 func primeSplitClusterRoleBindings(clusterRoleBindingToSplit map[string]rbacapiv1.ClusterRoleBinding, clusterRoleBindingClient rbacv1client.ClusterRoleBindingsGetter) error {
 	for existingBindingName, clusterRoleBindingToCreate := range clusterRoleBindingToSplit {
 		// If source ClusterRoleBinding does not exist, do nothing.
-		existingRoleBinding, err := clusterRoleBindingClient.ClusterRoleBindings().Get(existingBindingName, metav1.GetOptions{})
+		existingRoleBinding, err := clusterRoleBindingClient.ClusterRoleBindings().Get(context.TODO(), existingBindingName, metav1.GetOptions{})
 		if apierrors.IsNotFound(err) {
 			continue
 		}
@@ -382,7 +392,7 @@ func primeSplitClusterRoleBindings(clusterRoleBindingToSplit map[string]rbacapiv
 		}
 
 		// If the target ClusterRoleBinding already exists, do nothing.
-		_, err = clusterRoleBindingClient.ClusterRoleBindings().Get(clusterRoleBindingToCreate.Name, metav1.GetOptions{})
+		_, err = clusterRoleBindingClient.ClusterRoleBindings().Get(context.TODO(), clusterRoleBindingToCreate.Name, metav1.GetOptions{})
 		if err == nil {
 			continue
 		}
@@ -397,7 +407,7 @@ func primeSplitClusterRoleBindings(clusterRoleBindingToSplit map[string]rbacapiv
 		newCRB.Subjects = existingRoleBinding.Subjects
 		newCRB.Labels = existingRoleBinding.Labels
 		newCRB.Annotations = existingRoleBinding.Annotations
-		if _, err := clusterRoleBindingClient.ClusterRoleBindings().Create(newCRB); err != nil && !apierrors.IsAlreadyExists(err) {
+		if _, err := clusterRoleBindingClient.ClusterRoleBindings().Create(context.TODO(), newCRB, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
 			return err
 		}
 	}

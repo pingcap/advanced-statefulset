@@ -14,13 +14,17 @@
 package apps
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
@@ -28,7 +32,30 @@ import (
 	e2esset "k8s.io/kubernetes/test/e2e/framework/statefulset"
 )
 
-var statefulPodRegex = regexp.MustCompile("(.*)-([0-9]+)$")
+const (
+	// statefulSetPoll is a poll interval for StatefulSet tests
+	statefulSetPoll = 10 * time.Second
+	// statefulSetTimeout is a timeout interval for StatefulSet operations
+	statefulSetTimeout = 10 * time.Minute
+	// statefulPodTimeout is a timeout for stateful pods to change state
+	statefulPodTimeout = 5 * time.Minute
+)
+
+var (
+	statefulPodRegex = regexp.MustCompile("(.*)-([0-9]+)$")
+
+	httpProbe = &v1.Probe{
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Path: "/index.html",
+				Port: intstr.IntOrString{IntVal: 80},
+			},
+		},
+		PeriodSeconds:    1,
+		SuccessThreshold: 1,
+		FailureThreshold: 1,
+	}
+)
 
 func getStatefulPodOrdinal(pod *v1.Pod) int {
 	ordinal := -1
@@ -137,4 +164,109 @@ func WaitForRunning(c clientset.Interface, numPodsRunning, numPodsReady int32, s
 // WaitForRunningAndReady waits for numStatefulPods in ss to be Running and Ready.
 func WaitForRunningAndReady(c clientset.Interface, numStatefulPods int32, ss *appsv1.StatefulSet) {
 	WaitForRunning(c, numStatefulPods, numStatefulPods, ss)
+}
+
+type updateStatefulSetFunc func(*appsv1.StatefulSet)
+
+// updateStatefulSetWithRetries updates statfulset template with retries.
+func updateStatefulSetWithRetries(c clientset.Interface, namespace, name string, applyUpdate updateStatefulSetFunc) (statefulSet *appsv1.StatefulSet, err error) {
+	statefulSets := c.AppsV1().StatefulSets(namespace)
+	var updateErr error
+	pollErr := wait.Poll(10*time.Millisecond, 1*time.Minute, func() (bool, error) {
+		if statefulSet, err = statefulSets.Get(context.TODO(), name, metav1.GetOptions{}); err != nil {
+			return false, err
+		}
+		// Apply the update, then attempt to push it to the apiserver.
+		applyUpdate(statefulSet)
+		if statefulSet, err = statefulSets.Update(context.TODO(), statefulSet, metav1.UpdateOptions{}); err == nil {
+			framework.Logf("Updating stateful set %s", name)
+			return true, nil
+		}
+		updateErr = err
+		return false, nil
+	})
+	if pollErr == wait.ErrWaitTimeout {
+		pollErr = fmt.Errorf("couldn't apply the provided updated to stateful set %q: %v", name, updateErr)
+	}
+	return statefulSet, pollErr
+}
+
+// setHTTPProbe sets the pod template's ReadinessProbe for Webserver StatefulSet containers.
+// This probe can then be controlled with BreakHTTPProbe() and RestoreHTTPProbe().
+// Note that this cannot be used together with PauseNewPods().
+func setHTTPProbe(ss *appsv1.StatefulSet) {
+	ss.Spec.Template.Spec.Containers[0].ReadinessProbe = httpProbe
+}
+
+// breakHTTPProbe breaks the readiness probe for Nginx StatefulSet containers in ss.
+func breakHTTPProbe(c clientset.Interface, ss *appsv1.StatefulSet) error {
+	path := httpProbe.HTTPGet.Path
+	if path == "" {
+		return fmt.Errorf("path expected to be not empty: %v", path)
+	}
+	// Ignore 'mv' errors to make this idempotent.
+	cmd := fmt.Sprintf("mv -v /usr/local/apache2/htdocs%v /tmp/ || true", path)
+	return e2esset.ExecInStatefulPods(c, ss, cmd)
+}
+
+// breakPodHTTPProbe breaks the readiness probe for Nginx StatefulSet containers in one pod.
+func breakPodHTTPProbe(ss *appsv1.StatefulSet, pod *v1.Pod) error {
+	path := httpProbe.HTTPGet.Path
+	if path == "" {
+		return fmt.Errorf("path expected to be not empty: %v", path)
+	}
+	// Ignore 'mv' errors to make this idempotent.
+	cmd := fmt.Sprintf("mv -v /usr/local/apache2/htdocs%v /tmp/ || true", path)
+	stdout, err := framework.RunHostCmdWithRetries(pod.Namespace, pod.Name, cmd, statefulSetPoll, statefulPodTimeout)
+	framework.Logf("stdout of %v on %v: %v", cmd, pod.Name, stdout)
+	return err
+}
+
+// restoreHTTPProbe restores the readiness probe for Nginx StatefulSet containers in ss.
+func restoreHTTPProbe(c clientset.Interface, ss *appsv1.StatefulSet) error {
+	path := httpProbe.HTTPGet.Path
+	if path == "" {
+		return fmt.Errorf("path expected to be not empty: %v", path)
+	}
+	// Ignore 'mv' errors to make this idempotent.
+	cmd := fmt.Sprintf("mv -v /tmp%v /usr/local/apache2/htdocs/ || true", path)
+	return e2esset.ExecInStatefulPods(c, ss, cmd)
+}
+
+// restorePodHTTPProbe restores the readiness probe for Nginx StatefulSet containers in pod.
+func restorePodHTTPProbe(ss *appsv1.StatefulSet, pod *v1.Pod) error {
+	path := httpProbe.HTTPGet.Path
+	if path == "" {
+		return fmt.Errorf("path expected to be not empty: %v", path)
+	}
+	// Ignore 'mv' errors to make this idempotent.
+	cmd := fmt.Sprintf("mv -v /tmp%v /usr/local/apache2/htdocs/ || true", path)
+	stdout, err := framework.RunHostCmdWithRetries(pod.Namespace, pod.Name, cmd, statefulSetPoll, statefulPodTimeout)
+	framework.Logf("stdout of %v on %v: %v", cmd, pod.Name, stdout)
+	return err
+}
+
+// getStatefulSet gets the StatefulSet named name in namespace.
+func getStatefulSet(c clientset.Interface, namespace, name string) *appsv1.StatefulSet {
+	ss, err := c.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		framework.Failf("Failed to get StatefulSet %s/%s: %v", namespace, name, err)
+	}
+	return ss
+}
+
+// deleteStatefulPodAtIndex deletes the Pod with ordinal index in ss.
+func deleteStatefulPodAtIndex(c clientset.Interface, index int, ss *appsv1.StatefulSet) {
+	name := getStatefulSetPodNameAtIndex(index, ss)
+	noGrace := int64(0)
+	if err := c.CoreV1().Pods(ss.Namespace).Delete(context.TODO(), name, metav1.DeleteOptions{GracePeriodSeconds: &noGrace}); err != nil {
+		framework.Failf("Failed to delete stateful pod %v for StatefulSet %v/%v: %v", name, ss.Namespace, ss.Name, err)
+	}
+}
+
+// getStatefulSetPodNameAtIndex gets formatted pod name given index.
+func getStatefulSetPodNameAtIndex(index int, ss *appsv1.StatefulSet) string {
+	// TODO: we won't use "-index" as the name strategy forever,
+	// pull the name out from an identity mapper.
+	return fmt.Sprintf("%v-%v", ss.Name, index)
 }

@@ -65,18 +65,18 @@ func TestHijackClientSet(t *testing.T) {
 	hijackClient := NewHijackClient(kubeClient, asClient)
 
 	appsv1stscli := hijackClient.AppsV1().StatefulSets(ns)
-	newObj, err := appsv1stscli.Create(testObj)
+	newObj, err := appsv1stscli.Create(context.TODO(), testObj, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	getObj, err := appsv1stscli.Get(testObj.Name, metav1.GetOptions{})
+	getObj, err := appsv1stscli.Get(context.TODO(), testObj.Name, metav1.GetOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if diff := cmp.Diff(newObj, getObj); diff != "" {
 		t.Errorf("unexpected result (-want, +got): %s", diff)
 	}
-	_, err = appsv1stscli.Create(testObj)
+	_, err = appsv1stscli.Create(context.TODO(), testObj, metav1.CreateOptions{})
 	if !apierrors.IsAlreadyExists(err) {
 		t.Fatal(err)
 	}
@@ -113,14 +113,14 @@ func TestSharedInformerFactory(t *testing.T) {
 	}
 
 	t.Log("able to receive event via hijackClient")
-	wantSts, err := hijackClient.AppsV1().StatefulSets(ns).Create(testObj)
+	wantSts, err := hijackClient.AppsV1().StatefulSets(ns).Create(context.TODO(), testObj, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	verifyObjectRecieve(t, ch)
 
 	t.Log("able to receive event via asClient")
-	_, err = asClient.AppsV1().StatefulSets(ns).Create(testAsObj)
+	_, err = asClient.AppsV1().StatefulSets(ns).Create(context.TODO(), testAsObj, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

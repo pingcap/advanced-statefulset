@@ -27,7 +27,7 @@ import (
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // VirtualMachine extends the govmomi VirtualMachine object
@@ -164,6 +164,24 @@ func (vm *VirtualMachine) AttachDisk(ctx context.Context, vmDiskPath string, vol
 		return "", err
 	}
 	return diskUUID, nil
+}
+
+// GetHost returns host of the virtual machine
+func (vm *VirtualMachine) GetHost(ctx context.Context) (mo.HostSystem, error) {
+	host, err := vm.HostSystem(ctx)
+	var hostSystemMo mo.HostSystem
+	if err != nil {
+		klog.Errorf("Failed to get host system for VM: %q. err: %+v", vm.InventoryPath, err)
+		return hostSystemMo, err
+	}
+
+	s := object.NewSearchIndex(vm.Client())
+	err = s.Properties(ctx, host.Reference(), []string{"summary"}, &hostSystemMo)
+	if err != nil {
+		klog.Errorf("Failed to retrieve datastores for host: %+v. err: %+v", host, err)
+		return hostSystemMo, err
+	}
+	return hostSystemMo, nil
 }
 
 // DetachDisk detaches the disk specified by vmDiskPath

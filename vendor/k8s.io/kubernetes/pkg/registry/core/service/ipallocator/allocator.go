@@ -19,13 +19,11 @@ package ipallocator
 import (
 	"errors"
 	"fmt"
-
 	"math/big"
 	"net"
 
 	api "k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/registry/core/service/allocator"
-	"k8s.io/utils/integer"
 	utilnet "k8s.io/utils/net"
 )
 
@@ -84,14 +82,28 @@ type Range struct {
 
 // NewAllocatorCIDRRange creates a Range over a net.IPNet, calling allocatorFactory to construct the backing store.
 func NewAllocatorCIDRRange(cidr *net.IPNet, allocatorFactory allocator.AllocatorFactory) (*Range, error) {
-	max := integer.Int64Min(utilnet.RangeSize(cidr), 1<<16)
+	max := utilnet.RangeSize(cidr)
 	base := utilnet.BigForIP(cidr.IP)
 	rangeSpec := cidr.String()
 
+	if utilnet.IsIPv6CIDR(cidr) {
+		// Limit the max size, since the allocator keeps a bitmap of that size.
+		if max > 65536 {
+			max = 65536
+		}
+	} else {
+		// Don't use the IPv4 network's broadcast address.
+		max--
+	}
+
+	// Don't use the network's ".0" address.
+	base.Add(base, big.NewInt(1))
+	max--
+
 	r := Range{
 		net:  cidr,
-		base: base.Add(base, big.NewInt(1)), // don't use the network base
-		max:  maximum(0, int(max-2)),        // don't use the network broadcast,
+		base: base,
+		max:  maximum(0, int(max)),
 	}
 	var err error
 	r.alloc, err = allocatorFactory(r.max, rangeSpec)
