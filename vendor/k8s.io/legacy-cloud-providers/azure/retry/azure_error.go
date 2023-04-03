@@ -76,7 +76,7 @@ func (err *Error) Error() error {
 		retryAfterSeconds = int(err.RetryAfter.Sub(curTime) / time.Second)
 	}
 
-	return fmt.Errorf("Retriable: %v, RetryAfter: %ds, HTTPStatusCode: %d, RawError: %v",
+	return fmt.Errorf("Retriable: %v, RetryAfter: %ds, HTTPStatusCode: %d, RawError: %w",
 		err.Retriable, retryAfterSeconds, err.HTTPStatusCode, err.RawError)
 }
 
@@ -179,7 +179,7 @@ func getRawError(resp *http.Response, err error) error {
 		return fmt.Errorf("empty HTTP response")
 	}
 
-	// return the http status if unabled to get response body.
+	// return the http status if it is unable to get response body.
 	defer resp.Body.Close()
 	respBody, _ := ioutil.ReadAll(resp.Body)
 	resp.Body = ioutil.NopCloser(bytes.NewReader(respBody))

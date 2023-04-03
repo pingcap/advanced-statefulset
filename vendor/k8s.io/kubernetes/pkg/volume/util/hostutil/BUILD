@@ -12,14 +12,16 @@ go_library(
     importpath = "k8s.io/kubernetes/pkg/volume/util/hostutil",
     visibility = ["//visibility:public"],
     deps = [
-        "//vendor/k8s.io/utils/mount:go_default_library",
+        "//staging/src/k8s.io/mount-utils:go_default_library",
     ] + select({
         "@io_bazel_rules_go//go/platform:android": [
+            "//pkg/util/selinux:go_default_library",
             "//vendor/golang.org/x/sys/unix:go_default_library",
             "//vendor/k8s.io/klog/v2:go_default_library",
             "//vendor/k8s.io/utils/path:go_default_library",
         ],
         "@io_bazel_rules_go//go/platform:linux": [
+            "//pkg/util/selinux:go_default_library",
             "//vendor/golang.org/x/sys/unix:go_default_library",
             "//vendor/k8s.io/klog/v2:go_default_library",
             "//vendor/k8s.io/utils/path:go_default_library",

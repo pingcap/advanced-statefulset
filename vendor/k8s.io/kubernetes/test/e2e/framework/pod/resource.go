@@ -298,6 +298,29 @@ func podsRunning(c clientset.Interface, pods *v1.PodList) []error {
 	return e
 }
 
+func podContainerFailed(c clientset.Interface, namespace, podName string, containerIndex int, reason string) wait.ConditionFunc {
+	return func() (bool, error) {
+		pod, err := c.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		switch pod.Status.Phase {
+		case v1.PodPending:
+			if len(pod.Status.ContainerStatuses) == 0 {
+				return false, nil
+			}
+			containerStatus := pod.Status.ContainerStatuses[containerIndex]
+			if containerStatus.State.Waiting != nil && containerStatus.State.Waiting.Reason == reason {
+				return true, nil
+			}
+			return false, nil
+		case v1.PodFailed, v1.PodRunning, v1.PodSucceeded:
+			return false, fmt.Errorf("pod was expected to be pending, but it is in the state: %s", pod.Status.Phase)
+		}
+		return false, nil
+	}
+}
+
 // LogPodStates logs basic info of provided pods for debugging.
 func LogPodStates(pods []v1.Pod) {
 	// Find maximum widths for pod, node, and phase strings for column printing.
@@ -453,9 +476,6 @@ func CreateExecPodOrFail(client clientset.Interface, ns, generateName string, tw
 	err = wait.PollImmediate(poll, 5*time.Minute, func() (bool, error) {
 		retrievedPod, err := client.CoreV1().Pods(execPod.Namespace).Get(context.TODO(), execPod.Name, metav1.GetOptions{})
 		if err != nil {
-			if testutils.IsRetryableAPIError(err) {
-				return false, nil
-			}
 			return false, err
 		}
 		return retrievedPod.Status.Phase == v1.PodRunning, nil
@@ -562,6 +582,17 @@ func GetPodsInNamespace(c clientset.Interface, ns string, ignoreLabels map[strin
 		filtered = append(filtered, &p)
 	}
 	return filtered, nil
+}
+
+// GetPods return the label matched pods in the given ns
+func GetPods(c clientset.Interface, ns string, matchLabels map[string]string) ([]v1.Pod, error) {
+	label := labels.SelectorFromSet(matchLabels)
+	listOpts := metav1.ListOptions{LabelSelector: label.String()}
+	pods, err := c.CoreV1().Pods(ns).List(context.TODO(), listOpts)
+	if err != nil {
+		return []v1.Pod{}, err
+	}
+	return pods.Items, nil
 }
 
 // GetPodSecretUpdateTimeout returns the timeout duration for updating pod secret.
