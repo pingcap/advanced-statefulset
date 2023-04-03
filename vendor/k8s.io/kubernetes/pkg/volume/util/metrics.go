@@ -111,6 +111,11 @@ func OperationCompleteHook(plugin, operationName string) func(*error) {
 	return opComplete
 }
 
+// FSGroupCompleteHook returns a hook to call when volume recursive permission is changed
+func FSGroupCompleteHook(plugin volume.VolumePlugin, spec *volume.Spec) func(*error) {
+	return OperationCompleteHook(GetFullQualifiedPluginNameForVolume(plugin.GetPluginName(), spec), "volume_fsgroup_recursive_apply")
+}
+
 // GetFullQualifiedPluginNameForVolume returns full qualified plugin name for
 // given volume. For CSI plugin, it appends plugin driver name at the end of
 // plugin name, e.g. kubernetes.io/csi:csi-hostpath. It helps to distinguish

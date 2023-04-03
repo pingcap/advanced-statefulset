@@ -87,13 +87,22 @@ func SetObjectDefaults_StatefulSet(in *StatefulSet) {
 		if a.VolumeSource.ScaleIO != nil {
 			corev1.SetDefaults_ScaleIOVolumeSource(a.VolumeSource.ScaleIO)
 		}
+		if a.VolumeSource.Ephemeral != nil {
+			if a.VolumeSource.Ephemeral.VolumeClaimTemplate != nil {
+				corev1.SetDefaults_PersistentVolumeClaimSpec(&a.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec)
+				corev1.SetDefaults_ResourceList(&a.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec.Resources.Limits)
+				corev1.SetDefaults_ResourceList(&a.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec.Resources.Requests)
+			}
+		}
 	}
 	for i := range in.Spec.Template.Spec.InitContainers {
 		a := &in.Spec.Template.Spec.InitContainers[i]
 		corev1.SetDefaults_Container(a)
 		for j := range a.Ports {
 			b := &a.Ports[j]
-			corev1.SetDefaults_ContainerPort(b)
+			if b.Protocol == "" {
+				b.Protocol = "TCP"
+			}
 		}
 		for j := range a.Env {
 			b := &a.Env[j]
@@ -141,7 +150,9 @@ func SetObjectDefaults_StatefulSet(in *StatefulSet) {
 		corev1.SetDefaults_Container(a)
 		for j := range a.Ports {
 			b := &a.Ports[j]
-			corev1.SetDefaults_ContainerPort(b)
+			if b.Protocol == "" {
+				b.Protocol = "TCP"
+			}
 		}
 		for j := range a.Env {
 			b := &a.Env[j]
@@ -186,9 +197,12 @@ func SetObjectDefaults_StatefulSet(in *StatefulSet) {
 	}
 	for i := range in.Spec.Template.Spec.EphemeralContainers {
 		a := &in.Spec.Template.Spec.EphemeralContainers[i]
+		corev1.SetDefaults_EphemeralContainer(a)
 		for j := range a.EphemeralContainerCommon.Ports {
 			b := &a.EphemeralContainerCommon.Ports[j]
-			corev1.SetDefaults_ContainerPort(b)
+			if b.Protocol == "" {
+				b.Protocol = "TCP"
+			}
 		}
 		for j := range a.EphemeralContainerCommon.Env {
 			b := &a.EphemeralContainerCommon.Env[j]
@@ -235,6 +249,7 @@ func SetObjectDefaults_StatefulSet(in *StatefulSet) {
 	for i := range in.Spec.VolumeClaimTemplates {
 		a := &in.Spec.VolumeClaimTemplates[i]
 		corev1.SetDefaults_PersistentVolumeClaim(a)
+		corev1.SetDefaults_PersistentVolumeClaimSpec(&a.Spec)
 		corev1.SetDefaults_ResourceList(&a.Spec.Resources.Limits)
 		corev1.SetDefaults_ResourceList(&a.Spec.Resources.Requests)
 		corev1.SetDefaults_ResourceList(&a.Status.Capacity)

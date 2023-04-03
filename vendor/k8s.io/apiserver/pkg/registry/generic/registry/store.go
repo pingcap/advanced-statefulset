@@ -568,7 +568,7 @@ func (e *Store) Update(ctx context.Context, name string, objInfo rest.UpdatedObj
 			return obj, &ttl, nil
 		}
 		return obj, nil, nil
-	}, dryrun.IsDryRun(options.DryRun))
+	}, dryrun.IsDryRun(options.DryRun), nil)
 
 	if err != nil {
 		// delete the object
@@ -683,10 +683,7 @@ func shouldOrphanDependents(ctx context.Context, e *Store, accessor metav1.Objec
 	}
 
 	// Get default orphan policy from this REST object type if it exists
-	if defaultGCPolicy == rest.OrphanDependents {
-		return true
-	}
-	return false
+	return defaultGCPolicy == rest.OrphanDependents
 }
 
 // shouldDeleteDependents returns true if the finalizer for foreground deletion should be set
@@ -858,6 +855,7 @@ func (e *Store) updateForGracefulDeletionAndFinalizers(ctx context.Context, name
 			return existing, nil
 		}),
 		dryrun.IsDryRun(options.DryRun),
+		nil,
 	)
 	switch err {
 	case nil:
@@ -1138,7 +1136,7 @@ func (e *Store) WatchPredicate(ctx context.Context, p storage.SelectionPredicate
 				return nil, err
 			}
 			if e.Decorator != nil {
-				return newDecoratedWatcher(w, e.Decorator), nil
+				return newDecoratedWatcher(ctx, w, e.Decorator), nil
 			}
 			return w, nil
 		}
@@ -1151,7 +1149,7 @@ func (e *Store) WatchPredicate(ctx context.Context, p storage.SelectionPredicate
 		return nil, err
 	}
 	if e.Decorator != nil {
-		return newDecoratedWatcher(w, e.Decorator), nil
+		return newDecoratedWatcher(ctx, w, e.Decorator), nil
 	}
 	return w, nil
 }
