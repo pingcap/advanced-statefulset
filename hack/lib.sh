@@ -23,6 +23,7 @@ ARCH=$(go env GOARCH)
 OUTPUT=${ROOT}/output
 OUTPUT_BIN=${OUTPUT}/bin
 ETCD_VERSION=${ETCD_VERSION:-3.3.17}
+K8S_VERSION=${K8S_VERSION:-0.20.15}
 KIND_VERSION=0.11.1
 KIND_BIN=$OUTPUT_BIN/kind
 KUBECTL_VERSION=1.16.0
@@ -103,7 +104,7 @@ function hack::ensure_kind() {
     echo "Installing kind v$KIND_VERSION..."
     tmpfile=$(mktemp)
     trap "test -f $tmpfile && rm $tmpfile" RETURN
-    curl -Lo $tmpfile https://github.com/kubernetes-sigs/kind/releases/download/v${KIND_VERSION}/kind-$(uname)-amd64
+    curl -Lo $tmpfile https://github.com/kubernetes-sigs/kind/releases/download/v${KIND_VERSION}/kind-${OS}-${ARCH}
     mv $tmpfile $KIND_BIN
     chmod +x $KIND_BIN
 }
@@ -141,7 +142,7 @@ function hack::ensure_ginkgo() {
         return 0
     fi
     echo "Installing ginkgo v$GINKGO_VERSION..."
-    GO111MODULE=off go build -o $GINKGO_BIN ./vendor/github.com/onsi/ginkgo/ginkgo
+    GOBIN=$OUTPUT_BIN go install github.com/onsi/ginkgo/ginkgo@v$GINKGO_VERSION
     if ! hack::verify_ginkgo; then
         echo "info: installed ginkgo ($GINKGO_BIN) does not match expected version $GINKGO_VERSION"
         exit 1
@@ -209,4 +210,9 @@ function hack::read-array {
 	unset -v "$1"
 	while IFS= read -r "$1[i++]"; do :; done
 	eval "[[ \${$1[--i]} ]]" || unset "$1[i]" # ensures last element isn't empty
+}
+
+function hack::ensure_openapi() {
+    echo "Installing openpi_gen..."
+    GOBIN=$OUTPUT_BIN go install k8s.io/code-generator/cmd/openapi-gen@v$K8S_VERSION
 }

@@ -14,9 +14,6 @@
 all: test
 .PHONY: all
 
-# Enable GO111MODULE=on explicitly
-export GO111MODULE := on
-
 verify:
 	./hack/verify-all.sh
 .PHONY: verify

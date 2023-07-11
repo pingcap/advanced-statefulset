@@ -11,13 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.13 as builder
+FROM golang:1.19 as builder
 WORKDIR /go/src/github.com/pingcap/advanced-statefulset
 ADD . .
 RUN make cmd/controller-manager
 
 # https://github.com/GoogleContainerTools/distroless#why-should-i-use-distroless-images
 FROM gcr.io/distroless/static:latest
+ARG TARGETARCH=amd64
 
-COPY --from=builder /go/src/github.com/pingcap/advanced-statefulset/output/bin/linux/amd64/cmd/controller-manager  /usr/local/bin/advanced-statefulset-controller-manager
+COPY --from=builder /go/src/github.com/pingcap/advanced-statefulset/output/bin/linux/${TARGETARCH}/cmd/controller-manager  /usr/local/bin/advanced-statefulset-controller-manager
 ENTRYPOINT ["/usr/local/bin/advanced-statefulset-controller-manager"]

@@ -13,9 +13,6 @@
 
 GO  := go
 
-# Enable GO111MODULE=off explicitly, enable it with GO111MODULE=on when necessary.
-export GO111MODULE := off
-
 ARCH ?= $(shell go env GOARCH)
 OS ?= $(shell go env GOOS)
 
@@ -57,7 +54,7 @@ test-client:
 	make -C client test
 .PHONY: test-client
 
-test-integration: vendor/k8s.io/kubernetes/pkg/generated/openapi/zz_generated.openapi.go
+test-integration: openapi-spec
 	hack/make-rules/test-integration.sh $(WHAT)
 .PHONY: test-integration
 
@@ -69,6 +66,6 @@ e2e-examples:
 	hack/e2e-examples.sh
 .PHONY: e2e-examples
 
-vendor/k8s.io/kubernetes/pkg/generated/openapi/zz_generated.openapi.go:
+openapi-spec:
 	hack/generate-kube-openapi.sh
-.PHONY: vendor/k8s.io/kubernetes/pkg/generated/openapi/zz_generated.openapi.go
+.PHONY: openapi-spec

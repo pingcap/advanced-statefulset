@@ -22,8 +22,6 @@ cd $ROOT
 
 source "${ROOT}/hack/lib.sh"
 
-export GO111MODULE=off
-
 hack::ensure_ginkgo
 
 GINKGO_PARALLEL=${GINKGO_PARALLEL:-n} # set to 'y' to run tests in parallel
