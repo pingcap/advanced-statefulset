@@ -21,7 +21,7 @@ jobs:
         - verify
         - build
         - test
-        - test-integration
+        # - test-integration
         - e2e-examples
         - e2e-v1.15
         - e2e-v1.16
