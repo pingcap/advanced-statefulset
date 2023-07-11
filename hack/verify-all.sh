@@ -22,4 +22,3 @@ cd $ROOT
 
 ./hack/verify-gofmt.sh
 ./hack/verify-boilerplate.sh
-./hack/verify-vendor.sh

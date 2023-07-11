@@ -20,14 +20,6 @@ ALL_TARGETS := cmd/controller-manager
 SRC_PREFIX := github.com/pingcap/advanced-statefulset
 GIT_VERSION = $(shell ./hack/version.sh | awk -F': ' '/^GIT_VERSION:/ {print $$2}')
 
-# in GOPATH mode, we must use the full path name related to $GOPATH
-# https://github.com/golang/go/issues/19000
-ifneq ($(VERSION),)
-    LDFLAGS += -X $(SRC_PREFIX)/vendor/k8s.io/component-base/version.gitVersion=${VERSION}
-else
-    LDFLAGS += -X $(SRC_PREFIX)/vendor/k8s.io/component-base/version.gitVersion=${GIT_VERSION}
-endif
-
 all: build
 .PHONY: all
 
@@ -55,7 +47,8 @@ test-client:
 .PHONY: test-client
 
 test-integration: openapi-spec
-	hack/make-rules/test-integration.sh $(WHAT)
+	@echo "skip integration tests now, ref https://github.com/kubernetes/kubernetes/issues/119220"
+	# hack/make-rules/test-integration.sh $(WHAT)
 .PHONY: test-integration
 
 e2e:
