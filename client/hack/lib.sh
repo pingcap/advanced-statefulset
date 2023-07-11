@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Copyright 2019 PingCAP, Inc.
+# Copyright 2023 PingCAP, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,12 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -o errexit
-set -o nounset
-set -o pipefail
+if [ -z "$ROOT" ]; then
+    echo "error: ROOT should be initialized"
+    exit 1
+fi
 
-ROOT=$(unset CDPATH && cd $(dirname "${BASH_SOURCE[0]}")/.. && pwd)
-cd $ROOT
+OUTPUT=${ROOT}/output
+OUTPUT_BIN=${OUTPUT}/bin
 
-./hack/verify-gofmt.sh
-./hack/verify-boilerplate.sh
+K8S_VERSION=${K8S_VERSION:-0.20.15}
+
+function hack::ensure_codegen() {
+    echo "Installing codegen..."
+    GOBIN=$OUTPUT_BIN go install k8s.io/code-generator/cmd/{defaulter-gen,client-gen,lister-gen,informer-gen,deepcopy-gen}@v$K8S_VERSION
+}

@@ -17,18 +17,24 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
-CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ../vendor/k8s.io/code-generator 2>/dev/null || echo ../code-generator)}
+ROOT=$(unset CDPATH && cd $(dirname "${BASH_SOURCE[0]}")/.. && pwd)
+cd $ROOT
 
-export GO111MODULE=off
+source hack/lib.sh
+hack::ensure_codegen
 
 function codegen::join() { local IFS="$1"; shift; echo "$*"; }
 
-bash "${CODEGEN_PKG}"/generate-groups.sh "deepcopy,client,informer,lister" \
+# `--output-base $ROOT` will output generated code to current dir
+GOBIN=$OUTPUT_BIN bash $ROOT/hack/generate-groups.sh "deepcopy,client,informer,lister" \
   github.com/pingcap/advanced-statefulset/client/client \
   github.com/pingcap/advanced-statefulset/client/apis \
   "apps:v1" \
-  --go-header-file "${SCRIPT_ROOT}"/../hack/boilerplate/boilerplate.k8s.go.txt
+  --output-base $ROOT \
+  --go-header-file "${ROOT}"/../hack/boilerplate/boilerplate.k8s.go.txt
+
+# then we merge generated code with our code base and clean up
+cp -r github.com/pingcap/advanced-statefulset/client/client $ROOT && rm -rf github.com
 
 # work around for https://github.com/kubernetes/code-generator/issues/84
 git checkout client/listers/apps/v1/expansion_generated.go
@@ -46,6 +52,6 @@ git checkout client/listers/apps/v1/expansion_generated.go
 # "${GOPATH}/bin/defaulter-gen"  \
     # --input-dirs "$(codegen::join , "${EXT_FQ_APIS[@]}")" \
     # -O zz_generated.defaults  \
-    # --go-header-file "${SCRIPT_ROOT}"/../hack/boilerplate/boilerplate.k8s.go.txt \
+    # --go-header-file "${ROOT}"/../hack/boilerplate/boilerplate.k8s.go.txt \
     # -v 5
 

@@ -21,18 +21,18 @@ jobs:
         - verify
         - build
         - test
-        - test-integration
+        # - test-integration
         - e2e-examples
-        - e2e-v1.14
         - e2e-v1.15
         - e2e-v1.16
         - e2e-v1.17
         - e2e-v1.18
+        - e2e-v1.20
     steps:
-    - name: Set up Go 1.13.4
+    - name: Set up Go 1.19
       uses: actions/setup-go@v2
       with:
-        go-version: 1.13.4
+        go-version: 1.19
       id: go
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2

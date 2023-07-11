@@ -84,7 +84,7 @@ SKIP_UP=${SKIP_UP:-}
 SKIP_DOWN=${SKIP_DOWN:-}
 SKIP_TEST=${SKIP_TEST:-}
 REUSE_CLUSTER=${REUSE_CLUSTER:-}
-KUBE_VERSION=${KUBE_VERSION:-v1.18}
+KUBE_VERSION=${KUBE_VERSION:-v1.20}
 KUBECONFIG=${KUBECONFIG:-~/.kube/config}
 CLUSTER=${CLUSTER:-advanced-statefulset}
 DOCKER_IO_MIRROR=${DOCKER_IO_MIRROR:-}
@@ -110,6 +110,7 @@ kind_node_images["v1.15.11"]="kindest/node:v1.15.11@sha256:6cc31f3533deb138792db
 kind_node_images["v1.16.9"]="kindest/node:v1.16.9@sha256:7175872357bc85847ec4b1aba46ed1d12fa054c83ac7a8a11f5c268957fd5765"
 kind_node_images["v1.17.5"]="kindest/node:v1.17.5@sha256:ab3f9e6ec5ad8840eeb1f76c89bb7948c77bbf76bcebe1a8b59790b8ae9a283a"
 kind_node_images["v1.18.2"]="kindest/node:v1.18.2@sha256:7b27a6d0f2517ff88ba444025beae41491b016bc6af573ba467b70c5e8e0d85f"
+kind_node_images["v1.20.15"]="kindest/node:v1.20.15@sha256:a32bf55309294120616886b5338f95dd98a2f7231519c7dedcec32ba29699394"
 
 hack::ensure_kind
 hack::ensure_kubectl
@@ -367,7 +368,7 @@ function e2e::build() {
         return
 	fi
 	echo "info: building image $CONTROLLER_IMAGE"
-	docker build -t $CONTROLLER_IMAGE .
+	docker build -t $CONTROLLER_IMAGE --build-arg=TARGETARCH=$ARCH .
 }
 
 export CONTROLLER_IMAGE=pingcap/advanced-statefulset:latest
