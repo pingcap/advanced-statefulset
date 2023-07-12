@@ -73,7 +73,7 @@ var _ = SIGDescribe("StatefulSet", func() {
 		c = helper.NewHijackClient(f.ClientSet, asc)
 	})
 
-	framework.KubeDescribe("Basic StatefulSet functionality [StatefulSetBasic]", func() {
+	KubeDescribe("Basic StatefulSet functionality [StatefulSetBasic]", func() {
 		ssName := "ss"
 		labels := map[string]string{
 			"foo": "bar",
@@ -810,7 +810,7 @@ var _ = SIGDescribe("StatefulSet", func() {
 		})
 	})
 
-	framework.KubeDescribe("Deploy clustered applications [Feature:StatefulSet] [Slow]", func() {
+	KubeDescribe("Deploy clustered applications [Feature:StatefulSet] [Slow]", func() {
 		var appTester *clusterAppTester
 
 		ginkgo.BeforeEach(func() {

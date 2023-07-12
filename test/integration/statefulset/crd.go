@@ -14,21 +14,21 @@
 package statefulset
 
 import (
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // TODO read from manifests/crd.v1beta1.yaml
-func getCustomResourceDefinitionData() []*apiextensionsv1beta1.CustomResourceDefinition {
-	return []*apiextensionsv1beta1.CustomResourceDefinition{
+func getCustomResourceDefinitionData() []*apiextensionsv1.CustomResourceDefinition {
+	return []*apiextensionsv1.CustomResourceDefinition{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "statefulsets.apps.pingcap.com",
 			},
-			Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
+			Spec: apiextensionsv1.CustomResourceDefinitionSpec{
 				Group: "apps.pingcap.com",
-				Scope: apiextensionsv1beta1.NamespaceScoped,
-				Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
+				Scope: apiextensionsv1.NamespaceScoped,
+				Names: apiextensionsv1.CustomResourceDefinitionNames{
 					Plural:   "statefulsets",
 					Singular: "statefulset",
 					Kind:     "StatefulSet",
@@ -36,26 +36,36 @@ func getCustomResourceDefinitionData() []*apiextensionsv1beta1.CustomResourceDef
 						"sts",
 					},
 				},
-				Versions: []apiextensionsv1beta1.CustomResourceDefinitionVersion{
+				Versions: []apiextensionsv1.CustomResourceDefinitionVersion{
 					{
 						Name:    "v1",
 						Served:  true,
 						Storage: true,
+						Subresources: &apiextensionsv1.CustomResourceSubresources{
+							Status: &apiextensionsv1.CustomResourceSubresourceStatus{},
+							Scale: &apiextensionsv1.CustomResourceSubresourceScale{
+								SpecReplicasPath:   ".spec.replicas",
+								StatusReplicasPath: ".status.replicas",
+								LabelSelectorPath: func(a string) *string {
+									return &a
+								}(".status.labelSelector"),
+							},
+						},
 					},
 					{
 						Name:    "v1alpha1",
 						Served:  true,
 						Storage: false,
-					},
-				},
-				Subresources: &apiextensionsv1beta1.CustomResourceSubresources{
-					Status: &apiextensionsv1beta1.CustomResourceSubresourceStatus{},
-					Scale: &apiextensionsv1beta1.CustomResourceSubresourceScale{
-						SpecReplicasPath:   ".spec.replicas",
-						StatusReplicasPath: ".status.replicas",
-						LabelSelectorPath: func(a string) *string {
-							return &a
-						}(".status.labelSelector"),
+						Subresources: &apiextensionsv1.CustomResourceSubresources{
+							Status: &apiextensionsv1.CustomResourceSubresourceStatus{},
+							Scale: &apiextensionsv1.CustomResourceSubresourceScale{
+								SpecReplicasPath:   ".spec.replicas",
+								StatusReplicasPath: ".status.replicas",
+								LabelSelectorPath: func(a string) *string {
+									return &a
+								}(".status.labelSelector"),
+							},
+						},
 					},
 				},
 			},

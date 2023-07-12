@@ -22,3 +22,9 @@ import "github.com/onsi/ginkgo"
 func SIGDescribe(text string, body func()) bool {
 	return ginkgo.Describe("[sig-apps] "+text, body)
 }
+
+// KubeDescribe annotates the test with the Kube label.
+// copied from https://github.com/kubernetes/kubernetes/blob/v1.20.15/test/e2e/framework/framework.go#L621-L625
+func KubeDescribe(text string, body func()) bool {
+	return ginkgo.Describe("[k8s.io] "+text, body)
+}
