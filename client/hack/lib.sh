@@ -21,7 +21,7 @@ fi
 OUTPUT=${ROOT}/output
 OUTPUT_BIN=${OUTPUT}/bin
 
-K8S_VERSION=${K8S_VERSION:-0.20.15}
+K8S_VERSION=${K8S_VERSION:-0.21.14}
 
 function hack::ensure_codegen() {
     echo "Installing codegen..."
