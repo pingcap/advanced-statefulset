@@ -26,7 +26,7 @@ hack::ensure_codegen
 function codegen::join() { local IFS="$1"; shift; echo "$*"; }
 
 # `--output-base $ROOT` will output generated code to current dir
-GOBIN=$OUTPUT_BIN bash $ROOT/hack/generate-groups.sh "deepcopy,client,informer,lister" \
+GOBIN=$OUTPUT_BIN bash $ROOT/hack/generate-groups.sh "deepcopy,client,informer,lister,applyconfiguration" \
   github.com/pingcap/advanced-statefulset/client/client \
   github.com/pingcap/advanced-statefulset/client/apis \
   "apps:v1" \

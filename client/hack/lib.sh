@@ -21,9 +21,12 @@ fi
 OUTPUT=${ROOT}/output
 OUTPUT_BIN=${OUTPUT}/bin
 
-K8S_VERSION=${K8S_VERSION:-0.21.14}
+K8S_VERSION=${K8S_VERSION:-0.21.14} # TODO: update for `applyconfiguration-gen` to use `K8S_VERSION` instead after 0.26.0
 
 function hack::ensure_codegen() {
     echo "Installing codegen..."
     GOBIN=$OUTPUT_BIN go install k8s.io/code-generator/cmd/{defaulter-gen,client-gen,lister-gen,informer-gen,deepcopy-gen}@v$K8S_VERSION
+    # generated for `WithOwnerReferences` in ./client/client/applyconfiguration/apps/v1/statefulset.go has a bug before this commit
+    # changed to use `K8S_VERSION` instead after 0.26.0
+    GOBIN=$OUTPUT_BIN go install k8s.io/code-generator/cmd/applyconfiguration-gen@7ba56cbc87b2d9f558741e7dc6e1391b201fe0b8
 }

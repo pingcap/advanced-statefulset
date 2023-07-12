@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	asv1 "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
+	asapplyv1 "github.com/pingcap/advanced-statefulset/client/client/applyconfiguration/apps/v1"
 	asclientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
 	asclientsetv1 "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/typed/apps/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -26,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/watch"
+	appsapplyv1 "k8s.io/client-go/applyconfigurations/apps/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetappsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 )
@@ -124,6 +126,30 @@ func (s *hijackStatefulSet) Watch(ctx context.Context, opts metav1.ListOptions) 
 		return nil, err
 	}
 	return newHijackWatch(watch), nil
+}
+
+func (s *hijackStatefulSet) Apply(ctx context.Context, stsapply *appsapplyv1.StatefulSetApplyConfiguration, opts metav1.ApplyOptions) (result *appsv1.StatefulSet, err error) {
+	pcstsapply, err := FromBuiltinStatefulSetApplyConfiguration(stsapply)
+	if err != nil {
+		return nil, err
+	}
+	pcsts, err := s.StatefulSetInterface.Apply(ctx, pcstsapply, opts)
+	if err != nil {
+		return nil, err
+	}
+	return ToBuiltinStatefulSet(pcsts)
+}
+
+func (s *hijackStatefulSet) ApplyStatus(ctx context.Context, stsapply *appsapplyv1.StatefulSetApplyConfiguration, opts metav1.ApplyOptions) (result *appsv1.StatefulSet, err error) {
+	pcstsapply, err := FromBuiltinStatefulSetApplyConfiguration(stsapply)
+	if err != nil {
+		return nil, err
+	}
+	pcsts, err := s.StatefulSetInterface.ApplyStatus(ctx, pcstsapply, opts)
+	if err != nil {
+		return nil, err
+	}
+	return ToBuiltinStatefulSet(pcsts)
 }
 
 type hijackWatch struct {
@@ -235,4 +261,19 @@ func ToBuiltinStetefulsetList(stsList *asv1.StatefulSetList) (*appsv1.StatefulSe
 		newList.Items[i] = sts
 	}
 	return newList, nil
+}
+
+func FromBuiltinStatefulSetApplyConfiguration(sts *appsapplyv1.StatefulSetApplyConfiguration) (*asapplyv1.StatefulSetApplyConfiguration, error) {
+	data, err := json.Marshal(sts)
+	if err != nil {
+		return nil, err
+	}
+	newSet := &asapplyv1.StatefulSetApplyConfiguration{}
+	err = json.Unmarshal(data, newSet)
+	if err != nil {
+		return nil, err
+	}
+	apiVersion := asv1.SchemeGroupVersion.String()
+	newSet.APIVersion = &apiVersion
+	return newSet, nil
 }
