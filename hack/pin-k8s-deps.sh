@@ -28,9 +28,6 @@ fi
 
 echo "VERSION: $VERSION"
 
-# Explicitly opt into go modules, even though we're inside a GOPATH directory
-export GO111MODULE=on
-
 go mod edit -require k8s.io/kubernetes@v$VERSION
 
 #
