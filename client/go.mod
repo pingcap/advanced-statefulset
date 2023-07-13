@@ -9,8 +9,9 @@ require (
 	k8s.io/apimachinery v0.21.14
 	k8s.io/client-go v0.21.14
 	k8s.io/klog v1.0.0
-	k8s.io/kube-openapi v0.0.0-20211110013926-83f114cd0513
+	k8s.io/kube-openapi v0.0.0-20211110012726-3cc51fd1e909
 	k8s.io/kubernetes v1.21.14
+	sigs.k8s.io/structured-merge-diff/v4 v4.2.1
 )
 
 require (
@@ -50,7 +51,6 @@ require (
 	k8s.io/component-base v0.21.14 // indirect
 	k8s.io/klog/v2 v2.9.0 // indirect
 	k8s.io/utils v0.0.0-20211116205334-6203023598ed // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
