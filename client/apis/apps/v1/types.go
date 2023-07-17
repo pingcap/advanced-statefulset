@@ -40,6 +40,9 @@ const (
 	StatefulSetPodNameLabel = "statefulset.kubernetes.io/pod-name"
 )
 
+// TODO: add `+genclient:method=ApplyScale,verb=apply,subresource=scale,input=k8s.io/api/autoscaling/v1.Scale,result=k8s.io/api/autoscaling/v1.Scale`
+// ref: https://github.com/kubernetes/kubernetes/issues/119360
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +genclient:method=GetScale,verb=get,subresource=scale,result=k8s.io/api/autoscaling/v1.Scale
