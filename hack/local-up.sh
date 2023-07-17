@@ -32,11 +32,7 @@ kind get kubeconfig --name "$CLUSTER" > $cfgfile
 
 KUBE_VERSION=$(kubectl version --short | awk '/Server Version:/ {print $3}')
 
-if hack::version_ge $KUBE_VERSION "v1.16.0"; then
-    kubectl --kubeconfig $cfgfile apply -f manifests/crd.v1.yaml
-else
-    kubectl --kubeconfig $cfgfile apply -f manifests/crd.v1beta1.yaml
-fi
+kubectl --kubeconfig $cfgfile apply -f manifests/crd.v1.yaml
 
 kubectl --kubeconfig $cfgfile -n kube-system delete ep advanced-statefulset-controller --ignore-not-found
 ./output/bin/linux/${ARCH}/cmd/controller-manager --kubeconfig $cfgfile -v 4 --leader-elect-resource-name advanced-statefulset-controller --leader-elect-resource-namespace kube-system
