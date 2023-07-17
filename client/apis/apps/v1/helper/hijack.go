@@ -16,6 +16,7 @@ package helper
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 
 	asv1 "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
@@ -23,11 +24,13 @@ import (
 	asclientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
 	asclientsetv1 "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/typed/apps/v1"
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	appsapplyv1 "k8s.io/client-go/applyconfigurations/apps/v1"
+	applyconfigurationsautoscalingv1 "k8s.io/client-go/applyconfigurations/autoscaling/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	clientsetappsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 )
@@ -150,6 +153,11 @@ func (s *hijackStatefulSet) ApplyStatus(ctx context.Context, stsapply *appsapply
 		return nil, err
 	}
 	return ToBuiltinStatefulSet(pcsts)
+}
+
+func (s *hijackStatefulSet) ApplyScale(ctx context.Context, statefulSetName string, scale *applyconfigurationsautoscalingv1.ScaleApplyConfiguration, opts metav1.ApplyOptions) (*autoscalingv1.Scale, error) {
+	// TODO: generate `ApplyScale` method, ref: https://github.com/kubernetes/kubernetes/issues/119360
+	return nil, errors.New("not implemented")
 }
 
 type hijackWatch struct {
