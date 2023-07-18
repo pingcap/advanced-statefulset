@@ -223,6 +223,13 @@ func setupSuitePerGinkgoNode() {
 	}
 	framework.TestContext.IPFamily = getDefaultClusterIPFamily(c)
 	framework.Logf("Cluster IP family: %s", framework.TestContext.IPFamily)
+
+	// do not check `kube-root-ca.crt` ConfigMap for Kubernetes
+	gte119, err := e2eutil.ServerVersionGTE(utilversion.MustParseSemantic("v1.19.0"), c.Discovery())
+	framework.ExpectNoError(err)
+	if !gte119 {
+		framework.TestContext.VerifyServiceAccount = false
+	}
 }
 
 var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
@@ -256,13 +263,6 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/rbac.yaml"))
 	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/deployment.yaml"))
 	framework.RunKubectlOrDie(asNamespace, "wait", "--for=condition=Available", "deploy/advanced-statefulset-controller")
-
-	// do not check `kube-root-ca.crt` ConfigMap for Kubernetes 1.18
-	gte119, err := e2eutil.ServerVersionGTE(utilversion.MustParseSemantic("v1.19.0"), c.Discovery())
-	framework.ExpectNoError(err)
-	if !gte119 {
-		framework.TestContext.VerifyServiceAccount = false
-	}
 	return nil
 }, func(data []byte) {
 	// Run on all Ginkgo nodes
