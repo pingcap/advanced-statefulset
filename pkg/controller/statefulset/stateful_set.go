@@ -304,7 +304,7 @@ func (ssc *StatefulSetController) getPodsForStatefulSet(set *apps.StatefulSet, s
 
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing Pods (see #42639).
-	canAdoptFunc := controller.RecheckDeletionTimestamp(func() (metav1.Object, error) {
+	canAdoptFunc := controller.RecheckDeletionTimestamp(func(context.Context) (metav1.Object, error) {
 		fresh, err := ssc.pcClient.AppsV1().StatefulSets(set.Namespace).Get(context.TODO(), set.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
@@ -316,7 +316,7 @@ func (ssc *StatefulSetController) getPodsForStatefulSet(set *apps.StatefulSet, s
 	})
 
 	cm := controller.NewPodControllerRefManager(ssc.podControl, set, selector, controllerKind, canAdoptFunc)
-	return cm.ClaimPods(pods, filter)
+	return cm.ClaimPods(context.TODO(), pods, filter)
 }
 
 func shouldSyncLabels(revision *kubeapps.ControllerRevision) bool {

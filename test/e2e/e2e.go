@@ -45,11 +45,13 @@ import (
 	"github.com/onsi/ginkgo/config"
 	"github.com/onsi/ginkgo/reporters"
 	"github.com/onsi/gomega"
+	e2eutil "github.com/pingcap/advanced-statefulset/test/e2e/util"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apiutilnet "k8s.io/apimachinery/pkg/util/net"
 	runtimeutils "k8s.io/apimachinery/pkg/util/runtime"
+	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/component-base/logs"
@@ -221,6 +223,13 @@ func setupSuitePerGinkgoNode() {
 	}
 	framework.TestContext.IPFamily = getDefaultClusterIPFamily(c)
 	framework.Logf("Cluster IP family: %s", framework.TestContext.IPFamily)
+
+	// do not check `kube-root-ca.crt` ConfigMap for Kubernetes
+	gte119, err := e2eutil.ServerVersionGTE(utilversion.MustParseSemantic("v1.19.0"), c.Discovery())
+	framework.ExpectNoError(err)
+	if !gte119 {
+		framework.TestContext.VerifyServiceAccount = false
+	}
 }
 
 var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
@@ -238,6 +247,7 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	}
 	// Get the client
 	config, err := framework.LoadConfig()
+	framework.ExpectNoError(err)
 	c, err := clientset.NewForConfig(config)
 	framework.ExpectNoError(err, "failed to create clientset")
 	// Install CRDs

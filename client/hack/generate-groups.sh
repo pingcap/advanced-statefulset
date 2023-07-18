@@ -70,6 +70,14 @@ if [ "${GENS}" = "all" ] || grep -qw "deepcopy" <<<"${GENS}"; then
       "$@"
 fi
 
+if [ "${GENS}" = "all" ] || grep -qw "defaulter" <<<"${GENS}"; then
+  echo "Generating defaulters"
+  "${gobin}/defaulter-gen"  \
+      --input-dirs "$(codegen::join , "${FQ_APIS[@]}")" \
+      -O zz_generated.defaults \
+      "$@"
+fi
+
 if [ "${GENS}" = "all" ] || grep -qw "applyconfiguration" <<<"${GENS}"; then
   echo "Generating apply configuration for ${GROUPS_WITH_VERSIONS} at ${OUTPUT_PKG}/${APPLYCONFIGURATION_PKG_NAME:-applyconfiguration}"
   "${gobin}/applyconfiguration-gen" \
