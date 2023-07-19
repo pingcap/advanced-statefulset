@@ -48,14 +48,12 @@ func NewDefaultGenericComponentConfiguration() GenericComponentConfiguration {
 		KubeAPIBurst:            30,
 		ControllerStartInterval: metav1.Duration{Duration: 0 * time.Second},
 	}
-	leaderElection := componentbaseconfigv1alpha1.LeaderElectionConfiguration{}
-	componentbaseconfigv1alpha1.RecommendedDefaultLeaderElectionConfiguration(&leaderElection)
-
-	if len(leaderElection.ResourceLock) == 0 {
+	leaderElection := componentbaseconfigv1alpha1.LeaderElectionConfiguration{
 		// https://github.com/kubernetes/kubernetes/pull/84084
 		// https://github.com/kubernetes/kubernetes/pull/106852
-		leaderElection.ResourceLock = resourcelock.EndpointsLeasesResourceLock
+		ResourceLock: resourcelock.EndpointsLeasesResourceLock,
 	}
+	componentbaseconfigv1alpha1.RecommendedDefaultLeaderElectionConfiguration(&leaderElection)
 	componentbaseconfigv1alpha1.Convert_v1alpha1_LeaderElectionConfiguration_To_config_LeaderElectionConfiguration(&leaderElection, &c.LeaderElection, nil)
 	return c
 }
