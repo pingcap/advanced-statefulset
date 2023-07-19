@@ -84,7 +84,7 @@ SKIP_UP=${SKIP_UP:-}
 SKIP_DOWN=${SKIP_DOWN:-}
 SKIP_TEST=${SKIP_TEST:-}
 REUSE_CLUSTER=${REUSE_CLUSTER:-}
-KUBE_VERSION=${KUBE_VERSION:-v1.23}
+KUBE_VERSION=${KUBE_VERSION:-v1.24}
 KUBECONFIG=${KUBECONFIG:-~/.kube/config}
 CLUSTER=${CLUSTER:-advanced-statefulset}
 DOCKER_IO_MIRROR=${DOCKER_IO_MIRROR:-}
@@ -101,11 +101,11 @@ echo "DOCKER_IO_MIRROR: $DOCKER_IO_MIRROR"
 echo "KUBE_WORKERS: $KUBE_WORKERS"
 
 declare -A kind_node_images
-kind_node_images["v1.18.2"]="kindest/node:v1.18.2@sha256:7b27a6d0f2517ff88ba444025beae41491b016bc6af573ba467b70c5e8e0d85f"
 kind_node_images["v1.20.15"]="kindest/node:v1.20.15@sha256:a32bf55309294120616886b5338f95dd98a2f7231519c7dedcec32ba29699394"
 kind_node_images["v1.21.14"]="kindest/node:v1.21.14@sha256:8a4e9bb3f415d2bb81629ce33ef9c76ba514c14d707f9797a01e3216376ba093"
 kind_node_images["v1.22.17"]="kindest/node:v1.22.17@sha256:f5b2e5698c6c9d6d0adc419c0deae21a425c07d81bbf3b6a6834042f25d4fba2"
 kind_node_images["v1.23.17"]="kindest/node:v1.23.17@sha256:59c989ff8a517a93127d4a536e7014d28e235fb3529d9fba91b3951d461edfdb"
+kind_node_images["v1.24.15"]="kindest/node:v1.24.15@sha256:7db4f8bea3e14b82d12e044e25e34bd53754b7f2b0e9d56df21774e6f66a70ab"
 
 hack::ensure_kind
 hack::ensure_kubectl
@@ -220,10 +220,7 @@ EOF
 - role: worker
 EOF
     }
-    # kubeadm config patches
-    if hack::version_ge $KUBE_VERSION "v1.18.0"; then
-        # CustomResourceDefaulting feature gate is removed in https://github.com/kubernetes/kubernetes/pull/87475.
-        cat <<EOF >> $tmpfile
+    cat <<EOF >> $tmpfile
 kubeadmConfigPatches:
 - |
   apiVersion: kubeadm.k8s.io/v1beta2
@@ -248,30 +245,6 @@ kubeadmConfigPatches:
     kubeletExtraArgs:
       "v": "4"
 EOF
-    else
-        cat <<EOF >> $tmpfile
-kubeadmConfigPatches:
-- |
-  apiVersion: kubeadm.k8s.io/v1alpha3
-  kind: ClusterConfiguration
-  metadata:
-    name: config
-  apiServerExtraArgs:
-    v: "4"
-  schedulerExtraArgs:
-    v: "4"
-  controllerManagerExtraArgs:
-    v: "4"
-- |
-  apiVersion: kubeadm.k8s.io/v1alpha3
-  kind: InitConfiguration
-  metadata:
-    name: config
-  nodeRegistration:
-    kubeletExtraArgs:
-      "v": "4"
-EOF
-    fi
 
     # Retry on error. Sometimes, kind will fail with the following error:
     #
