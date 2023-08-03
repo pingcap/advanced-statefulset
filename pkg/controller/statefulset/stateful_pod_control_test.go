@@ -29,10 +29,16 @@ import (
 	"k8s.io/client-go/tools/record"
 
 	v1 "k8s.io/api/core/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	corelisters "k8s.io/client-go/listers/core/v1"
-	_ "k8s.io/kubernetes/pkg/apis/core/install"
 )
+
+func init() {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(v1.AddToScheme(scheme))
+	utilruntime.Must(scheme.SetVersionPriority(v1.SchemeGroupVersion))
+}
 
 func TestStatefulPodControlCreatesPods(t *testing.T) {
 	recorder := record.NewFakeRecorder(10)
