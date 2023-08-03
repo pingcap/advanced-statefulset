@@ -59,7 +59,7 @@ func setupController(client clientset.Interface, kubeClient kubernetes.Interface
 	spc := newFakeStatefulPodControl(kubeInformerFactory.Core().V1().Pods(), informerFactory.Apps().V1().StatefulSets())
 	ssu := newFakeStatefulSetStatusUpdater(informerFactory.Apps().V1().StatefulSets())
 	recorder := record.NewFakeRecorder(10)
-	ssc := NewDefaultStatefulSetControl(spc, ssu, history.NewFakeHistory(kubeInformerFactory.Apps().V1().ControllerRevisions()), recorder)
+	ssc := NewDefaultStatefulSetControl(spc, ssu, kubeClient.AppsV1(), recorder)
 
 	stop := make(chan struct{})
 	informerFactory.Start(stop)
@@ -515,7 +515,7 @@ func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 		spc := newFakeStatefulPodControl(kubeInformerFactory.Core().V1().Pods(), informerFactory.Apps().V1().StatefulSets())
 		ssu := newFakeStatefulSetStatusUpdater(informerFactory.Apps().V1().StatefulSets())
 		recorder := record.NewFakeRecorder(10)
-		ssc := defaultStatefulSetControl{spc, ssu, history.NewFakeHistory(kubeInformerFactory.Apps().V1().ControllerRevisions()), recorder}
+		ssc := defaultStatefulSetControl{spc, ssu, kubeClient.AppsV1(), recorder}
 
 		stop := make(chan struct{})
 		defer close(stop)
@@ -529,7 +529,7 @@ func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 		)
 		test.set.Status.CollisionCount = new(int32)
 		for i := range test.existing {
-			ssc.controllerHistory.CreateControllerRevision(test.set, test.existing[i], test.set.Status.CollisionCount)
+			ssc.createControllerRevision(test.set, test.existing[i], test.set.Status.CollisionCount)
 		}
 		revisions, err := ssc.ListRevisions(test.set)
 		if err != nil {

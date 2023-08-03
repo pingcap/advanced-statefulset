@@ -17,8 +17,14 @@ limitations under the License.
 package statefulset
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"hash/fnv"
 	"math"
 	"sort"
+	"strconv"
 
 	kubeapps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -26,10 +32,17 @@ import (
 
 	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
 	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/rand"
+	appsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/kubernetes/pkg/controller/history"
+	hashutil "k8s.io/kubernetes/pkg/util/hash"
 )
 
 // StatefulSetControl implements the control logic for updating StatefulSets and their children Pods. It is implemented
@@ -57,7 +70,7 @@ type StatefulSetControlInterface interface {
 func NewDefaultStatefulSetControl(
 	podControl StatefulPodControlInterface,
 	statusUpdater StatefulSetStatusUpdaterInterface,
-	controllerHistory history.Interface,
+	controllerHistory appsv1.AppsV1Interface,
 	recorder record.EventRecorder) StatefulSetControlInterface {
 	return &defaultStatefulSetControl{podControl, statusUpdater, controllerHistory, recorder}
 }
@@ -65,7 +78,7 @@ func NewDefaultStatefulSetControl(
 type defaultStatefulSetControl struct {
 	podControl        StatefulPodControlInterface
 	statusUpdater     StatefulSetStatusUpdaterInterface
-	controllerHistory history.Interface
+	controllerHistory appsv1.AppsV1Interface
 	recorder          record.EventRecorder
 }
 
@@ -125,30 +138,153 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*k
 	if err != nil {
 		return nil, err
 	}
-	revisions, err := ssc.controllerHistory.ListControllerRevisions(set, selector)
+	revisions, err := ssc.controllerHistory.ControllerRevisions(set.GetNamespace()).List(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return nil, err
 	}
-	revisinsToUpgrade, err := ssc.controllerHistory.ListControllerRevisions(set, labels.SelectorFromValidatedSet(map[string]string{
-		helper.UpgradeToAdvancedStatefulSetAnn: set.Name,
-	}))
+	revisinsToUpgrade, err := ssc.controllerHistory.ControllerRevisions(set.GetNamespace()).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: labels.SelectorFromValidatedSet(map[string]string{
+			helper.UpgradeToAdvancedStatefulSetAnn: set.Name,
+		}).String(),
+	})
 	if err != nil {
 		return nil, err
 	}
-	return append(revisions, revisinsToUpgrade...), nil
+	res := []*kubeapps.ControllerRevision{}
+	for _, item := range append(revisions.Items, revisinsToUpgrade.Items...) {
+		res = append(res, &item)
+	}
+	return res, nil
 }
 
 func (ssc *defaultStatefulSetControl) AdoptOrphanRevisions(
 	set *apps.StatefulSet,
 	revisions []*kubeapps.ControllerRevision) error {
 	for i := range revisions {
-		adopted, err := ssc.controllerHistory.AdoptControllerRevision(set, controllerKind, revisions[i])
+		adopted, err := ssc.adoptControllerRevision(set, controllerKind, revisions[i])
 		if err != nil {
 			return err
 		}
 		revisions[i] = adopted
 	}
 	return nil
+}
+
+type objectForPatch struct {
+	Metadata objectMetaForPatch `json:"metadata"`
+}
+
+type objectMetaForPatch struct {
+	OwnerReferences []metav1.OwnerReference `json:"ownerReferences"`
+	UID             types.UID               `json:"uid"`
+}
+
+func (ssc *defaultStatefulSetControl) adoptControllerRevision(parent metav1.Object, parentKind schema.GroupVersionKind, revision *kubeapps.ControllerRevision) (*kubeapps.ControllerRevision, error) {
+	blockOwnerDeletion := true
+	isController := true
+	// Return an error if the revision is not orphan
+	if owner := metav1.GetControllerOfNoCopy(revision); owner != nil {
+		return nil, fmt.Errorf("attempt to adopt revision owned by %v", owner)
+	}
+	addControllerPatch := objectForPatch{
+		Metadata: objectMetaForPatch{
+			UID: revision.UID,
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion:         parentKind.GroupVersion().String(),
+				Kind:               parentKind.Kind,
+				Name:               parent.GetName(),
+				UID:                parent.GetUID(),
+				Controller:         &isController,
+				BlockOwnerDeletion: &blockOwnerDeletion,
+			}},
+		},
+	}
+	patchBytes, err := json.Marshal(&addControllerPatch)
+	if err != nil {
+		return nil, err
+	}
+	// Use strategic merge patch to add an owner reference indicating a controller ref
+	return ssc.controllerHistory.ControllerRevisions(parent.GetNamespace()).Patch(context.TODO(), revision.GetName(),
+		types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+}
+
+func (ssc *defaultStatefulSetControl) updateControllerRevision(revision *kubeapps.ControllerRevision, newRevision int64) (*kubeapps.ControllerRevision, error) {
+	clone := revision.DeepCopy()
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		if clone.Revision == newRevision {
+			return nil
+		}
+		clone.Revision = newRevision
+		updated, updateErr := ssc.controllerHistory.ControllerRevisions(clone.Namespace).Update(context.TODO(), clone, metav1.UpdateOptions{})
+		if updateErr == nil {
+			return nil
+		}
+		if updated != nil {
+			clone = updated
+		}
+		if updated, err := ssc.controllerHistory.ControllerRevisions(clone.Namespace).Get(context.TODO(), clone.Name, metav1.GetOptions{}); err == nil {
+			// make a copy so we don't mutate the shared cache
+			clone = updated.DeepCopy()
+		}
+		return updateErr
+	})
+	return clone, err
+}
+
+func (ssc *defaultStatefulSetControl) createControllerRevision(parent metav1.Object, revision *kubeapps.ControllerRevision, collisionCount *int32) (*kubeapps.ControllerRevision, error) {
+	if collisionCount == nil {
+		return nil, fmt.Errorf("collisionCount should not be nil")
+	}
+
+	// Clone the input
+	clone := revision.DeepCopy()
+
+	// Continue to attempt to create the revision updating the name with a new hash on each iteration
+	for {
+		hash := hashControllerRevision(revision, collisionCount)
+		// Update the revisions name
+		clone.Name = controllerRevisionName(parent.GetName(), hash)
+		ns := parent.GetNamespace()
+		created, err := ssc.controllerHistory.ControllerRevisions(ns).Create(context.TODO(), clone, metav1.CreateOptions{})
+		if errors.IsAlreadyExists(err) {
+			exists, err := ssc.controllerHistory.ControllerRevisions(ns).Get(context.TODO(), clone.Name, metav1.GetOptions{})
+			if err != nil {
+				return nil, err
+			}
+			if bytes.Equal(exists.Data.Raw, clone.Data.Raw) {
+				return exists, nil
+			}
+			*collisionCount++
+			continue
+		}
+		return created, err
+	}
+}
+
+// hashControllerRevision hashes the contents of revision's Data using FNV hashing. If probe is not nil, the byte value
+// of probe is added written to the hash as well. The returned hash will be a safe encoded string to avoid bad words.
+func hashControllerRevision(revision *kubeapps.ControllerRevision, probe *int32) string {
+	hf := fnv.New32()
+	if len(revision.Data.Raw) > 0 {
+		hf.Write(revision.Data.Raw)
+	}
+	if revision.Data.Object != nil {
+		hashutil.DeepHashObject(hf, revision.Data.Object)
+	}
+	if probe != nil {
+		hf.Write([]byte(strconv.FormatInt(int64(*probe), 10)))
+	}
+	return rand.SafeEncodeString(fmt.Sprint(hf.Sum32()))
+}
+
+// controllerRevisionName returns the Name for a ControllerRevision in the form prefix-hash. If the length
+// of prefix is greater than 223 bytes, it is truncated to allow for a name that is no larger than 253 bytes.
+func controllerRevisionName(prefix string, hash string) string {
+	if len(prefix) > 223 {
+		prefix = prefix[:223]
+	}
+
+	return fmt.Sprintf("%s-%s", prefix, hash)
 }
 
 // truncateHistory truncates any non-live ControllerRevisions in revisions from set's history. The UpdateRevision and
@@ -182,7 +318,7 @@ func (ssc *defaultStatefulSetControl) truncateHistory(
 	// delete any non-live history to maintain the revision limit.
 	history = history[:(historyLen - historyLimit)]
 	for i := 0; i < len(history); i++ {
-		if err := ssc.controllerHistory.DeleteControllerRevision(history[i]); err != nil {
+		if err := ssc.controllerHistory.ControllerRevisions(set.GetNamespace()).Delete(context.TODO(), history[i].Name, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	}
@@ -226,7 +362,7 @@ func (ssc *defaultStatefulSetControl) getStatefulSetRevisions(
 	} else if equalCount > 0 {
 		// if the equivalent revision is not immediately prior we will roll back by incrementing the
 		// Revision of the equivalent revision
-		updateRevision, err = ssc.controllerHistory.UpdateControllerRevision(
+		updateRevision, err = ssc.updateControllerRevision(
 			equalRevisions[equalCount-1],
 			updateRevision.Revision)
 		if err != nil {
@@ -234,7 +370,7 @@ func (ssc *defaultStatefulSetControl) getStatefulSetRevisions(
 		}
 	} else {
 		//if there is no equivalent revision we create a new one
-		updateRevision, err = ssc.controllerHistory.CreateControllerRevision(set, updateRevision, &collisionCount)
+		updateRevision, err = ssc.createControllerRevision(set, updateRevision, &collisionCount)
 		if err != nil {
 			return nil, nil, collisionCount, err
 		}

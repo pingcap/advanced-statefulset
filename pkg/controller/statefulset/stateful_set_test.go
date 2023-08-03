@@ -32,7 +32,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/kubernetes/pkg/controller/history"
 )
 
 func alwaysReady() bool { return true }
@@ -598,7 +597,7 @@ func newFakeStatefulSetController(initialObjects ...runtime.Object) (*StatefulSe
 		kubeClient,
 		client,
 	)
-	ssh := history.NewFakeHistory(kubeInformerFactory.Apps().V1().ControllerRevisions())
+	ssh := kubeClient.AppsV1()
 	ssc.podListerSynced = alwaysReady
 	ssc.setListerSynced = alwaysReady
 	recorder := record.NewFakeRecorder(10)
