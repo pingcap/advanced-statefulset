@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
-	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
+	podutil "github.com/pingcap/advanced-statefulset/pkg/third-party/k8s"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2esset "k8s.io/kubernetes/test/e2e/framework/statefulset"
 )

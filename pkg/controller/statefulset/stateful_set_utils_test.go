@@ -31,7 +31,7 @@ import (
 
 	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
+	podutil "github.com/pingcap/advanced-statefulset/pkg/third-party/k8s"
 	"k8s.io/kubernetes/pkg/controller/history"
 )
 
