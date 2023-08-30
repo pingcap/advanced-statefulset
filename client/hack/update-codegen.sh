@@ -25,8 +25,9 @@ hack::ensure_codegen
 
 function codegen::join() { local IFS="$1"; shift; echo "$*"; }
 
+# NOTE: we disabled `defaulter` as the generated code has too many differences and which will cause Pods restart when upgrading.
 # `--output-base $ROOT` will output generated code to current dir
-GOBIN=$OUTPUT_BIN bash $ROOT/hack/generate-groups.sh "deepcopy,defaulter,client,informer,lister,applyconfiguration" \
+GOBIN=$OUTPUT_BIN bash $ROOT/hack/generate-groups.sh "deepcopy,client,informer,lister,applyconfiguration" \
   github.com/pingcap/advanced-statefulset/client/client \
   github.com/pingcap/advanced-statefulset/client/apis \
   "apps:v1" \
@@ -37,7 +38,7 @@ GOBIN=$OUTPUT_BIN bash $ROOT/hack/generate-groups.sh "deepcopy,defaulter,client,
 cp github.com/pingcap/advanced-statefulset/client/apis/apps/v1/zz_generated.deepcopy.go $ROOT/apis/apps/v1/zz_generated.deepcopy.go
 
 # cp zz_generated.defaults.go
-cp github.com/pingcap/advanced-statefulset/client/apis/apps/v1/zz_generated.defaults.go $ROOT/apis/apps/v1/zz_generated.defaults.go
+# cp github.com/pingcap/advanced-statefulset/client/apis/apps/v1/zz_generated.defaults.go $ROOT/apis/apps/v1/zz_generated.defaults.go
 
 # then we merge generated code with our code base and clean up
 cp -r github.com/pingcap/advanced-statefulset/client/client $ROOT && rm -rf github.com
