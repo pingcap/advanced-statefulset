@@ -17,11 +17,13 @@ limitations under the License.
 package statefulset
 
 import (
+	"context"
 	"math"
 	"sort"
 
 	kubeapps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	appsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"k8s.io/klog"
 
 	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
@@ -57,7 +59,7 @@ type StatefulSetControlInterface interface {
 func NewDefaultStatefulSetControl(
 	podControl StatefulPodControlInterface,
 	statusUpdater StatefulSetStatusUpdaterInterface,
-	controllerHistory history.Interface,
+	controllerHistory appsv1.AppsV1Interface,
 	recorder record.EventRecorder) StatefulSetControlInterface {
 	return &defaultStatefulSetControl{podControl, statusUpdater, controllerHistory, recorder}
 }
@@ -65,7 +67,7 @@ func NewDefaultStatefulSetControl(
 type defaultStatefulSetControl struct {
 	podControl        StatefulPodControlInterface
 	statusUpdater     StatefulSetStatusUpdaterInterface
-	controllerHistory history.Interface
+	controllerHistory appsv1.AppsV1Interface
 	recorder          record.EventRecorder
 }
 
@@ -125,17 +127,25 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*k
 	if err != nil {
 		return nil, err
 	}
-	revisions, err := ssc.controllerHistory.ListControllerRevisions(set, selector)
+	revisions, err := ssc.controllerHistory.ControllerRevisions(set.GetNamespace()).List(
+		context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return nil, err
 	}
-	revisinsToUpgrade, err := ssc.controllerHistory.ListControllerRevisions(set, labels.SelectorFromValidatedSet(map[string]string{
-		helper.UpgradeToAdvancedStatefulSetAnn: set.Name,
-	}))
+	revisinsToUpgrade, err := ssc.controllerHistory.ControllerRevisions(set.GetNamespace()).List(
+		context.TODO(), metav1.ListOptions{
+		LabelSelector: labels.SelectorFromValidatedSet(map[string]string{
+			helper.UpgradeToAdvancedStatefulSetAnn: set.Name,
+		}).String(),
+	})
 	if err != nil {
 		return nil, err
 	}
-	return append(revisions, revisinsToUpgrade...), nil
+	res := []*kubeapps.ControllerRevision{}
+	for _, item := range append(revisions.Items, revisinsToUpgrade.Items...) {
+		res = append(res, &item)
+	}
+	return res, nil
 }
 
 func (ssc *defaultStatefulSetControl) AdoptOrphanRevisions(

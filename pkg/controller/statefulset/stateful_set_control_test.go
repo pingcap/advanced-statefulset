@@ -34,6 +34,7 @@ import (
 	pcinformers "github.com/pingcap/advanced-statefulset/client/client/informers/externalversions"
 	appsinformers "github.com/pingcap/advanced-statefulset/client/client/informers/externalversions/apps/v1"
 	appslisters "github.com/pingcap/advanced-statefulset/client/client/listers/apps/v1"
+	podutil "github.com/pingcap/advanced-statefulset/pkg/third-party/k8s"
 	kubeapps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -46,7 +47,6 @@ import (
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	podutil "github.com/pingcap/advanced-statefulset/pkg/third-party/k8s"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/kubernetes/pkg/controller/history"
 )
@@ -529,7 +529,7 @@ func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 		)
 		test.set.Status.CollisionCount = new(int32)
 		for i := range test.existing {
-			ssc.controllerHistory.CreateControllerRevision(test.set, test.existing[i], test.set.Status.CollisionCount)
+			ssc.csAppsV1.CreateControllerRevision(test.set, test.existing[i], test.set.Status.CollisionCount)
 		}
 		revisions, err := ssc.ListRevisions(test.set)
 		if err != nil {

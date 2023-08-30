@@ -45,7 +45,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/kubernetes/pkg/controller/history"
 
 	"k8s.io/klog"
 )
@@ -108,7 +107,7 @@ func NewStatefulSetController(
 				pvcInformer.Lister(),
 				recorder),
 			NewRealStatefulSetStatusUpdater(pcClient, setInformer.Lister()),
-			history.NewHistory(kubeClient, revInformer.Lister()),
+			kubeClient.AppsV1(),
 			recorder,
 		),
 		pvcListerSynced: pvcInformer.Informer().HasSynced,
