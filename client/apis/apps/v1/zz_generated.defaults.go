@@ -190,7 +190,6 @@ func SetObjectDefaults_StatefulSet(in *StatefulSet) {
 	}
 	for i := range in.Spec.Template.Spec.EphemeralContainers {
 		a := &in.Spec.Template.Spec.EphemeralContainers[i]
-		corev1.SetDefaults_EphemeralContainer(a)
 		for j := range a.EphemeralContainerCommon.Ports {
 			b := &a.EphemeralContainerCommon.Ports[j]
 			if b.Protocol == "" {
