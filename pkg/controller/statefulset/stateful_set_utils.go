@@ -23,16 +23,17 @@ import (
 	"regexp"
 	"strconv"
 
-	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
-	"github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/scheme"
 	kubeapps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	podutil "github.com/pingcap/advanced-statefulset/pkg/third-party/k8s"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/kubernetes/pkg/controller/history"
+
+	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
+	"github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/scheme"
+	podutil "github.com/pingcap/advanced-statefulset/pkg/third_party/k8s"
 )
 
 var patchCodec = scheme.Codecs.LegacyCodec(apps.SchemeGroupVersion)

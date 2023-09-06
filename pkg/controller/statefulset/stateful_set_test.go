@@ -31,8 +31,6 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/kubernetes/pkg/controller/history"
 )
 
 func alwaysReady() bool { return true }
@@ -251,7 +249,7 @@ func TestStatefulSetControllerAddPod(t *testing.T) {
 		t.Error("failed to enqueue StatefulSet")
 	} else if key, ok := key.(string); !ok {
 		t.Error("key is not a string")
-	} else if expectedKey, _ := controller.KeyFunc(set1); expectedKey != key {
+	} else if expectedKey, _ := keyFunc(set1); expectedKey != key {
 		t.Errorf("expected StatefulSet key %s found %s", expectedKey, key)
 	}
 	ssc.queue.Done(key)
@@ -262,7 +260,7 @@ func TestStatefulSetControllerAddPod(t *testing.T) {
 		t.Error("failed to enqueue StatefulSet")
 	} else if key, ok := key.(string); !ok {
 		t.Error("key is not a string")
-	} else if expectedKey, _ := controller.KeyFunc(set2); expectedKey != key {
+	} else if expectedKey, _ := keyFunc(set2); expectedKey != key {
 		t.Errorf("expected StatefulSet key %s found %s", expectedKey, key)
 	}
 	ssc.queue.Done(key)
@@ -319,7 +317,7 @@ func TestStatefulSetControllerUpdatePod(t *testing.T) {
 		t.Error("failed to enqueue StatefulSet")
 	} else if key, ok := key.(string); !ok {
 		t.Error("key is not a string")
-	} else if expectedKey, _ := controller.KeyFunc(set1); expectedKey != key {
+	} else if expectedKey, _ := keyFunc(set1); expectedKey != key {
 		t.Errorf("expected StatefulSet key %s found %s", expectedKey, key)
 	}
 
@@ -331,7 +329,7 @@ func TestStatefulSetControllerUpdatePod(t *testing.T) {
 		t.Error("failed to enqueue StatefulSet")
 	} else if key, ok := key.(string); !ok {
 		t.Error("key is not a string")
-	} else if expectedKey, _ := controller.KeyFunc(set2); expectedKey != key {
+	} else if expectedKey, _ := keyFunc(set2); expectedKey != key {
 		t.Errorf("expected StatefulSet key %s found %s", expectedKey, key)
 	}
 }
@@ -432,7 +430,7 @@ func TestStatefulSetControllerDeletePod(t *testing.T) {
 		t.Error("failed to enqueue StatefulSet")
 	} else if key, ok := key.(string); !ok {
 		t.Error("key is not a string")
-	} else if expectedKey, _ := controller.KeyFunc(set1); expectedKey != key {
+	} else if expectedKey, _ := keyFunc(set1); expectedKey != key {
 		t.Errorf("expected StatefulSet key %s found %s", expectedKey, key)
 	}
 
@@ -442,7 +440,7 @@ func TestStatefulSetControllerDeletePod(t *testing.T) {
 		t.Error("failed to enqueue StatefulSet")
 	} else if key, ok := key.(string); !ok {
 		t.Error("key is not a string")
-	} else if expectedKey, _ := controller.KeyFunc(set2); expectedKey != key {
+	} else if expectedKey, _ := keyFunc(set2); expectedKey != key {
 		t.Errorf("expected StatefulSet key %s found %s", expectedKey, key)
 	}
 }
@@ -468,7 +466,7 @@ func TestStatefulSetControllerDeletePodTombstone(t *testing.T) {
 	set := newStatefulSet(3)
 	pod := newStatefulSetPod(set, 0)
 	spc.setsIndexer.Add(set)
-	tombstoneKey, _ := controller.KeyFunc(pod)
+	tombstoneKey, _ := keyFunc(pod)
 	tombstone := cache.DeletedFinalStateUnknown{Key: tombstoneKey, Obj: pod}
 	ssc.deletePod(tombstone)
 	key, done := ssc.queue.Get()
@@ -476,7 +474,7 @@ func TestStatefulSetControllerDeletePodTombstone(t *testing.T) {
 		t.Error("failed to enqueue StatefulSet")
 	} else if key, ok := key.(string); !ok {
 		t.Error("key is not a string")
-	} else if expectedKey, _ := controller.KeyFunc(set); expectedKey != key {
+	} else if expectedKey, _ := keyFunc(set); expectedKey != key {
 		t.Errorf("expected StatefulSet key %s found %s", expectedKey, key)
 	}
 }
@@ -586,8 +584,8 @@ func newFakeStatefulSetController(initialObjects ...runtime.Object) (*StatefulSe
 	}
 	client := fake.NewSimpleClientset(stsObjs...)
 	kubeClient := kubefake.NewSimpleClientset(coreObjs...)
-	informerFactory := informers.NewSharedInformerFactory(client, controller.NoResyncPeriodFunc())
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, controller.NoResyncPeriodFunc())
+	informerFactory := informers.NewSharedInformerFactory(client, 0)
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, 0)
 	fpc := newFakeStatefulPodControl(kubeInformerFactory.Core().V1().Pods(), informerFactory.Apps().V1().StatefulSets())
 	ssu := newFakeStatefulSetStatusUpdater(informerFactory.Apps().V1().StatefulSets())
 	ssc := NewStatefulSetController(
@@ -598,7 +596,7 @@ func newFakeStatefulSetController(initialObjects ...runtime.Object) (*StatefulSe
 		kubeClient,
 		client,
 	)
-	ssh := history.NewFakeHistory(kubeInformerFactory.Apps().V1().ControllerRevisions())
+	ssh := kubeClient.AppsV1()
 	ssc.podListerSynced = alwaysReady
 	ssc.setListerSynced = alwaysReady
 	recorder := record.NewFakeRecorder(10)

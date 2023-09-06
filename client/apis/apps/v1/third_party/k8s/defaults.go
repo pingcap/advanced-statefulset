@@ -23,11 +23,35 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/kubernetes/pkg/util/parsers"
-	utilpointer "k8s.io/utils/pointer"
-
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	"k8s.io/kubernetes/pkg/features"
+	"k8s.io/component-base/featuregate"
+	utilpointer "k8s.io/utils/pointer"
+)
+
+const (
+	// owner: @maplain @andrewsykim
+	// kep: http://kep.k8s.io/2086
+	// alpha: v1.21
+	// beta: v1.22
+	//
+	// Enables node-local routing for Service internal traffic
+	ServiceInternalTrafficPolicy featuregate.Feature = "ServiceInternalTrafficPolicy"
+
+	// owner: @andrewsykim @uablrek
+	// kep: http://kep.k8s.io/1864
+	// alpha: v1.20
+	// beta: v1.22
+	//
+	// Allows control if NodePorts shall be created for services with "type: LoadBalancer" by defining the spec.AllocateLoadBalancerNodePorts field (bool)
+	ServiceLBNodePortControl featuregate.Feature = "ServiceLBNodePortControl"
+
+	// owner: @jayunit100 @abhiraut @rikatz
+	// kep: http://kep.k8s.io/2161
+	// beta: v1.21
+	// ga: v1.22
+	//
+	// Labels all namespaces with a default label "kubernetes.io/metadata.name: <namespaceName>"
+	NamespaceDefaultLabelName featuregate.Feature = "NamespaceDefaultLabelName"
 )
 
 func SetDefaults_ResourceList(obj *v1.ResourceList) {
@@ -70,7 +94,7 @@ func SetDefaults_Volume(obj *v1.Volume) {
 func SetDefaults_Container(obj *v1.Container) {
 	if obj.ImagePullPolicy == "" {
 		// Ignore error and assume it has been validated elsewhere
-		_, tag, _, _ := parsers.ParseImageName(obj.Image)
+		_, tag, _, _ := ParseImageName(obj.Image)
 
 		// Check image tag
 		if tag == "latest" {
@@ -128,12 +152,12 @@ func SetDefaults_Service(obj *v1.Service) {
 		obj.Spec.ExternalTrafficPolicy = v1.ServiceExternalTrafficPolicyTypeCluster
 	}
 
-	if utilfeature.DefaultFeatureGate.Enabled(features.ServiceInternalTrafficPolicy) && obj.Spec.InternalTrafficPolicy == nil {
+	if utilfeature.DefaultFeatureGate.Enabled(ServiceInternalTrafficPolicy) && obj.Spec.InternalTrafficPolicy == nil {
 		serviceInternalTrafficPolicyCluster := v1.ServiceInternalTrafficPolicyCluster
 		obj.Spec.InternalTrafficPolicy = &serviceInternalTrafficPolicyCluster
 	}
 
-	if utilfeature.DefaultFeatureGate.Enabled(features.ServiceLBNodePortControl) {
+	if utilfeature.DefaultFeatureGate.Enabled(ServiceLBNodePortControl) {
 		if obj.Spec.Type == v1.ServiceTypeLoadBalancer {
 			if obj.Spec.AllocateLoadBalancerNodePorts == nil {
 				obj.Spec.AllocateLoadBalancerNodePorts = utilpointer.BoolPtr(true)
@@ -330,7 +354,7 @@ func SetDefaults_Namespace(obj *v1.Namespace) {
 
 	// note that this can result in many calls to feature enablement in some cases, but
 	// we assume that there's no real cost there.
-	if utilfeature.DefaultFeatureGate.Enabled(features.NamespaceDefaultLabelName) {
+	if utilfeature.DefaultFeatureGate.Enabled(NamespaceDefaultLabelName) {
 		if len(obj.Name) > 0 {
 			if obj.Labels == nil {
 				obj.Labels = map[string]string{}

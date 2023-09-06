@@ -20,16 +20,17 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
-	podutil "github.com/pingcap/advanced-statefulset/pkg/third-party/k8s"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2esset "k8s.io/kubernetes/test/e2e/framework/statefulset"
+
+	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
+	podutil "github.com/pingcap/advanced-statefulset/pkg/third_party/k8s"
 )
 
 const (

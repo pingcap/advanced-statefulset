@@ -17,10 +17,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	clientset "k8s.io/client-go/kubernetes"
-
-	podutil "github.com/pingcap/advanced-statefulset/pkg/third-party/k8s"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2estatefulset "k8s.io/kubernetes/test/e2e/framework/statefulset"
+
+	podutil "github.com/pingcap/advanced-statefulset/pkg/third_party/k8s"
 )
 
 // waitForPartitionedRollingUpdate waits for all Pods in set to exist and have the correct revision. set must have
