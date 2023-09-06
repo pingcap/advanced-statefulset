@@ -16,7 +16,7 @@ limitations under the License.
 
 // this file is copied from k8s.io/kubernetes/pkg/api/v1/pod/util.go @v1.23.17
 
-package pod
+package k8s
 
 import (
 	v1 "k8s.io/api/core/v1"
