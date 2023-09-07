@@ -35,12 +35,12 @@ logfile=$(mktemp)
 
 function cleanup() {
     echo "info: cleaning up"
-	# echo "info: deleting the cluster"
-    # kind delete cluster
+	echo "info: deleting the cluster"
+    kind delete cluster
 
-	# echo "info: killing the controller manager"
-    # [[ -n "${CONTROLLER_PID:-}" ]] && hack::read-array CONTROLLER_PIDS < <(pgrep -P "${CONTROLLER_PID}" ; ps -o pid= -p "${CONTROLLER_PID}")
-    # [[ -n "${CONTROLLER_PIDS:-}" ]] && sudo kill "${CONTROLLER_PIDS[@]}" 2>/dev/null
+	echo "info: killing the controller manager"
+    [[ -n "${CONTROLLER_PID:-}" ]] && hack::read-array CONTROLLER_PIDS < <(pgrep -P "${CONTROLLER_PID}" ; ps -o pid= -p "${CONTROLLER_PID}")
+    [[ -n "${CONTROLLER_PIDS:-}" ]] && sudo kill "${CONTROLLER_PIDS[@]}" 2>/dev/null
 
 	if ! test -f $logfile; then
         return
@@ -84,6 +84,12 @@ function crd_is_ready() {
         return 1
     fi
     [[ "$established" == "True" ]]
+
+    # may get `error: the server doesn't have a resource type "asts"` for a while
+    local asts=$(kubectl get asts)
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
 }
 
 hack::wait_for_success 100 3 "crd_is_ready statefulsets.apps.pingcap.com"
