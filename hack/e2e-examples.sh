@@ -83,13 +83,13 @@ function crd_is_ready() {
     if [ $? -ne 0 ]; then
         return 1
     fi
-    [[ "$established" == "True" ]]
-
     # may get `error: the server doesn't have a resource type "asts"` for a while
     local asts=$(kubectl get asts)
     if [ $? -ne 0 ]; then
         return 1
     fi
+
+    [[ "$established" == "True" ]]
 }
 
 hack::wait_for_success 100 3 "crd_is_ready statefulsets.apps.pingcap.com"
