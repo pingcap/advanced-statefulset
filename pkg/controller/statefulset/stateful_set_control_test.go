@@ -61,6 +61,7 @@ func setupController(client clientset.Interface, kubeClient kubernetes.Interface
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
 	spc := newFakeStatefulPodControl(kubeInformerFactory.Core().V1().Pods(), informerFactory.Apps().V1().StatefulSets())
 	ssu := newFakeStatefulSetStatusUpdater(informerFactory.Apps().V1().StatefulSets())
+	_ = kubeInformerFactory.Apps().V1().ControllerRevisions().Lister() // add informer to the factory
 	recorder := record.NewFakeRecorder(10)
 	ssc := NewDefaultStatefulSetControl(spc, ssu, kubeClient.AppsV1(), recorder)
 
@@ -517,6 +518,7 @@ func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 		kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
 		spc := newFakeStatefulPodControl(kubeInformerFactory.Core().V1().Pods(), informerFactory.Apps().V1().StatefulSets())
 		ssu := newFakeStatefulSetStatusUpdater(informerFactory.Apps().V1().StatefulSets())
+		_ = kubeInformerFactory.Apps().V1().ControllerRevisions().Lister() // add informer to the factory
 		recorder := record.NewFakeRecorder(10)
 		ssc := defaultStatefulSetControl{spc, ssu, kubeClient.AppsV1(), recorder}
 
