@@ -153,7 +153,8 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*k
 	}
 	res := []*kubeapps.ControllerRevision{}
 	for _, item := range append(revisions.Items, revisinsToUpgrade.Items...) {
-		res = append(res, &item)
+		local := item
+		res = append(res, &local)
 	}
 	return res, nil
 }

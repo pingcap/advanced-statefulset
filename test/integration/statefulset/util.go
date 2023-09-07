@@ -168,7 +168,7 @@ func newStatefulSetPVC(name string) v1.PersistentVolumeClaim {
 
 // scSetup sets up necessities for StatefulSet integration test, including master, apiserver, informers, and clientset
 func scSetup(t *testing.T) (framework.CloseFunc, *statefulset.StatefulSetController, informers.SharedInformerFactory, clientset.Interface, pcinformers.SharedInformerFactory, pcclientset.Interface) {
-	master := integrationetcd.StartRealMasterOrDie(t)
+	master := integrationetcd.StartRealAPIServerOrDie(t)
 
 	var config restclient.Config
 	config = *master.Config
