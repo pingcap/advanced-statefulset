@@ -83,15 +83,14 @@ function crd_is_ready() {
     if [ $? -ne 0 ]; then
         return 1
     fi
-    # may get `error: the server doesn't have a resource type "asts"` for a while
-    local asts=$(kubectl get asts)
-    if [ $? -ne 0 ]; then
-        return 1
-    fi
-
     [[ "$established" == "True" ]]
 }
 
 hack::wait_for_success 100 3 "crd_is_ready statefulsets.apps.pingcap.com"
+
+# may get `error: the server doesn't have a resource type "asts"` for a while, this will cause apply failed
+# so we need to wait for a while
+sleep 10
+
 kubectl apply -f examples/statefulset.yaml
 hack::wait_for_success 100 3 "sts_is_ready web"
