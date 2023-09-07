@@ -88,7 +88,8 @@ function crd_is_ready() {
 
 hack::wait_for_success 100 3 "crd_is_ready statefulsets.apps.pingcap.com"
 
-# may get `error: the server doesn't have a resource type "asts"` for a while, this will cause apply failed
+# after `crd_is_ready`, kubectl apply may still fail with
+# `error: unable to recognize "examples/statefulset.yaml": no matches for kind "StatefulSet" in version "apps.pingcap.com/v1alpha1"`
 # so we need to wait for a while
 sleep 10
 

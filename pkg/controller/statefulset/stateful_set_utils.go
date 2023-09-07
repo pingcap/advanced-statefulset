@@ -28,12 +28,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/kubernetes/pkg/controller/history"
 
 	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
 	"github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/scheme"
-	podutil "github.com/pingcap/advanced-statefulset/pkg/third_party/k8s"
+	"github.com/pingcap/advanced-statefulset/pkg/third_party/k8s"
 )
 
 var patchCodec = scheme.Codecs.LegacyCodec(apps.SchemeGroupVersion)
@@ -203,7 +201,7 @@ func updateIdentity(set *apps.StatefulSet, pod *v1.Pod) {
 
 // isRunningAndReady returns true if pod is in the PodRunning Phase, if it has a condition of PodReady.
 func isRunningAndReady(pod *v1.Pod) bool {
-	return pod.Status.Phase == v1.PodRunning && podutil.IsPodReady(pod)
+	return pod.Status.Phase == v1.PodRunning && k8s.IsPodReady(pod)
 }
 
 // isCreated returns true if pod has been created and is maintained by the API server
@@ -250,7 +248,7 @@ func getPodRevision(pod *v1.Pod) string {
 
 // newStatefulSetPod returns a new Pod conforming to the set's Spec with an identity generated from ordinal.
 func newStatefulSetPod(set *apps.StatefulSet, ordinal int) *v1.Pod {
-	pod, _ := controller.GetPodFromTemplate(&set.Spec.Template, set, metav1.NewControllerRef(set, controllerKind))
+	pod, _ := k8s.GetPodFromTemplate(&set.Spec.Template, set, metav1.NewControllerRef(set, controllerKind))
 	pod.Name = getPodName(set, ordinal)
 	initIdentity(set, pod)
 	updateStorage(set, pod)
@@ -314,7 +312,7 @@ func newRevision(set *apps.StatefulSet, revision int64, collisionCount *int32) (
 	if err != nil {
 		return nil, err
 	}
-	cr, err := history.NewControllerRevision(set,
+	cr, err := k8s.NewControllerRevision(set,
 		controllerKind,
 		set.Spec.Template.Labels,
 		runtime.RawExtension{Raw: patch},
