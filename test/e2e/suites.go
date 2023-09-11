@@ -37,6 +37,8 @@ import (
 
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2emetrics "k8s.io/kubernetes/test/e2e/framework/metrics"
+
+	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
 )
 
 // CleanupSuite is the boilerplate that can be used after tests on ginkgo were run, on the SynchronizedAfterSuite step.
@@ -45,20 +47,20 @@ import (
 // and then the function that only runs on the first Ginkgo node.
 func CleanupSuite() {
 	// Run on all Ginkgo nodes
-	framework.Logf("Running AfterSuite actions on all nodes")
+	k8s.Logf("Running AfterSuite actions on all nodes")
 	framework.RunCleanupActions()
 }
 
 // AfterSuiteActions are actions that are run on ginkgo's SynchronizedAfterSuite
 func AfterSuiteActions() {
 	// Run only Ginkgo on node 1
-	framework.Logf("Running AfterSuite actions on node 1")
+	k8s.Logf("Running AfterSuite actions on node 1")
 	if framework.TestContext.ReportDir != "" {
 		framework.CoreDump(framework.TestContext.ReportDir)
 	}
 	if framework.TestContext.GatherSuiteMetricsAfterTest {
 		if err := gatherTestSuiteMetrics(); err != nil {
-			framework.Logf("Error gathering metrics: %v", err)
+			k8s.Logf("Error gathering metrics: %v", err)
 		}
 	}
 	if framework.TestContext.NodeKiller.Enabled {
@@ -67,7 +69,7 @@ func AfterSuiteActions() {
 }
 
 func gatherTestSuiteMetrics() error {
-	framework.Logf("Gathering metrics")
+	k8s.Logf("Gathering metrics")
 	cfg, err := framework.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("error loading config: %v", err)
@@ -96,7 +98,7 @@ func gatherTestSuiteMetrics() error {
 			return fmt.Errorf("error writing to %q: %v", filePath, err)
 		}
 	} else {
-		framework.Logf("\n\nTest Suite Metrics:\n%s\n", metricsJSON)
+		k8s.Logf("\n\nTest Suite Metrics:\n%s\n", metricsJSON)
 	}
 
 	return nil

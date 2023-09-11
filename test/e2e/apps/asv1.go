@@ -21,9 +21,6 @@ import (
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
-	asv1 "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
-	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
-	asclientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,6 +32,11 @@ import (
 	e2eservice "k8s.io/kubernetes/test/e2e/framework/service"
 	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 	e2esset "k8s.io/kubernetes/test/e2e/framework/statefulset"
+
+	asv1 "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
+	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
+	asclientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
+	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
 )
 
 var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
@@ -509,7 +511,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 				revisionList, err := c.AppsV1().ControllerRevisions(ns).List(context.TODO(), revisionListOptions)
 				framework.ExpectNoError(err)
 				if len(revisionList.Items) != len(oldRevisionList.Items) {
-					framework.Logf("the number of controller revisions is %d, expects %d, wait for the controller to adopt them", len(revisionList.Items), len(oldRevisionList.Items))
+					k8s.Logf("the number of controller revisions is %d, expects %d, wait for the controller to adopt them", len(revisionList.Items), len(oldRevisionList.Items))
 					return false, nil
 				}
 

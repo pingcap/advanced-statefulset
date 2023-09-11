@@ -31,6 +31,7 @@ import (
 
 	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
 	podutil "github.com/pingcap/advanced-statefulset/pkg/third_party/k8s"
+	k8s "github.com/pingcap/advanced-statefulset/test/third_party/k8s"
 )
 
 const (
@@ -74,13 +75,13 @@ func getStatefulPodOrdinal(pod *v1.Pod) int {
 func WaitForPartitionedRollingUpdate(c clientset.Interface, set *appsv1.StatefulSet) (*appsv1.StatefulSet, *v1.PodList) {
 	var pods *v1.PodList
 	if set.Spec.UpdateStrategy.Type != appsv1.RollingUpdateStatefulSetStrategyType {
-		framework.Failf("StatefulSet %s/%s attempt to wait for partitioned update with updateStrategy %s",
+		k8s.Failf("StatefulSet %s/%s attempt to wait for partitioned update with updateStrategy %s",
 			set.Namespace,
 			set.Name,
 			set.Spec.UpdateStrategy.Type)
 	}
 	if set.Spec.UpdateStrategy.RollingUpdate == nil || set.Spec.UpdateStrategy.RollingUpdate.Partition == nil {
-		framework.Failf("StatefulSet %s/%s attempt to wait for partitioned update with nil RollingUpdate or nil Partition",
+		k8s.Failf("StatefulSet %s/%s attempt to wait for partitioned update with nil RollingUpdate or nil Partition",
 			set.Namespace,
 			set.Name)
 	}
@@ -92,14 +93,14 @@ func WaitForPartitionedRollingUpdate(c clientset.Interface, set *appsv1.Stateful
 			return false, nil
 		}
 		if partition <= 0 && set.Status.UpdateRevision != set.Status.CurrentRevision {
-			framework.Logf("Waiting for StatefulSet %s/%s to complete update",
+			k8s.Logf("Waiting for StatefulSet %s/%s to complete update",
 				set.Namespace,
 				set.Name,
 			)
 			e2esset.SortStatefulPods(pods)
 			for i := range pods.Items {
 				if pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel] != set.Status.UpdateRevision {
-					framework.Logf("Waiting for Pod %s/%s to have revision %s update revision %s",
+					k8s.Logf("Waiting for Pod %s/%s to have revision %s update revision %s",
 						pods.Items[i].Namespace,
 						pods.Items[i].Name,
 						set.Status.UpdateRevision,
@@ -115,7 +116,7 @@ func WaitForPartitionedRollingUpdate(c clientset.Interface, set *appsv1.Stateful
 				continue
 			}
 			if pod.Labels[appsv1.StatefulSetRevisionLabel] != set.Status.UpdateRevision {
-				framework.Logf("Waiting for Pod %s/%s to have revision %s update revision %s",
+				k8s.Logf("Waiting for Pod %s/%s to have revision %s update revision %s",
 					pod.Namespace,
 					pod.Name,
 					set.Status.UpdateRevision,
@@ -135,7 +136,7 @@ func WaitForRunning(c clientset.Interface, numPodsRunning, numPodsReady int32, s
 			podList := e2esset.GetPodList(c, ss)
 			e2esset.SortStatefulPods(podList)
 			if int32(len(podList.Items)) < numPodsRunning {
-				framework.Logf("Found %d stateful pods, waiting for %d", len(podList.Items), numPodsRunning)
+				k8s.Logf("Found %d stateful pods, waiting for %d", len(podList.Items), numPodsRunning)
 				return false, nil
 			}
 			if int32(len(podList.Items)) > numPodsRunning {
@@ -150,7 +151,7 @@ func WaitForRunning(c clientset.Interface, numPodsRunning, numPodsReady int32, s
 				shouldBeReady := int32(getStatefulPodOrdinal(&p)) < replicaCount
 				isReady := podutil.IsPodReady(&p)
 				desiredReadiness := shouldBeReady == isReady
-				framework.Logf("Waiting for pod %v to enter %v - Ready=%v, currently %v - Ready=%v", p.Name, v1.PodRunning, shouldBeReady, p.Status.Phase, isReady)
+				k8s.Logf("Waiting for pod %v to enter %v - Ready=%v, currently %v - Ready=%v", p.Name, v1.PodRunning, shouldBeReady, p.Status.Phase, isReady)
 				if p.Status.Phase != v1.PodRunning || !desiredReadiness {
 					return false, nil
 				}
@@ -158,7 +159,7 @@ func WaitForRunning(c clientset.Interface, numPodsRunning, numPodsReady int32, s
 			return true, nil
 		})
 	if pollErr != nil {
-		framework.Failf("Failed waiting for pods to enter running: %v", pollErr)
+		k8s.Failf("Failed waiting for pods to enter running: %v", pollErr)
 	}
 }
 
@@ -180,7 +181,7 @@ func updateStatefulSetWithRetries(c clientset.Interface, namespace, name string,
 		// Apply the update, then attempt to push it to the apiserver.
 		applyUpdate(statefulSet)
 		if statefulSet, err = statefulSets.Update(context.TODO(), statefulSet, metav1.UpdateOptions{}); err == nil {
-			framework.Logf("Updating stateful set %s", name)
+			k8s.Logf("Updating stateful set %s", name)
 			return true, nil
 		}
 		updateErr = err
@@ -219,7 +220,7 @@ func breakPodHTTPProbe(ss *appsv1.StatefulSet, pod *v1.Pod) error {
 	// Ignore 'mv' errors to make this idempotent.
 	cmd := fmt.Sprintf("mv -v /usr/local/apache2/htdocs%v /tmp/ || true", path)
 	stdout, err := framework.RunHostCmdWithRetries(pod.Namespace, pod.Name, cmd, statefulSetPoll, statefulPodTimeout)
-	framework.Logf("stdout of %v on %v: %v", cmd, pod.Name, stdout)
+	k8s.Logf("stdout of %v on %v: %v", cmd, pod.Name, stdout)
 	return err
 }
 
@@ -243,7 +244,7 @@ func restorePodHTTPProbe(ss *appsv1.StatefulSet, pod *v1.Pod) error {
 	// Ignore 'mv' errors to make this idempotent.
 	cmd := fmt.Sprintf("mv -v /tmp%v /usr/local/apache2/htdocs/ || true", path)
 	stdout, err := framework.RunHostCmdWithRetries(pod.Namespace, pod.Name, cmd, statefulSetPoll, statefulPodTimeout)
-	framework.Logf("stdout of %v on %v: %v", cmd, pod.Name, stdout)
+	k8s.Logf("stdout of %v on %v: %v", cmd, pod.Name, stdout)
 	return err
 }
 
@@ -251,7 +252,7 @@ func restorePodHTTPProbe(ss *appsv1.StatefulSet, pod *v1.Pod) error {
 func getStatefulSet(c clientset.Interface, namespace, name string) *appsv1.StatefulSet {
 	ss, err := c.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
-		framework.Failf("Failed to get StatefulSet %s/%s: %v", namespace, name, err)
+		k8s.Failf("Failed to get StatefulSet %s/%s: %v", namespace, name, err)
 	}
 	return ss
 }
@@ -261,7 +262,7 @@ func deleteStatefulPodAtIndex(c clientset.Interface, index int, ss *appsv1.State
 	name := getStatefulSetPodNameAtIndex(index, ss)
 	noGrace := int64(0)
 	if err := c.CoreV1().Pods(ss.Namespace).Delete(context.TODO(), name, metav1.DeleteOptions{GracePeriodSeconds: &noGrace}); err != nil {
-		framework.Failf("Failed to delete stateful pod %v for StatefulSet %v/%v: %v", name, ss.Namespace, ss.Name, err)
+		k8s.Failf("Failed to delete stateful pod %v for StatefulSet %v/%v: %v", name, ss.Namespace, ss.Name, err)
 	}
 }
 
