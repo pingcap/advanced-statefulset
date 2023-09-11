@@ -113,12 +113,12 @@ func setupSuite() {
 	// In large clusters we may get to this point but still have a bunch
 	// of nodes without Routes created. Since this would make a node
 	// unschedulable, we need to wait until all of them are schedulable.
-	framework.ExpectNoError(framework.WaitForAllNodesSchedulable(c, framework.TestContext.NodeSchedulableTimeout))
+	k8s.ExpectNoError(framework.WaitForAllNodesSchedulable(c, framework.TestContext.NodeSchedulableTimeout))
 
 	// If NumNodes is not specified then auto-detect how many are scheduleable and not tainted
 	if framework.TestContext.CloudConfig.NumNodes == framework.DefaultNumNodes {
 		nodes, err := e2enode.GetReadySchedulableNodes(c)
-		framework.ExpectNoError(err)
+		k8s.ExpectNoError(err)
 		framework.TestContext.CloudConfig.NumNodes = len(nodes.Items)
 	}
 
@@ -228,7 +228,7 @@ func setupSuitePerGinkgoNode() {
 
 	// do not check `kube-root-ca.crt` ConfigMap for Kubernetes
 	gte119, err := e2eutil.ServerVersionGTE(utilversion.MustParseSemantic("v1.19.0"), c.Discovery())
-	framework.ExpectNoError(err)
+	k8s.ExpectNoError(err)
 	if !gte119 {
 		framework.TestContext.VerifyServiceAccount = false
 	}
@@ -241,17 +241,17 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	for _, image := range images {
 		e2elog.Logf("Loading image %s", image)
 		if err := exec.Command("docker", "pull", image).Run(); err != nil {
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 		}
 		if err := exec.Command(kindPath, "load", "docker-image", "--name", "advanced-statefulset", image).Run(); err != nil {
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 		}
 	}
 	// Get the client
 	config, err := framework.LoadConfig()
-	framework.ExpectNoError(err)
+	k8s.ExpectNoError(err)
 	c, err := clientset.NewForConfig(config)
-	framework.ExpectNoError(err, "failed to create clientset")
+	k8s.ExpectNoError(err, "failed to create clientset")
 	// Install CRDs
 	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/crd.v1.yaml"))
 	framework.RunKubectlOrDie(asNamespace, "wait", "--for=condition=Established", "crds/statefulsets.apps.pingcap.com")
@@ -261,7 +261,7 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 			Name: asNamespace,
 		},
 	}, metav1.CreateOptions{})
-	framework.ExpectNoError(err, "failed to create namespace")
+	k8s.ExpectNoError(err, "failed to create namespace")
 	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/rbac.yaml"))
 	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/deployment.yaml"))
 	framework.RunKubectlOrDie(asNamespace, "wait", "--for=condition=Available", "deploy/advanced-statefulset-controller")

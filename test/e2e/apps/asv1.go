@@ -50,9 +50,9 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 		ns = f.Namespace.Name
 		c = f.ClientSet
 		config, err := framework.LoadConfig()
-		framework.ExpectNoError(err)
+		k8s.ExpectNoError(err)
 		asc, err = asclientset.NewForConfig(config)
-		framework.ExpectNoError(err)
+		k8s.ExpectNoError(err)
 		hc = helper.NewHijackClient(f.ClientSet, asc)
 	})
 
@@ -74,7 +74,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 			ginkgo.By("Creating service " + headlessSvcName + " in namespace " + ns)
 			headlessService := e2eservice.CreateServiceSpec(headlessSvcName, "", true, ssLabels)
 			_, err := c.CoreV1().Services(ns).Create(context.TODO(), headlessService, metav1.CreateOptions{})
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 		})
 
 		ginkgo.AfterEach(func() {
@@ -95,7 +95,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 
 				ginkgo.By(fmt.Sprintf("Creating statefulset %q with %d replicas and delete slots %v", ss.Name, replicas, deleteSlots.List()))
 				ss, err := hc.AppsV1().StatefulSets(ns).Create(context.TODO(), ss, metav1.CreateOptions{})
-				framework.ExpectNoError(err)
+				k8s.ExpectNoError(err)
 				e2esset.WaitForStatusReplicas(hc, ss, replicas)
 
 				// scaling in at arbitrary position
@@ -106,7 +106,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 					*(update.Spec.Replicas) = replicas
 					helper.SetDeleteSlots(update, deleteSlots)
 				})
-				framework.ExpectNoError(err)
+				k8s.ExpectNoError(err)
 				e2esset.WaitForStatusReplicas(hc, ss, replicas)
 
 				// scaling out and delete at the same time
@@ -117,7 +117,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 					*(update.Spec.Replicas) = replicas
 					helper.SetDeleteSlots(update, deleteSlots)
 				})
-				framework.ExpectNoError(err)
+				k8s.ExpectNoError(err)
 				e2esset.WaitForStatusReplicas(hc, ss, replicas)
 
 				// change delete slots
@@ -129,7 +129,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 					*(update.Spec.Replicas) = replicas
 					helper.SetDeleteSlots(update, deleteSlots)
 				})
-				framework.ExpectNoError(err)
+				k8s.ExpectNoError(err)
 				e2esset.WaitForStatusReplicas(hc, ss, replicas)
 			})
 		}
@@ -159,16 +159,16 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 			}
 			ginkgo.By(fmt.Sprintf("Creating statefulset %q with %d replicas and delete slots %v", ss.Name, 3, deleteSlots.List()))
 			ss, err := hc.AppsV1().StatefulSets(ns).Create(context.TODO(), ss, metav1.CreateOptions{})
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 			e2esset.WaitForStatusReplicas(hc, ss, 3) // partition does not apply newly created pods
 
 			ss = waitForStatus(hc, ss)
 			currentRevision, updateRevision := ss.Status.CurrentRevision, ss.Status.UpdateRevision
-			framework.ExpectEqual(currentRevision, updateRevision, fmt.Sprintf("StatefulSet %s/%s created with update revision %s not equal to current revision %s",
+			k8s.ExpectEqual(currentRevision, updateRevision, fmt.Sprintf("StatefulSet %s/%s created with update revision %s not equal to current revision %s",
 				ss.Namespace, ss.Name, updateRevision, currentRevision))
 			pods := e2esset.GetPodList(hc, ss)
 			for i := range pods.Items {
-				framework.ExpectEqual(pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel], currentRevision, fmt.Sprintf("Pod %s/%s revision %s is not equal to currentRevision %s",
+				k8s.ExpectEqual(pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel], currentRevision, fmt.Sprintf("Pod %s/%s revision %s is not equal to currentRevision %s",
 					pods.Items[i].Namespace,
 					pods.Items[i].Name,
 					pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel],
@@ -179,25 +179,25 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 			oldImage := ss.Spec.Template.Spec.Containers[0].Image
 
 			ginkgo.By(fmt.Sprintf("Updating stateful set template: update image from %s to %s", oldImage, newImage))
-			framework.ExpectNotEqual(oldImage, newImage, "Incorrect test setup: should update to a different image")
+			k8s.ExpectNotEqual(oldImage, newImage, "Incorrect test setup: should update to a different image")
 			ss, err = updateStatefulSetWithRetries(hc, ns, ss.Name, func(update *appsv1.StatefulSet) {
 				update.Spec.Template.Spec.Containers[0].Image = newImage
 			})
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 
 			ginkgo.By("Creating a new revision")
 			ss = waitForStatus(hc, ss)
 			currentRevision, updateRevision = ss.Status.CurrentRevision, ss.Status.UpdateRevision
-			framework.ExpectNotEqual(currentRevision, updateRevision, "Current revision should not equal update revision during rolling update")
+			k8s.ExpectNotEqual(currentRevision, updateRevision, "Current revision should not equal update revision during rolling update")
 
 			ginkgo.By("Not applying an update when the partition is greater than the number of replicas")
 			for i := range pods.Items {
-				framework.ExpectEqual(pods.Items[i].Spec.Containers[0].Image, oldImage, fmt.Sprintf("Pod %s/%s has image %s not equal to current image %s",
+				k8s.ExpectEqual(pods.Items[i].Spec.Containers[0].Image, oldImage, fmt.Sprintf("Pod %s/%s has image %s not equal to current image %s",
 					pods.Items[i].Namespace,
 					pods.Items[i].Name,
 					pods.Items[i].Spec.Containers[0].Image,
 					oldImage))
-				framework.ExpectEqual(pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel], currentRevision, fmt.Sprintf("Pod %s/%s has revision %s not equal to current revision %s",
+				k8s.ExpectEqual(pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel], currentRevision, fmt.Sprintf("Pod %s/%s has revision %s not equal to current revision %s",
 					pods.Items[i].Namespace,
 					pods.Items[i].Name,
 					pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel],
@@ -217,27 +217,27 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 					}(),
 				}
 			})
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 			ss, pods = WaitForPartitionedRollingUpdate(hc, ss)
 			for i := range pods.Items {
 				if getStatefulPodOrdinal(&pods.Items[i]) < int(*ss.Spec.UpdateStrategy.RollingUpdate.Partition) {
-					framework.ExpectEqual(pods.Items[i].Spec.Containers[0].Image, oldImage, fmt.Sprintf("Pod %s/%s has image %s not equal to current image %s",
+					k8s.ExpectEqual(pods.Items[i].Spec.Containers[0].Image, oldImage, fmt.Sprintf("Pod %s/%s has image %s not equal to current image %s",
 						pods.Items[i].Namespace,
 						pods.Items[i].Name,
 						pods.Items[i].Spec.Containers[0].Image,
 						oldImage))
-					framework.ExpectEqual(pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel], currentRevision, fmt.Sprintf("Pod %s/%s has revision %s not equal to current revision %s",
+					k8s.ExpectEqual(pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel], currentRevision, fmt.Sprintf("Pod %s/%s has revision %s not equal to current revision %s",
 						pods.Items[i].Namespace,
 						pods.Items[i].Name,
 						pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel],
 						currentRevision))
 				} else {
-					framework.ExpectEqual(pods.Items[i].Spec.Containers[0].Image, newImage, fmt.Sprintf("Pod %s/%s has image %s not equal to new image  %s",
+					k8s.ExpectEqual(pods.Items[i].Spec.Containers[0].Image, newImage, fmt.Sprintf("Pod %s/%s has image %s not equal to new image  %s",
 						pods.Items[i].Namespace,
 						pods.Items[i].Name,
 						pods.Items[i].Spec.Containers[0].Image,
 						newImage))
-					framework.ExpectEqual(pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel], updateRevision, fmt.Sprintf("Pod %s/%s has revision %s not equal to new revision %s",
+					k8s.ExpectEqual(pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel], updateRevision, fmt.Sprintf("Pod %s/%s has revision %s not equal to new revision %s",
 						pods.Items[i].Namespace,
 						pods.Items[i].Name,
 						pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel],
@@ -253,23 +253,23 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 			pods = e2esset.GetPodList(hc, ss)
 			for i := range pods.Items {
 				if getStatefulPodOrdinal(&pods.Items[i]) < int(*ss.Spec.UpdateStrategy.RollingUpdate.Partition) {
-					framework.ExpectEqual(pods.Items[i].Spec.Containers[0].Image, oldImage, fmt.Sprintf("Pod %s/%s has image %s not equal to current image %s",
+					k8s.ExpectEqual(pods.Items[i].Spec.Containers[0].Image, oldImage, fmt.Sprintf("Pod %s/%s has image %s not equal to current image %s",
 						pods.Items[i].Namespace,
 						pods.Items[i].Name,
 						pods.Items[i].Spec.Containers[0].Image,
 						oldImage))
-					framework.ExpectEqual(pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel], currentRevision, fmt.Sprintf("Pod %s/%s has revision %s not equal to current revision %s",
+					k8s.ExpectEqual(pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel], currentRevision, fmt.Sprintf("Pod %s/%s has revision %s not equal to current revision %s",
 						pods.Items[i].Namespace,
 						pods.Items[i].Name,
 						pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel],
 						currentRevision))
 				} else {
-					framework.ExpectEqual(pods.Items[i].Spec.Containers[0].Image, newImage, fmt.Sprintf("Pod %s/%s has image %s not equal to new image  %s",
+					k8s.ExpectEqual(pods.Items[i].Spec.Containers[0].Image, newImage, fmt.Sprintf("Pod %s/%s has image %s not equal to new image  %s",
 						pods.Items[i].Namespace,
 						pods.Items[i].Name,
 						pods.Items[i].Spec.Containers[0].Image,
 						newImage))
-					framework.ExpectEqual(pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel], updateRevision, fmt.Sprintf("Pod %s/%s has revision %s not equal to new revision %s",
+					k8s.ExpectEqual(pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel], updateRevision, fmt.Sprintf("Pod %s/%s has revision %s not equal to new revision %s",
 						pods.Items[i].Namespace,
 						pods.Items[i].Name,
 						pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel],
@@ -290,27 +290,27 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 						}(),
 					}
 				})
-				framework.ExpectNoError(err)
+				k8s.ExpectNoError(err)
 				ss, pods = WaitForPartitionedRollingUpdate(hc, ss)
 				for i := range pods.Items {
 					if getStatefulPodOrdinal(&pods.Items[i]) < int(*ss.Spec.UpdateStrategy.RollingUpdate.Partition) {
-						framework.ExpectEqual(pods.Items[i].Spec.Containers[0].Image, oldImage, fmt.Sprintf("Pod %s/%s has image %s not equal to current image %s",
+						k8s.ExpectEqual(pods.Items[i].Spec.Containers[0].Image, oldImage, fmt.Sprintf("Pod %s/%s has image %s not equal to current image %s",
 							pods.Items[i].Namespace,
 							pods.Items[i].Name,
 							pods.Items[i].Spec.Containers[0].Image,
 							oldImage))
-						framework.ExpectEqual(pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel], currentRevision, fmt.Sprintf("Pod %s/%s has revision %s not equal to current revision %s",
+						k8s.ExpectEqual(pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel], currentRevision, fmt.Sprintf("Pod %s/%s has revision %s not equal to current revision %s",
 							pods.Items[i].Namespace,
 							pods.Items[i].Name,
 							pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel],
 							currentRevision))
 					} else {
-						framework.ExpectEqual(pods.Items[i].Spec.Containers[0].Image, newImage, fmt.Sprintf("Pod %s/%s has image %s not equal to new image  %s",
+						k8s.ExpectEqual(pods.Items[i].Spec.Containers[0].Image, newImage, fmt.Sprintf("Pod %s/%s has image %s not equal to new image  %s",
 							pods.Items[i].Namespace,
 							pods.Items[i].Name,
 							pods.Items[i].Spec.Containers[0].Image,
 							newImage))
-						framework.ExpectEqual(pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel], updateRevision, fmt.Sprintf("Pod %s/%s has revision %s not equal to new revision %s",
+						k8s.ExpectEqual(pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel], updateRevision, fmt.Sprintf("Pod %s/%s has revision %s not equal to new revision %s",
 							pods.Items[i].Namespace,
 							pods.Items[i].Name,
 							pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel],
@@ -319,7 +319,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 				}
 			}
 
-			framework.ExpectEqual(ss.Status.CurrentRevision, updateRevision, fmt.Sprintf("StatefulSet %s/%s current revision %s does not equal update revision %s on update completion",
+			k8s.ExpectEqual(ss.Status.CurrentRevision, updateRevision, fmt.Sprintf("StatefulSet %s/%s current revision %s does not equal update revision %s on update completion",
 				ss.Namespace,
 				ss.Name,
 				ss.Status.CurrentRevision,
@@ -332,17 +332,17 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 			e2esset.PauseNewPods(ss)
 
 			ss, err := c.AppsV1().StatefulSets(ns).Create(context.TODO(), ss, metav1.CreateOptions{})
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 
 			ginkgo.By("Saturating stateful set " + ss.Name)
 			e2esset.Saturate(c, ss)
 
 			ginkgo.By(fmt.Sprintf("Orphan and save controller revisions"))
 			selector, err := metav1.LabelSelectorAsSelector(ss.Spec.Selector)
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 			revisionListOptions := metav1.ListOptions{LabelSelector: selector.String()}
 			oldRevisionList, err := c.AppsV1().ControllerRevisions(ns).List(context.TODO(), revisionListOptions)
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 			upgradeLabel := helper.UpgradeToAdvancedStatefulSetAnn
 			for _, revision := range oldRevisionList.Items {
 				// It's important to empty statefulset selector labels,
@@ -354,7 +354,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 				}
 				revision.Labels[upgradeLabel] = ss.Name // a special label to mark it should be adopted by the new sts
 				_, err = c.AppsV1().ControllerRevisions(ns).Update(context.TODO(), &revision, metav1.UpdateOptions{})
-				framework.ExpectNoError(err)
+				k8s.ExpectNoError(err)
 			}
 
 			ginkgo.By(fmt.Sprintf("Deleting stateful set %q without dependents", ss.Name))
@@ -378,7 +378,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 					}
 				}
 				revisionList, err := c.AppsV1().ControllerRevisions(ns).List(context.TODO(), upgradeRevisionListOption)
-				framework.ExpectNoError(err)
+				k8s.ExpectNoError(err)
 				gomega.Expect(revisionList.Items).To(gomega.HaveLen(len(oldRevisionList.Items)))
 
 				for _, revision := range revisionList.Items {
@@ -388,7 +388,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 				}
 				return true, nil
 			})
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 
 			ginkgo.By("Wait for a while that pods/controllerrevisions should not be deleted")
 			err = wait.PollImmediate(time.Second, time.Minute, func() (done bool, err error) {
@@ -400,36 +400,36 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 				}
 
 				revisionList, err := c.AppsV1().ControllerRevisions(ns).List(context.TODO(), upgradeRevisionListOption)
-				framework.ExpectNoError(err)
+				k8s.ExpectNoError(err)
 				gomega.Expect(revisionList.Items).To(gomega.HaveLen(len(oldRevisionList.Items)))
 				for _, revision := range revisionList.Items {
 					gomega.Expect(metav1.GetControllerOf(&revision)).To(gomega.BeNil())
 				}
 				return false, nil
 			})
-			framework.ExpectEqual(err, wait.ErrWaitTimeout)
+			k8s.ExpectEqual(err, wait.ErrWaitTimeout)
 
 			ginkgo.By(fmt.Sprintf("Creating a new advanced sts %q", ss.Name))
 			asts, err := helper.FromBuiltinStatefulSet(ss)
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 			// https://github.com/kubernetes/apiserver/blob/kubernetes-1.16.0/pkg/storage/etcd3/store.go#L141-L143
 			asts.ObjectMeta.ResourceVersion = ""
 			// https://kubernetes.io/docs/reference/using-api/api-concepts/#server-side-apply
 			asts.ObjectMeta.ManagedFields = nil
 			asts, err = asc.AppsV1().StatefulSets(ns).Create(context.TODO(), asts, metav1.CreateOptions{})
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 
 			// Right now, asts controller will adopt upgraded controller revisions automaticallly
 			// ginkgo.By("Recovering controller revisions")
 			// revisionList, err := c.AppsV1().ControllerRevisions(ns).List(upgradeRevisionListOption)
-			// framework.ExpectNoError(err)
+			// k8s.ExpectNoError(err)
 			// for _, revision := range revisionList.Items {
 			// delete(revision.Labels, upgradeLabel)
 			// for key, val := range asts.Spec.Selector.MatchLabels {
 			// revision.Labels[key] = val
 			// }
 			// _, err = c.AppsV1().ControllerRevisions(ns).Update(&revision)
-			// framework.ExpectNoError(err)
+			// k8s.ExpectNoError(err)
 			// }
 
 			ginkgo.By(fmt.Sprintf("Wait for pods/controllerrevisions to be adopted"))
@@ -448,7 +448,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 					}
 				}
 				revisionList, err := c.AppsV1().ControllerRevisions(ns).List(context.TODO(), revisionListOptions)
-				framework.ExpectNoError(err)
+				k8s.ExpectNoError(err)
 				gomega.Expect(revisionList.Items).To(gomega.HaveLen(len(oldRevisionList.Items)))
 
 				for _, revision := range revisionList.Items {
@@ -462,7 +462,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 				}
 				return true, nil
 			})
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 		})
 
 		ginkgo.It("upgrade from Kubernetes StatefulSet with helper.Upgrade", func() {
@@ -470,25 +470,25 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 			*(ss.Spec.Replicas) = 3
 
 			ss, err := c.AppsV1().StatefulSets(ns).Create(context.TODO(), ss, metav1.CreateOptions{})
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 			ginkgo.By("Wait for all pods are running and ready")
 			e2esset.WaitForRunningAndReady(c, *ss.Spec.Replicas, ss)
 
 			selector, err := metav1.LabelSelectorAsSelector(ss.Spec.Selector)
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 			revisionListOptions := metav1.ListOptions{LabelSelector: selector.String()}
 			oldRevisionList, err := c.AppsV1().ControllerRevisions(ns).List(context.TODO(), revisionListOptions)
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 
 			ginkgo.By(fmt.Sprintf("Upgrading the builtin StatefulSet %s/%s", ss.Namespace, ss.Name))
 			ss, err = c.AppsV1().StatefulSets(ns).Get(context.TODO(), ss.Name, metav1.GetOptions{})
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 			asts, err := helper.Upgrade(context.TODO(), c, asc, ss)
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 			expectedAsts, err := helper.FromBuiltinStatefulSet(ss)
-			framework.ExpectNoError(err)
-			framework.ExpectEqual(asts.Spec, expectedAsts.Spec, "spec equal")
-			framework.ExpectEqual(asts.Status, expectedAsts.Status, "status equal")
+			k8s.ExpectNoError(err)
+			k8s.ExpectEqual(asts.Spec, expectedAsts.Spec, "spec equal")
+			k8s.ExpectEqual(asts.Status, expectedAsts.Status, "status equal")
 
 			ginkgo.By(fmt.Sprintf("Wait for pods/controllerrevisions to be adopted by the new Advanced StatefulSet %s/%s", asts.Namespace, asts.Name))
 			controllerKind := asv1.SchemeGroupVersion.WithKind("StatefulSet")
@@ -509,7 +509,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 					}
 				}
 				revisionList, err := c.AppsV1().ControllerRevisions(ns).List(context.TODO(), revisionListOptions)
-				framework.ExpectNoError(err)
+				k8s.ExpectNoError(err)
 				if len(revisionList.Items) != len(oldRevisionList.Items) {
 					k8s.Logf("the number of controller revisions is %d, expects %d, wait for the controller to adopt them", len(revisionList.Items), len(oldRevisionList.Items))
 					return false, nil
@@ -526,7 +526,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 				}
 				return true, nil
 			})
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 		})
 	})
 
