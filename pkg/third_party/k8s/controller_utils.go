@@ -19,20 +19,147 @@ limitations under the License.
 package k8s
 
 import (
+	"context"
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2"
+)
+
+// Reasons for pod events
+const (
+	// FailedCreatePodReason is added in an event and in a replica set condition
+	// when a pod for a replica set is failed to be created.
+	FailedCreatePodReason = "FailedCreate"
+	// SuccessfulCreatePodReason is added in an event when a pod for a replica set
+	// is successfully created.
+	SuccessfulCreatePodReason = "SuccessfulCreate"
+	// FailedDeletePodReason is added in an event and in a replica set condition
+	// when a pod for a replica set is failed to be deleted.
+	FailedDeletePodReason = "FailedDelete"
+	// SuccessfulDeletePodReason is added in an event when a pod for a replica set
+	// is successfully deleted.
+	SuccessfulDeletePodReason = "SuccessfulDelete"
 )
 
 // ValidatePodName can be used to check whether the given pod name is valid.
 // Prefix indicates this name will be used as part of generation, in which case
 // trailing dashes are allowed.
 var ValidatePodName = apimachineryvalidation.NameIsDNSSubdomain
+
+// PodControlInterface is an interface that knows how to add or delete pods
+// created as an interface to allow testing.
+type PodControlInterface interface {
+	// CreatePods creates new pods according to the spec, and sets object as the pod's controller.
+	CreatePods(ctx context.Context, namespace string, template *v1.PodTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error
+	// CreatePodsWithGenerateName creates new pods according to the spec, sets object as the pod's controller and sets pod's generateName.
+	CreatePodsWithGenerateName(ctx context.Context, namespace string, template *v1.PodTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference, generateName string) error
+	// DeletePod deletes the pod identified by podID.
+	DeletePod(ctx context.Context, namespace string, podID string, object runtime.Object) error
+	// PatchPod patches the pod.
+	PatchPod(ctx context.Context, namespace, name string, data []byte) error
+}
+
+// RealPodControl is the default implementation of PodControlInterface.
+type RealPodControl struct {
+	KubeClient clientset.Interface
+	Recorder   record.EventRecorder
+}
+
+var _ PodControlInterface = &RealPodControl{}
+
+func validateControllerRef(controllerRef *metav1.OwnerReference) error {
+	if controllerRef == nil {
+		return fmt.Errorf("controllerRef is nil")
+	}
+	if len(controllerRef.APIVersion) == 0 {
+		return fmt.Errorf("controllerRef has empty APIVersion")
+	}
+	if len(controllerRef.Kind) == 0 {
+		return fmt.Errorf("controllerRef has empty Kind")
+	}
+	if controllerRef.Controller == nil || *controllerRef.Controller != true {
+		return fmt.Errorf("controllerRef.Controller is not set to true")
+	}
+	if controllerRef.BlockOwnerDeletion == nil || *controllerRef.BlockOwnerDeletion != true {
+		return fmt.Errorf("controllerRef.BlockOwnerDeletion is not set")
+	}
+	return nil
+}
+
+func (r RealPodControl) CreatePods(ctx context.Context, namespace string, template *v1.PodTemplateSpec, controllerObject runtime.Object, controllerRef *metav1.OwnerReference) error {
+	return r.CreatePodsWithGenerateName(ctx, namespace, template, controllerObject, controllerRef, "")
+}
+
+func (r RealPodControl) CreatePodsWithGenerateName(ctx context.Context, namespace string, template *v1.PodTemplateSpec, controllerObject runtime.Object, controllerRef *metav1.OwnerReference, generateName string) error {
+	if err := validateControllerRef(controllerRef); err != nil {
+		return err
+	}
+	pod, err := GetPodFromTemplate(template, controllerObject, controllerRef)
+	if err != nil {
+		return err
+	}
+	if len(generateName) > 0 {
+		pod.ObjectMeta.GenerateName = generateName
+	}
+	return r.createPods(ctx, namespace, pod, controllerObject)
+}
+
+func (r RealPodControl) PatchPod(ctx context.Context, namespace, name string, data []byte) error {
+	_, err := r.KubeClient.CoreV1().Pods(namespace).Patch(ctx, name, types.StrategicMergePatchType, data, metav1.PatchOptions{})
+	return err
+}
+
+func (r RealPodControl) createPods(ctx context.Context, namespace string, pod *v1.Pod, object runtime.Object) error {
+	if len(labels.Set(pod.Labels)) == 0 {
+		return fmt.Errorf("unable to create pods, no labels")
+	}
+	newPod, err := r.KubeClient.CoreV1().Pods(namespace).Create(ctx, pod, metav1.CreateOptions{})
+	if err != nil {
+		// only send an event if the namespace isn't terminating
+		if !apierrors.HasStatusCause(err, v1.NamespaceTerminatingCause) {
+			r.Recorder.Eventf(object, v1.EventTypeWarning, FailedCreatePodReason, "Error creating: %v", err)
+		}
+		return err
+	}
+	accessor, err := meta.Accessor(object)
+	if err != nil {
+		klog.Errorf("parentObject does not have ObjectMeta, %v", err)
+		return nil
+	}
+	klog.V(4).Infof("Controller %v created pod %v", accessor.GetName(), newPod.Name)
+	r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulCreatePodReason, "Created pod: %v", newPod.Name)
+
+	return nil
+}
+
+func (r RealPodControl) DeletePod(ctx context.Context, namespace string, podID string, object runtime.Object) error {
+	accessor, err := meta.Accessor(object)
+	if err != nil {
+		return fmt.Errorf("object does not have ObjectMeta, %v", err)
+	}
+	klog.V(2).InfoS("Deleting pod", "controller", accessor.GetName(), "pod", klog.KRef(namespace, podID))
+	if err := r.KubeClient.CoreV1().Pods(namespace).Delete(ctx, podID, metav1.DeleteOptions{}); err != nil {
+		if apierrors.IsNotFound(err) {
+			klog.V(4).Infof("pod %v/%v has already been deleted.", namespace, podID)
+			return err
+		}
+		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeletePodReason, "Error deleting: %v", err)
+		return fmt.Errorf("unable to delete pods: %v", err)
+	}
+	r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulDeletePodReason, "Deleted pod: %v", podID)
+
+	return nil
+}
 
 func GetPodFromTemplate(template *v1.PodTemplateSpec, parentObject runtime.Object, controllerRef *metav1.OwnerReference) (*v1.Pod, error) {
 	desiredLabels := getPodsLabelSet(template)

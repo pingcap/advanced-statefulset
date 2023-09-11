@@ -50,10 +50,6 @@ import (
 	k8s "github.com/pingcap/advanced-statefulset/pkg/third_party/k8s"
 )
 
-var (
-	keyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
-)
-
 type invariantFunc func(set *apps.StatefulSet, spc *fakeStatefulPodControl) error
 
 func setupController(client clientset.Interface, kubeClient kubernetes.Interface) (*fakeStatefulPodControl, *fakeStatefulSetStatusUpdater, StatefulSetControlInterface, chan struct{}) {
