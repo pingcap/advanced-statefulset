@@ -41,6 +41,9 @@ import (
 const (
 	// poll is how often to poll pods, nodes and claims.
 	poll = 2 * time.Second
+	
+	// podStartTimeout is how long to wait for the pod to be started.
+	podStartTimeout = 5 * time.Minute
 )
 
 // errorBadPodsStates create error message of basic info of bad pods for debugging.
@@ -212,4 +215,15 @@ func WaitForPodCondition(c clientset.Interface, ns, podName, desc string, timeou
 		return lastPodError
 	}
 	return fmt.Errorf("Gave up after waiting %v for pod %q to be %q", timeout, podName, desc)
+}
+
+// WaitForPodNameRunningInNamespace waits default amount of time (PodStartTimeout) for the specified pod to become running.
+// Returns an error if timeout occurs first, or pod goes in to failed state.
+func WaitForPodNameRunningInNamespace(c clientset.Interface, podName, namespace string) error {
+	return WaitTimeoutForPodRunningInNamespace(c, podName, namespace, podStartTimeout)
+}
+
+// WaitTimeoutForPodRunningInNamespace waits the given timeout duration for the specified pod to become running.
+func WaitTimeoutForPodRunningInNamespace(c clientset.Interface, podName, namespace string, timeout time.Duration) error {
+	return wait.PollImmediate(poll, timeout, podRunning(c, podName, namespace))
 }

@@ -58,11 +58,11 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2ekubectl "k8s.io/kubernetes/test/e2e/framework/kubectl"
-	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	utilnet "k8s.io/utils/net"
 
 	e2eutil "github.com/pingcap/advanced-statefulset/test/e2e/util"
 	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
+	e2epod "github.com/pingcap/advanced-statefulset/test/third_party/k8s/pod"
 )
 
 const (
