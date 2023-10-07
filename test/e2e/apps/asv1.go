@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/test/e2e/framework"
-	e2eskipper "k8s.io/kubernetes/test/e2e/framework/skipper"
 
 	asv1 "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
 	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
@@ -37,6 +36,7 @@ import (
 	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
 	e2eservice "github.com/pingcap/advanced-statefulset/test/third_party/k8s/service"
 	e2esset "github.com/pingcap/advanced-statefulset/test/third_party/k8s/statefulset"
+	e2eskipper "github.com/pingcap/advanced-statefulset/test/third_party/k8s/skipper"
 )
 
 var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
