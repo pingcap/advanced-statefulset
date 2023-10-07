@@ -169,7 +169,6 @@ type TestContextType struct {
 	RequireDevices bool
 }
 
-
 // NodeKillerConfig describes configuration of NodeKiller -- a utility to
 // simulate node failures.
 type NodeKillerConfig struct {

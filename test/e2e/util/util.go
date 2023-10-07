@@ -20,6 +20,15 @@ import (
 	"k8s.io/client-go/discovery"
 )
 
+var (
+	ImageHttpd    = "httpd"
+	ImageHttpdNew = "httpd-new"
+	Images        = map[string]string{
+		ImageHttpd:    "k8s.gcr.io/e2e-test-images/httpd:2.4.38-2",
+		ImageHttpdNew: "k8s.gcr.io/e2e-test-images/httpd:2.4.39-2",
+	}
+)
+
 // ServerVersionGTE returns true if v is greater than or equal to the server version.
 func ServerVersionGTE(v *utilversion.Version, c discovery.ServerVersionInterface) (bool, error) {
 	serverVersion, err := c.ServerVersion()

@@ -58,10 +58,8 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2ekubectl "k8s.io/kubernetes/test/e2e/framework/kubectl"
-	e2elog "k8s.io/kubernetes/test/e2e/framework/log"
 	e2enode "k8s.io/kubernetes/test/e2e/framework/node"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
-	imageutils "k8s.io/kubernetes/test/utils/image"
 	utilnet "k8s.io/utils/net"
 
 	e2eutil "github.com/pingcap/advanced-statefulset/test/e2e/util"
@@ -70,16 +68,6 @@ import (
 
 const (
 	asNamespace = "advanced-statefulset"
-)
-
-var (
-	images = []string{
-		imageutils.GetE2EImage(imageutils.Httpd),
-		imageutils.GetE2EImage(imageutils.HttpdNew),
-		imageutils.GetE2EImage(imageutils.Redis),
-		imageutils.GetE2EImage(imageutils.Kitten),
-		imageutils.GetE2EImage(imageutils.Nautilus),
-	}
 )
 
 func setupSuite() {
@@ -238,8 +226,8 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	setupSuite()
 	// Load images
 	kindPath := filepath.Join(framework.TestContext.RepoRoot, "output/bin/kind")
-	for _, image := range images {
-		e2elog.Logf("Loading image %s", image)
+	for _, image := range e2eutil.Images {
+		k8s.Logf("Loading image %s", image)
 		if err := exec.Command("docker", "pull", image).Run(); err != nil {
 			k8s.ExpectNoError(err)
 		}

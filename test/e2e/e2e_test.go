@@ -33,7 +33,6 @@ package e2e
 
 import (
 	"flag"
-	"fmt"
 	"math/rand"
 	"os"
 	"testing"
@@ -42,7 +41,6 @@ import (
 	"k8s.io/kubernetes/test/e2e/framework"
 	"k8s.io/kubernetes/test/e2e/framework/config"
 	"k8s.io/kubernetes/test/e2e/framework/testfiles"
-	"k8s.io/kubernetes/test/utils/image"
 
 	// test sources
 	_ "github.com/pingcap/advanced-statefulset/test/e2e/apps"
@@ -61,13 +59,6 @@ func handleFlags() {
 func TestMain(m *testing.M) {
 	// Register test flags, then parse flags.
 	handleFlags()
-
-	if framework.TestContext.ListImages {
-		for _, v := range image.GetImageConfigs() {
-			fmt.Println(v.GetE2EImage())
-		}
-		os.Exit(0)
-	}
 
 	framework.AfterReadingAllFlags(&framework.TestContext)
 

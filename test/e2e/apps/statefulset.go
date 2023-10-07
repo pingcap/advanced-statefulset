@@ -39,10 +39,10 @@ import (
 	e2epv "k8s.io/kubernetes/test/e2e/framework/pv"
 	e2eservice "k8s.io/kubernetes/test/e2e/framework/service"
 	e2esset "k8s.io/kubernetes/test/e2e/framework/statefulset"
-	imageutils "k8s.io/kubernetes/test/utils/image"
 
 	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
 	asclientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
+	"github.com/pingcap/advanced-statefulset/test/e2e/util"
 	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
 )
 
@@ -702,7 +702,7 @@ var _ = SIGDescribe("StatefulSet", func() {
 					Containers: []v1.Container{
 						{
 							Name:  "webserver",
-							Image: imageutils.GetE2EImage(imageutils.Httpd),
+							Image: util.Images[util.ImageHttpd],
 							Ports: []v1.ContainerPort{conflictingPort},
 						},
 					},
