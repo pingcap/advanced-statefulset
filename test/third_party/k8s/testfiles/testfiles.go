@@ -30,9 +30,20 @@ package testfiles
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
 )
 
 var filesources []FileSource
+
+// AddFileSource registers another provider for files that may be
+// needed at runtime. Should be called during initialization of a test
+// binary.
+func AddFileSource(filesource FileSource) {
+	filesources = append(filesources, filesource)
+}
 
 // FileSource implements one way of retrieving test file content.  For
 // example, one file source could read from the original source code
@@ -77,4 +88,46 @@ func Read(filePath string) ([]byte, error) {
 		error += "\n"
 	}
 	return nil, errors.New(error)
+}
+
+// RootFileSource looks for files relative to a root directory.
+type RootFileSource struct {
+	Root string
+}
+
+// ReadTestFile looks for the file relative to the configured
+// root directory. If the path is already absolute, for example
+// in a test that has its own method of determining where
+// files are, then the path will be used directly.
+func (r RootFileSource) ReadTestFile(filePath string) ([]byte, error) {
+	var fullPath string
+	if path.IsAbs(filePath) {
+		fullPath = filePath
+	} else {
+		fullPath = filepath.Join(r.Root, filePath)
+	}
+	data, err := ioutil.ReadFile(fullPath)
+	if os.IsNotExist(err) {
+		// Not an error (yet), some other provider may have the file.
+		return nil, nil
+	}
+	return data, err
+}
+
+// DescribeFiles explains that it looks for files inside a certain
+// root directory.
+func (r RootFileSource) DescribeFiles() string {
+	description := fmt.Sprintf("Test files are expected in %q", r.Root)
+	if !path.IsAbs(r.Root) {
+		// The default in test_context.go is the relative path
+		// ../../, which doesn't really help locating the
+		// actual location. Therefore we add also the absolute
+		// path if necessary.
+		abs, err := filepath.Abs(r.Root)
+		if err == nil {
+			description += fmt.Sprintf(" = %q", abs)
+		}
+	}
+	description += "."
+	return description
 }
