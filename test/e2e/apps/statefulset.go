@@ -34,7 +34,6 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	watchtools "k8s.io/client-go/tools/watch"
 	"k8s.io/kubernetes/test/e2e/framework"
-	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2epv "k8s.io/kubernetes/test/e2e/framework/pv"
 	e2eservice "k8s.io/kubernetes/test/e2e/framework/service"
 	e2esset "k8s.io/kubernetes/test/e2e/framework/statefulset"
@@ -44,6 +43,7 @@ import (
 	"github.com/pingcap/advanced-statefulset/test/e2e/util"
 	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
 	"github.com/pingcap/advanced-statefulset/test/third_party/k8s/node"
+	e2epod "github.com/pingcap/advanced-statefulset/test/third_party/k8s/pod"
 )
 
 const (
