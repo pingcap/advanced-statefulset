@@ -27,11 +27,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/test/e2e/framework"
-	e2esset "k8s.io/kubernetes/test/e2e/framework/statefulset"
 
 	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
 	podutil "github.com/pingcap/advanced-statefulset/pkg/third_party/k8s"
 	k8s "github.com/pingcap/advanced-statefulset/test/third_party/k8s"
+	e2esset "github.com/pingcap/advanced-statefulset/test/third_party/k8s/statefulset"
 )
 
 const (

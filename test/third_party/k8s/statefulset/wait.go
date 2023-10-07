@@ -77,3 +77,85 @@ func WaitForState(c clientset.Interface, ss *appsv1.StatefulSet, until func(*app
 		k8s.Failf("Failed waiting for state update: %v", pollErr)
 	}
 }
+
+// WaitForRunningAndReady waits for numStatefulPods in ss to be Running and Ready.
+func WaitForRunningAndReady(c clientset.Interface, numStatefulPods int32, ss *appsv1.StatefulSet) {
+	WaitForRunning(c, numStatefulPods, numStatefulPods, ss)
+}
+
+// WaitForStatusReplicas waits for the ss.Status.Replicas to be equal to expectedReplicas
+func WaitForStatusReplicas(c clientset.Interface, ss *appsv1.StatefulSet, expectedReplicas int32) {
+	k8s.Logf("Waiting for statefulset status.replicas updated to %d", expectedReplicas)
+
+	ns, name := ss.Namespace, ss.Name
+	pollErr := wait.PollImmediate(StatefulSetPoll, StatefulSetTimeout,
+		func() (bool, error) {
+			ssGet, err := c.AppsV1().StatefulSets(ns).Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				return false, err
+			}
+			if ssGet.Status.ObservedGeneration < ss.Generation {
+				return false, nil
+			}
+			if ssGet.Status.Replicas != expectedReplicas {
+				k8s.Logf("Waiting for stateful set status.replicas to become %d, currently %d", expectedReplicas, ssGet.Status.Replicas)
+				return false, nil
+			}
+			return true, nil
+		})
+	if pollErr != nil {
+		k8s.Failf("Failed waiting for stateful set status.replicas updated to %d: %v", expectedReplicas, pollErr)
+	}
+}
+
+// WaitForPodReady waits for the Pod named podName in set to exist and have a Ready condition.
+func WaitForPodReady(c clientset.Interface, set *appsv1.StatefulSet, podName string) (*appsv1.StatefulSet, *v1.PodList) {
+	var pods *v1.PodList
+	WaitForState(c, set, func(set2 *appsv1.StatefulSet, pods2 *v1.PodList) (bool, error) {
+		set = set2
+		pods = pods2
+		for i := range pods.Items {
+			if pods.Items[i].Name == podName {
+				return podutils.IsPodReady(&pods.Items[i]), nil
+			}
+		}
+		return false, nil
+	})
+	return set, pods
+}
+
+// WaitForStatusReadyReplicas waits for the ss.Status.ReadyReplicas to be equal to expectedReplicas
+func WaitForStatusReadyReplicas(c clientset.Interface, ss *appsv1.StatefulSet, expectedReplicas int32) {
+	k8s.Logf("Waiting for statefulset status.replicas updated to %d", expectedReplicas)
+
+	ns, name := ss.Namespace, ss.Name
+	pollErr := wait.PollImmediate(StatefulSetPoll, StatefulSetTimeout,
+		func() (bool, error) {
+			ssGet, err := c.AppsV1().StatefulSets(ns).Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				return false, err
+			}
+			if ssGet.Status.ObservedGeneration < ss.Generation {
+				return false, nil
+			}
+			if ssGet.Status.ReadyReplicas != expectedReplicas {
+				k8s.Logf("Waiting for stateful set status.readyReplicas to become %d, currently %d", expectedReplicas, ssGet.Status.ReadyReplicas)
+				return false, nil
+			}
+			return true, nil
+		})
+	if pollErr != nil {
+		k8s.Failf("Failed waiting for stateful set status.readyReplicas updated to %d: %v", expectedReplicas, pollErr)
+	}
+}
+
+// Saturate waits for all Pods in ss to become Running and Ready.
+func Saturate(c clientset.Interface, ss *appsv1.StatefulSet) {
+	var i int32
+	for i = 0; i < *(ss.Spec.Replicas); i++ {
+		k8s.Logf("Waiting for stateful pod at index %v to enter Running", i)
+		WaitForRunning(c, i+1, i, ss)
+		k8s.Logf("Resuming stateful pod at index %v", i)
+		ResumeNextPod(c, ss)
+	}
+}
