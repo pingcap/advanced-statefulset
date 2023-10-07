@@ -41,10 +41,12 @@ import (
 const (
 	// poll is how often to poll pods, nodes and claims.
 	poll = 2 * time.Second
-	
+
 	// podStartTimeout is how long to wait for the pod to be started.
 	podStartTimeout = 5 * time.Minute
 )
+
+type podCondition func(pod *v1.Pod) (bool, error)
 
 // errorBadPodsStates create error message of basic info of bad pods for debugging.
 func errorBadPodsStates(badPods []v1.Pod, desiredPods int, ns, desiredState string, timeout time.Duration, err error) string {
