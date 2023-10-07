@@ -34,7 +34,6 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	watchtools "k8s.io/client-go/tools/watch"
 	"k8s.io/kubernetes/test/e2e/framework"
-	e2enode "k8s.io/kubernetes/test/e2e/framework/node"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	e2epv "k8s.io/kubernetes/test/e2e/framework/pv"
 	e2eservice "k8s.io/kubernetes/test/e2e/framework/service"
@@ -44,6 +43,7 @@ import (
 	asclientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
 	"github.com/pingcap/advanced-statefulset/test/e2e/util"
 	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
+	"github.com/pingcap/advanced-statefulset/test/third_party/k8s/node"
 )
 
 const (
@@ -689,7 +689,7 @@ var _ = SIGDescribe("StatefulSet", func() {
 			podName := "test-pod"
 			statefulPodName := ssName + "-0"
 			ginkgo.By("Looking for a node to schedule stateful set and pod")
-			node, err := e2enode.GetRandomReadySchedulableNode(f.ClientSet)
+			node, err := node.GetRandomReadySchedulableNode(f.ClientSet)
 			k8s.ExpectNoError(err)
 
 			ginkgo.By("Creating pod with conflicting port in namespace " + f.Namespace.Name)

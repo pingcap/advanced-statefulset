@@ -58,7 +58,6 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/test/e2e/framework"
 	e2ekubectl "k8s.io/kubernetes/test/e2e/framework/kubectl"
-	e2enode "k8s.io/kubernetes/test/e2e/framework/node"
 	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
 	utilnet "k8s.io/utils/net"
 
@@ -102,13 +101,6 @@ func setupSuite() {
 	// of nodes without Routes created. Since this would make a node
 	// unschedulable, we need to wait until all of them are schedulable.
 	k8s.ExpectNoError(framework.WaitForAllNodesSchedulable(c, framework.TestContext.NodeSchedulableTimeout))
-
-	// If NumNodes is not specified then auto-detect how many are scheduleable and not tainted
-	if framework.TestContext.CloudConfig.NumNodes == framework.DefaultNumNodes {
-		nodes, err := e2enode.GetReadySchedulableNodes(c)
-		k8s.ExpectNoError(err)
-		framework.TestContext.CloudConfig.NumNodes = len(nodes.Items)
-	}
 
 	// Ensure all pods are running and ready before starting tests (otherwise,
 	// cluster infrastructure pods that are being pulled or started can block
