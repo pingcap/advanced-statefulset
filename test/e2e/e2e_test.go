@@ -38,11 +38,11 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/kubernetes/test/e2e/framework"
 	"k8s.io/kubernetes/test/e2e/framework/config"
 
 	// test sources
 	_ "github.com/pingcap/advanced-statefulset/test/e2e/apps"
+	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
 	"github.com/pingcap/advanced-statefulset/test/third_party/k8s/testfiles"
 )
 
@@ -51,8 +51,8 @@ var viperConfig = flag.String("viper-config", "", "The name of a viper config fi
 // handleFlags sets up all flags and parses the command line.
 func handleFlags() {
 	config.CopyFlags(config.Flags, flag.CommandLine)
-	framework.RegisterCommonFlags(flag.CommandLine)
-	framework.RegisterClusterFlags(flag.CommandLine)
+	k8s.RegisterCommonFlags(flag.CommandLine)
+	k8s.RegisterClusterFlags(flag.CommandLine)
 	flag.Parse()
 }
 
@@ -60,15 +60,15 @@ func TestMain(m *testing.M) {
 	// Register test flags, then parse flags.
 	handleFlags()
 
-	framework.AfterReadingAllFlags(&framework.TestContext)
+	k8s.AfterReadingAllFlags(&k8s.TestContext)
 
 	// TODO: Deprecating repo-root over time... instead just use gobindata_util.go , see #23987.
 	// Right now it is still needed, for example by
 	// test/e2e/framework/ingress/ingress_utils.go
 	// for providing the optional secret.yaml file and by
 	// test/e2e/framework/util.go for cluster/log-dump.
-	if framework.TestContext.RepoRoot != "" {
-		testfiles.AddFileSource(testfiles.RootFileSource{Root: framework.TestContext.RepoRoot})
+	if k8s.TestContext.RepoRoot != "" {
+		testfiles.AddFileSource(testfiles.RootFileSource{Root: k8s.TestContext.RepoRoot})
 	}
 
 	rand.Seed(time.Now().UnixNano())

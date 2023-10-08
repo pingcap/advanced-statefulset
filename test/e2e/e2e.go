@@ -79,7 +79,7 @@ func setupSuite() {
 
 	// Delete any namespaces except those created by the system. This ensures no
 	// lingering resources are left over from a previous test run.
-	if framework.TestContext.CleanStart {
+	if k8s.TestContext.CleanStart {
 		deleted, err := framework.DeleteNamespaces(c, nil, /* deleteFilter */
 			[]string{
 				metav1.NamespaceSystem,
@@ -100,24 +100,24 @@ func setupSuite() {
 	// In large clusters we may get to this point but still have a bunch
 	// of nodes without Routes created. Since this would make a node
 	// unschedulable, we need to wait until all of them are schedulable.
-	k8s.ExpectNoError(framework.WaitForAllNodesSchedulable(c, framework.TestContext.NodeSchedulableTimeout))
+	k8s.ExpectNoError(framework.WaitForAllNodesSchedulable(c, k8s.TestContext.NodeSchedulableTimeout))
 
 	// Ensure all pods are running and ready before starting tests (otherwise,
 	// cluster infrastructure pods that are being pulled or started can block
 	// test pods from running, and tests that ensure all pods are running and
 	// ready will fail).
-	podStartupTimeout := framework.TestContext.SystemPodsStartupTimeout
+	podStartupTimeout := k8s.TestContext.SystemPodsStartupTimeout
 	// TODO: In large clusters, we often observe a non-starting pods due to
 	// #41007. To avoid those pods preventing the whole test runs (and just
 	// wasting the whole run), we allow for some not-ready pods (with the
 	// number equal to the number of allowed not-ready nodes).
-	if err := e2epod.WaitForPodsRunningReady(c, metav1.NamespaceSystem, int32(framework.TestContext.MinStartupPods), int32(framework.TestContext.AllowedNotReadyNodes), podStartupTimeout, map[string]string{}); err != nil {
+	if err := e2epod.WaitForPodsRunningReady(c, metav1.NamespaceSystem, int32(k8s.TestContext.MinStartupPods), int32(k8s.TestContext.AllowedNotReadyNodes), podStartupTimeout, map[string]string{}); err != nil {
 		framework.DumpAllNamespaceInfo(c, metav1.NamespaceSystem)
 		e2ekubectl.LogFailedContainers(c, metav1.NamespaceSystem, k8s.Logf)
 		k8s.Failf("Error waiting for all pods to be running and ready: %v", err)
 	}
 
-	if err := waitForDaemonSets(c, metav1.NamespaceSystem, int32(framework.TestContext.AllowedNotReadyNodes), framework.TestContext.SystemDaemonsetStartupTimeout); err != nil {
+	if err := waitForDaemonSets(c, metav1.NamespaceSystem, int32(k8s.TestContext.AllowedNotReadyNodes), k8s.TestContext.SystemDaemonsetStartupTimeout); err != nil {
 		k8s.Logf("WARNING: Waiting for all daemonsets to be ready failed: %v", err)
 	}
 
@@ -203,21 +203,21 @@ func setupSuitePerGinkgoNode() {
 	if err != nil {
 		klog.Fatal("Error loading client: ", err)
 	}
-	framework.TestContext.IPFamily = getDefaultClusterIPFamily(c)
-	k8s.Logf("Cluster IP family: %s", framework.TestContext.IPFamily)
+	k8s.TestContext.IPFamily = getDefaultClusterIPFamily(c)
+	k8s.Logf("Cluster IP family: %s", k8s.TestContext.IPFamily)
 
 	// do not check `kube-root-ca.crt` ConfigMap for Kubernetes
 	gte119, err := e2eutil.ServerVersionGTE(utilversion.MustParseSemantic("v1.19.0"), c.Discovery())
 	k8s.ExpectNoError(err)
 	if !gte119 {
-		framework.TestContext.VerifyServiceAccount = false
+		k8s.TestContext.VerifyServiceAccount = false
 	}
 }
 
 var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	setupSuite()
 	// Load images
-	kindPath := filepath.Join(framework.TestContext.RepoRoot, "output/bin/kind")
+	kindPath := filepath.Join(k8s.TestContext.RepoRoot, "output/bin/kind")
 	for _, image := range e2eutil.Images {
 		k8s.Logf("Loading image %s", image)
 		if err := exec.Command("docker", "pull", image).Run(); err != nil {
@@ -233,7 +233,7 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	c, err := clientset.NewForConfig(config)
 	k8s.ExpectNoError(err, "failed to create clientset")
 	// Install CRDs
-	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/crd.v1.yaml"))
+	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(k8s.TestContext.RepoRoot, "manifests/crd.v1.yaml"))
 	framework.RunKubectlOrDie(asNamespace, "wait", "--for=condition=Established", "crds/statefulsets.apps.pingcap.com")
 	// Install Controller
 	_, err = c.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{
@@ -242,8 +242,8 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 		},
 	}, metav1.CreateOptions{})
 	k8s.ExpectNoError(err, "failed to create namespace")
-	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/rbac.yaml"))
-	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/deployment.yaml"))
+	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(k8s.TestContext.RepoRoot, "manifests/rbac.yaml"))
+	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(k8s.TestContext.RepoRoot, "manifests/deployment.yaml"))
 	framework.RunKubectlOrDie(asNamespace, "wait", "--for=condition=Available", "deploy/advanced-statefulset-controller")
 	return nil
 }, func(data []byte) {
@@ -276,13 +276,13 @@ func RunE2ETests(t *testing.T) {
 
 	// Run tests through the Ginkgo runner with output to console + JUnit for Jenkins
 	var r []ginkgo.Reporter
-	if framework.TestContext.ReportDir != "" {
+	if k8s.TestContext.ReportDir != "" {
 		// TODO: we should probably only be trying to create this directory once
 		// rather than once-per-Ginkgo-node.
-		if err := os.MkdirAll(framework.TestContext.ReportDir, 0755); err != nil {
+		if err := os.MkdirAll(k8s.TestContext.ReportDir, 0755); err != nil {
 			klog.Errorf("Failed creating report directory: %v", err)
 		} else {
-			r = append(r, reporters.NewJUnitReporter(path.Join(framework.TestContext.ReportDir, fmt.Sprintf("junit_%v%02d.xml", framework.TestContext.ReportPrefix, config.GinkgoConfig.ParallelNode))))
+			r = append(r, reporters.NewJUnitReporter(path.Join(k8s.TestContext.ReportDir, fmt.Sprintf("junit_%v%02d.xml", k8s.TestContext.ReportPrefix, config.GinkgoConfig.ParallelNode))))
 		}
 	}
 	klog.Infof("Starting e2e run %q on Ginkgo node %d", framework.RunID, config.GinkgoConfig.ParallelNode)

@@ -49,10 +49,10 @@ func CleanupSuite() {
 func AfterSuiteActions() {
 	// Run only Ginkgo on node 1
 	k8s.Logf("Running AfterSuite actions on node 1")
-	if framework.TestContext.ReportDir != "" {
-		framework.CoreDump(framework.TestContext.ReportDir)
+	if k8s.TestContext.ReportDir != "" {
+		framework.CoreDump(k8s.TestContext.ReportDir)
 	}
-	if framework.TestContext.NodeKiller.Enabled {
-		close(framework.TestContext.NodeKiller.NodeKillerStopCh)
+	if k8s.TestContext.NodeKiller.Enabled {
+		close(k8s.TestContext.NodeKiller.NodeKillerStopCh)
 	}
 }
