@@ -31,7 +31,6 @@ import (
 	pcinformers "github.com/pingcap/advanced-statefulset/client/client/informers/externalversions"
 	"github.com/pingcap/advanced-statefulset/pkg/controller/statefulset"
 	v1 "k8s.io/api/core/v1"
-	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -40,11 +39,8 @@ import (
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
 	typedv1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
-	integrationetcd "k8s.io/kubernetes/test/integration/etcd"
-	"k8s.io/kubernetes/test/integration/framework"
 )
 
 const (
@@ -166,9 +162,16 @@ func newStatefulSetPVC(name string) v1.PersistentVolumeClaim {
 	}
 }
 
+// CloseFunc can be called to cleanup the API server
+// copied from `framework.CloseFunc`
+type CloseFunc func()
+
 // scSetup sets up necessities for StatefulSet integration test, including master, apiserver, informers, and clientset
-func scSetup(t *testing.T) (framework.CloseFunc, *statefulset.StatefulSetController, informers.SharedInformerFactory, clientset.Interface, pcinformers.SharedInformerFactory, pcclientset.Interface) {
-	master := integrationetcd.StartRealAPIServerOrDie(t)
+func scSetup(t *testing.T) (CloseFunc, *statefulset.StatefulSetController, informers.SharedInformerFactory, clientset.Interface, pcinformers.SharedInformerFactory, pcclientset.Interface) {
+	// NOTE(pingcap): already disabled integration
+	return nil, nil, nil, nil, nil, nil
+
+	/*master := integrationetcd.StartRealAPIServerOrDie(t)
 
 	var config restclient.Config
 	config = *master.Config
@@ -201,7 +204,7 @@ func scSetup(t *testing.T) (framework.CloseFunc, *statefulset.StatefulSetControl
 		pcclientset.NewForConfigOrDie(restclient.AddUserAgent(&pcConfig, "statefulset-controller")),
 	)
 
-	return master.Cleanup, sc, informers, clientSet, pcinformers, pcclientSet
+	return master.Cleanup, sc, informers, clientSet, pcinformers, pcclientSet*/
 }
 
 // Run STS controller and informers
