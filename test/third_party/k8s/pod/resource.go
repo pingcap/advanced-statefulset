@@ -177,6 +177,17 @@ func DumpAllPodInfoForNamespace(c clientset.Interface, namespace, reportDir stri
 	logPodLogs(c, namespace, pods.Items, reportDir)
 }
 
+// GetPodLogs returns the logs of the specified container (namespace/pod/container).
+func GetPodLogs(c clientset.Interface, namespace, podName, containerName string) (string, error) {
+	return getPodLogsInternal(c, namespace, podName, containerName, false, nil, nil)
+}
+
+// GetPreviousPodLogs returns the logs of the previous instance of the
+// specified container (namespace/pod/container).
+func GetPreviousPodLogs(c clientset.Interface, namespace, podName, containerName string) (string, error) {
+	return getPodLogsInternal(c, namespace, podName, containerName, true, nil, nil)
+}
+
 // utility function for gomega Eventually
 func getPodLogsInternal(c clientset.Interface, namespace, podName, containerName string, previous bool, sinceTime *metav1.Time, tailLines *int) (string, error) {
 	request := c.CoreV1().RESTClient().Get().

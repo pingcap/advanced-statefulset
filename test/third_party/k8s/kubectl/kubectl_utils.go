@@ -19,11 +19,20 @@ limitations under the License.
 package kubectl
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+
+	e2elog "github.com/pingcap/advanced-statefulset/test/third_party/k8s/log"
+	e2epod "github.com/pingcap/advanced-statefulset/test/third_party/k8s/pod"
+	"github.com/pingcap/advanced-statefulset/test/third_party/k8s/utils"
 )
 
 // TestKubeconfig is a struct containing the needed attributes from TestContext and Framework(Namespace).
@@ -83,4 +92,36 @@ func (tk *TestKubeconfig) KubectlCmd(args ...string) *exec.Cmd {
 
 	//caller will invoke this and wait on it.
 	return cmd
+}
+
+// LogFailedContainers runs `kubectl logs` on a failed containers.
+func LogFailedContainers(c clientset.Interface, ns string, logFunc func(ftm string, args ...interface{})) {
+	podList, err := c.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		logFunc("Error getting pods in namespace '%s': %v", ns, err)
+		return
+	}
+	logFunc("Running kubectl logs on non-ready containers in %v", ns)
+	for _, pod := range podList.Items {
+		if res, err := utils.PodRunningReady(&pod); !res || err != nil {
+			kubectlLogPod(c, pod, "", e2elog.Logf)
+		}
+	}
+}
+
+func kubectlLogPod(c clientset.Interface, pod v1.Pod, containerNameSubstr string, logFunc func(ftm string, args ...interface{})) {
+	for _, container := range pod.Spec.Containers {
+		if strings.Contains(container.Name, containerNameSubstr) {
+			// Contains() matches all strings if substr is empty
+			logs, err := e2epod.GetPodLogs(c, pod.Namespace, pod.Name, container.Name)
+			if err != nil {
+				logs, err = e2epod.GetPreviousPodLogs(c, pod.Namespace, pod.Name, container.Name)
+				if err != nil {
+					logFunc("Failed to get logs of pod %v, container %v, err: %v", pod.Name, container.Name, err)
+				}
+			}
+			logFunc("Logs of %v/%v:%v on node %v", pod.Namespace, pod.Name, container.Name, pod.Spec.NodeName)
+			logFunc("%s : STARTLOG\n%s\nENDLOG for container %v:%v:%v", containerNameSubstr, logs, pod.Namespace, pod.Name, container.Name)
+		}
+	}
 }
