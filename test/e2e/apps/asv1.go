@@ -35,8 +35,8 @@ import (
 	asclientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
 	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
 	e2eservice "github.com/pingcap/advanced-statefulset/test/third_party/k8s/service"
-	e2esset "github.com/pingcap/advanced-statefulset/test/third_party/k8s/statefulset"
 	e2eskipper "github.com/pingcap/advanced-statefulset/test/third_party/k8s/skipper"
+	e2esset "github.com/pingcap/advanced-statefulset/test/third_party/k8s/statefulset"
 )
 
 var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
