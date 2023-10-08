@@ -38,11 +38,10 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/kubernetes/test/e2e/framework/config"
-
 	// test sources
 	_ "github.com/pingcap/advanced-statefulset/test/e2e/apps"
 	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
+	"github.com/pingcap/advanced-statefulset/test/third_party/k8s/config"
 	"github.com/pingcap/advanced-statefulset/test/third_party/k8s/testfiles"
 )
 

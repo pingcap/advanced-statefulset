@@ -30,8 +30,6 @@ limitations under the License.
 package e2e
 
 import (
-	"k8s.io/kubernetes/test/e2e/framework"
-
 	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
 )
 
@@ -42,7 +40,7 @@ import (
 func CleanupSuite() {
 	// Run on all Ginkgo nodes
 	k8s.Logf("Running AfterSuite actions on all nodes")
-	framework.RunCleanupActions()
+	k8s.RunCleanupActions()
 }
 
 // AfterSuiteActions are actions that are run on ginkgo's SynchronizedAfterSuite
@@ -50,7 +48,7 @@ func AfterSuiteActions() {
 	// Run only Ginkgo on node 1
 	k8s.Logf("Running AfterSuite actions on node 1")
 	if k8s.TestContext.ReportDir != "" {
-		framework.CoreDump(k8s.TestContext.ReportDir)
+		k8s.CoreDump(k8s.TestContext.ReportDir)
 	}
 	if k8s.TestContext.NodeKiller.Enabled {
 		close(k8s.TestContext.NodeKiller.NodeKillerStopCh)

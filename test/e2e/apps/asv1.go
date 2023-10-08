@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
-	"k8s.io/kubernetes/test/e2e/framework"
 
 	asv1 "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
 	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
@@ -40,7 +39,7 @@ import (
 )
 
 var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
-	f := framework.NewDefaultFramework("statefulset")
+	f := k8s.NewDefaultFramework("statefulset")
 	var ns string
 	var c clientset.Interface
 	var asc asclientset.Interface
@@ -49,7 +48,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 	ginkgo.BeforeEach(func() {
 		ns = f.Namespace.Name
 		c = f.ClientSet
-		config, err := framework.LoadConfig()
+		config, err := k8s.LoadConfig()
 		k8s.ExpectNoError(err)
 		asc, err = asclientset.NewForConfig(config)
 		k8s.ExpectNoError(err)
@@ -79,7 +78,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 
 		ginkgo.AfterEach(func() {
 			if ginkgo.CurrentGinkgoTestDescription().Failed {
-				framework.DumpDebugInfo(c, ns)
+				k8s.DumpDebugInfo(c, ns)
 			}
 		})
 

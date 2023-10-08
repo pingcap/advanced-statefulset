@@ -21,18 +21,28 @@ package pod
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 
-	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
+	"github.com/pingcap/advanced-statefulset/test/third_party/k8s/log"
 )
 
 // errPodCompleted is returned by PodRunning or PodContainerRunning to indicate that
 // the pod has already reached completed state.
 var errPodCompleted = fmt.Errorf("pod ran to completion")
+
+// LabelLogOnPodFailure can be used to mark which Pods will have their logs logged in the case of
+// a test failure. By default, if there are no Pods with this label, only the first 5 Pods will
+// have their logs fetched.
+const LabelLogOnPodFailure = "log-on-pod-failure"
 
 // LogPodStates logs basic info of provided pods for debugging.
 func LogPodStates(pods []v1.Pod) {
@@ -57,17 +67,17 @@ func LogPodStates(pods []v1.Pod) {
 	maxGraceW++
 
 	// Log pod info. * does space padding, - makes them left-aligned.
-	k8s.Logf("%-[1]*[2]s %-[3]*[4]s %-[5]*[6]s %-[7]*[8]s %[9]s",
+	log.Logf("%-[1]*[2]s %-[3]*[4]s %-[5]*[6]s %-[7]*[8]s %[9]s",
 		maxPodW, "POD", maxNodeW, "NODE", maxPhaseW, "PHASE", maxGraceW, "GRACE", "CONDITIONS")
 	for _, pod := range pods {
 		grace := ""
 		if pod.DeletionGracePeriodSeconds != nil {
 			grace = fmt.Sprintf("%ds", *pod.DeletionGracePeriodSeconds)
 		}
-		k8s.Logf("%-[1]*[2]s %-[3]*[4]s %-[5]*[6]s %-[7]*[8]s %[9]s",
+		log.Logf("%-[1]*[2]s %-[3]*[4]s %-[5]*[6]s %-[7]*[8]s %[9]s",
 			maxPodW, pod.ObjectMeta.Name, maxNodeW, pod.Spec.NodeName, maxPhaseW, pod.Status.Phase, maxGraceW, grace, pod.Status.Conditions)
 	}
-	k8s.Logf("") // Final empty line helps for readability.
+	log.Logf("") // Final empty line helps for readability.
 }
 
 func podRunning(c clientset.Interface, podName, namespace string) wait.ConditionFunc {
@@ -84,4 +94,109 @@ func podRunning(c clientset.Interface, podName, namespace string) wait.Condition
 		}
 		return false, nil
 	}
+}
+
+// logPodTerminationMessages logs termination messages for failing pods.  It's a short snippet (much smaller than full logs), but it often shows
+// why pods crashed and since it is in the API, it's fast to retrieve.
+func logPodTerminationMessages(pods []v1.Pod) {
+	for _, pod := range pods {
+		for _, status := range pod.Status.InitContainerStatuses {
+			if status.LastTerminationState.Terminated != nil && len(status.LastTerminationState.Terminated.Message) > 0 {
+				log.Logf("%s[%s].initContainer[%s]=%s", pod.Name, pod.Namespace, status.Name, status.LastTerminationState.Terminated.Message)
+			}
+		}
+		for _, status := range pod.Status.ContainerStatuses {
+			if status.LastTerminationState.Terminated != nil && len(status.LastTerminationState.Terminated.Message) > 0 {
+				log.Logf("%s[%s].container[%s]=%s", pod.Name, pod.Namespace, status.Name, status.LastTerminationState.Terminated.Message)
+			}
+		}
+	}
+}
+
+// logPodLogs logs the container logs from pods in the given namespace. This can be helpful for debugging
+// issues that do not cause the container to fail (e.g.: network connectivity issues)
+// We will log the Pods that have the LabelLogOnPodFailure label. If there aren't any, we default to
+// logging only the first 5 Pods. This requires the reportDir to be set, and the pods are logged into:
+// {report_dir}/pods/{namespace}/{pod}/{container_name}/logs.txt
+func logPodLogs(c clientset.Interface, namespace string, pods []v1.Pod, reportDir string) {
+	if reportDir == "" {
+		return
+	}
+
+	var logPods []v1.Pod
+	for _, pod := range pods {
+		if _, ok := pod.Labels[LabelLogOnPodFailure]; ok {
+			logPods = append(logPods, pod)
+		}
+	}
+	maxPods := len(logPods)
+
+	// There are no pods with the LabelLogOnPodFailure label, we default to the first 5 Pods.
+	if maxPods == 0 {
+		logPods = pods
+		maxPods = len(pods)
+		if maxPods > 5 {
+			maxPods = 5
+		}
+	}
+
+	tailLen := 42
+	for i := 0; i < maxPods; i++ {
+		pod := logPods[i]
+		for _, container := range pod.Spec.Containers {
+			logs, err := getPodLogsInternal(c, namespace, pod.Name, container.Name, false, nil, &tailLen)
+			if err != nil {
+				log.Logf("Unable to fetch %s/%s/%s logs: %v", pod.Namespace, pod.Name, container.Name, err)
+				continue
+			}
+
+			logDir := filepath.Join(reportDir, namespace, pod.Name, container.Name)
+			err = os.MkdirAll(logDir, 0755)
+			if err != nil {
+				log.Logf("Unable to create path '%s'. Err: %v", logDir, err)
+				continue
+			}
+
+			logPath := filepath.Join(logDir, "logs.txt")
+			err = os.WriteFile(logPath, []byte(logs), 0644)
+			if err != nil {
+				log.Logf("Could not write the container logs in: %s. Err: %v", logPath, err)
+			}
+		}
+	}
+}
+
+// DumpAllPodInfoForNamespace logs all pod information for a given namespace.
+func DumpAllPodInfoForNamespace(c clientset.Interface, namespace, reportDir string) {
+	pods, err := c.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		log.Logf("unable to fetch pod debug info: %v", err)
+	}
+	LogPodStates(pods.Items)
+	logPodTerminationMessages(pods.Items)
+	logPodLogs(c, namespace, pods.Items, reportDir)
+}
+
+// utility function for gomega Eventually
+func getPodLogsInternal(c clientset.Interface, namespace, podName, containerName string, previous bool, sinceTime *metav1.Time, tailLines *int) (string, error) {
+	request := c.CoreV1().RESTClient().Get().
+		Resource("pods").
+		Namespace(namespace).
+		Name(podName).SubResource("log").
+		Param("container", containerName).
+		Param("previous", strconv.FormatBool(previous))
+	if sinceTime != nil {
+		request.Param("sinceTime", sinceTime.Format(time.RFC3339))
+	}
+	if tailLines != nil {
+		request.Param("tailLines", strconv.Itoa(*tailLines))
+	}
+	logs, err := request.Do(context.TODO()).Raw()
+	if err != nil {
+		return "", err
+	}
+	if strings.Contains(string(logs), "Internal Error") {
+		return "", fmt.Errorf("Fetched log contains \"Internal Error\": %q", string(logs))
+	}
+	return string(logs), err
 }

@@ -34,7 +34,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/kubectl/pkg/util/podutils"
 
-	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
+	"github.com/pingcap/advanced-statefulset/test/third_party/k8s/log"
 	"github.com/pingcap/advanced-statefulset/test/third_party/k8s/utils"
 )
 
@@ -94,7 +94,7 @@ func WaitForPodsRunningReady(c clientset.Interface, ns string, minPods, allowedN
 
 	ignoreSelector := labels.SelectorFromSet(map[string]string{})
 	start := time.Now()
-	k8s.Logf("Waiting up to %v for all pods (need at least %d) in namespace '%s' to be running and ready",
+	log.Logf("Waiting up to %v for all pods (need at least %d) in namespace '%s' to be running and ready",
 		timeout, minPods, ns)
 	var ignoreNotReady bool
 	badPods := []v1.Pod{}
@@ -113,7 +113,7 @@ func WaitForPodsRunningReady(c clientset.Interface, ns string, minPods, allowedN
 
 		rcList, err := c.CoreV1().ReplicationControllers(ns).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			k8s.Logf("Error getting replication controllers in namespace '%s': %v", ns, err)
+			log.Logf("Error getting replication controllers in namespace '%s': %v", ns, err)
 			lastAPIError = err
 			return false, err
 		}
@@ -125,7 +125,7 @@ func WaitForPodsRunningReady(c clientset.Interface, ns string, minPods, allowedN
 		rsList, err := c.AppsV1().ReplicaSets(ns).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			lastAPIError = err
-			k8s.Logf("Error getting replication sets in namespace %q: %v", ns, err)
+			log.Logf("Error getting replication sets in namespace %q: %v", ns, err)
 			return false, err
 		}
 		for _, rs := range rsList.Items {
@@ -136,7 +136,7 @@ func WaitForPodsRunningReady(c clientset.Interface, ns string, minPods, allowedN
 		podList, err := c.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			lastAPIError = err
-			k8s.Logf("Error getting pods in namespace '%s': %v", ns, err)
+			log.Logf("Error getting pods in namespace '%s': %v", ns, err)
 			return false, err
 		}
 		nOk := int32(0)
@@ -152,25 +152,25 @@ func WaitForPodsRunningReady(c clientset.Interface, ns string, minPods, allowedN
 			case res && err == nil:
 				nOk++
 			case pod.Status.Phase == v1.PodSucceeded:
-				k8s.Logf("The status of Pod %s is Succeeded, skipping waiting", pod.ObjectMeta.Name)
+				log.Logf("The status of Pod %s is Succeeded, skipping waiting", pod.ObjectMeta.Name)
 				// it doesn't make sense to wait for this pod
 				continue
 			case pod.Status.Phase != v1.PodFailed:
-				k8s.Logf("The status of Pod %s is %s (Ready = false), waiting for it to be either Running (with Ready = true) or Failed", pod.ObjectMeta.Name, pod.Status.Phase)
+				log.Logf("The status of Pod %s is %s (Ready = false), waiting for it to be either Running (with Ready = true) or Failed", pod.ObjectMeta.Name, pod.Status.Phase)
 				notReady++
 				badPods = append(badPods, pod)
 			default:
 				if metav1.GetControllerOf(&pod) == nil {
-					k8s.Logf("Pod %s is Failed, but it's not controlled by a controller", pod.ObjectMeta.Name)
+					log.Logf("Pod %s is Failed, but it's not controlled by a controller", pod.ObjectMeta.Name)
 					badPods = append(badPods, pod)
 				}
 				//ignore failed pods that are controlled by some controller
 			}
 		}
 
-		k8s.Logf("%d / %d pods in namespace '%s' are running and ready (%d seconds elapsed)",
+		log.Logf("%d / %d pods in namespace '%s' are running and ready (%d seconds elapsed)",
 			nOk, len(podList.Items), ns, int(time.Since(start).Seconds()))
-		k8s.Logf("expected %d pod replicas in namespace '%s', %d are Running and Ready.", replicas, ns, replicaOk)
+		log.Logf("expected %d pod replicas in namespace '%s', %d are Running and Ready.", replicas, ns, replicaOk)
 
 		if replicaOk == replicas && nOk >= minPods && len(badPods) == 0 {
 			return true, nil
@@ -182,32 +182,32 @@ func WaitForPodsRunningReady(c clientset.Interface, ns string, minPods, allowedN
 		if !ignoreNotReady {
 			return errors.New(errorBadPodsStates(badPods, desiredPods, ns, "RUNNING and READY", timeout, lastAPIError))
 		}
-		k8s.Logf("Number of not-ready pods (%d) is below the allowed threshold (%d).", notReady, allowedNotReadyPods)
+		log.Logf("Number of not-ready pods (%d) is below the allowed threshold (%d).", notReady, allowedNotReadyPods)
 	}
 	return nil
 }
 
 // WaitForPodCondition waits a pods to be matched to the given condition.
 func WaitForPodCondition(c clientset.Interface, ns, podName, desc string, timeout time.Duration, condition podCondition) error {
-	k8s.Logf("Waiting up to %v for pod %q in namespace %q to be %q", timeout, podName, ns, desc)
+	log.Logf("Waiting up to %v for pod %q in namespace %q to be %q", timeout, podName, ns, desc)
 	var lastPodError error
 	for start := time.Now(); time.Since(start) < timeout; time.Sleep(poll) {
 		pod, err := c.CoreV1().Pods(ns).Get(context.TODO(), podName, metav1.GetOptions{})
 		lastPodError = err
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				k8s.Logf("Pod %q in namespace %q not found. Error: %v", podName, ns, err)
+				log.Logf("Pod %q in namespace %q not found. Error: %v", podName, ns, err)
 			} else {
-				k8s.Logf("Get pod %q in namespace %q failed, ignoring for %v. Error: %v", podName, ns, poll, err)
+				log.Logf("Get pod %q in namespace %q failed, ignoring for %v. Error: %v", podName, ns, poll, err)
 			}
 			continue
 		}
 		// log now so that current pod info is reported before calling `condition()`
-		k8s.Logf("Pod %q: Phase=%q, Reason=%q, readiness=%t. Elapsed: %v",
+		log.Logf("Pod %q: Phase=%q, Reason=%q, readiness=%t. Elapsed: %v",
 			podName, pod.Status.Phase, pod.Status.Reason, podutils.IsPodReady(pod), time.Since(start))
 		if done, err := condition(pod); done {
 			if err == nil {
-				k8s.Logf("Pod %q satisfied condition %q", podName, desc)
+				log.Logf("Pod %q satisfied condition %q", podName, desc)
 			}
 			return err
 		}

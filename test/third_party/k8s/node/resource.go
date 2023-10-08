@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 	clientset "k8s.io/client-go/kubernetes"
 
-	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
+	"github.com/pingcap/advanced-statefulset/test/third_party/k8s/log"
 )
 
 const (
@@ -98,7 +98,7 @@ func isNodeConditionSetAsExpected(node *v1.Node, conditionType v1.NodeConditionT
 							conditionType, node.Name, cond.Status == v1.ConditionTrue, taints)
 					}
 					if !silent {
-						k8s.Logf(msg)
+						log.Logf(msg)
 					}
 					return false
 				}
@@ -107,7 +107,7 @@ func isNodeConditionSetAsExpected(node *v1.Node, conditionType v1.NodeConditionT
 					return true
 				}
 				if !silent {
-					k8s.Logf("Condition %s of node %s is %v instead of %t. Reason: %v, message: %v",
+					log.Logf("Condition %s of node %s is %v instead of %t. Reason: %v, message: %v",
 						conditionType, node.Name, cond.Status == v1.ConditionTrue, wantTrue, cond.Reason, cond.Message)
 				}
 				return false
@@ -116,7 +116,7 @@ func isNodeConditionSetAsExpected(node *v1.Node, conditionType v1.NodeConditionT
 				return true
 			}
 			if !silent {
-				k8s.Logf("Condition %s of node %s is %v instead of %t. Reason: %v, message: %v",
+				log.Logf("Condition %s of node %s is %v instead of %t. Reason: %v, message: %v",
 					conditionType, node.Name, cond.Status == v1.ConditionTrue, wantTrue, cond.Reason, cond.Message)
 			}
 			return false
@@ -124,7 +124,7 @@ func isNodeConditionSetAsExpected(node *v1.Node, conditionType v1.NodeConditionT
 
 	}
 	if !silent {
-		k8s.Logf("Couldn't find condition %v on node %v", conditionType, node.Name)
+		log.Logf("Couldn't find condition %v on node %v", conditionType, node.Name)
 	}
 	return false
 }
@@ -246,6 +246,30 @@ func isNodeUntaintedWithNonblocking(node *v1.Node, nonblockingTaints string) boo
 		n = nodeCopy
 	}
 	return toleratesTaintsWithNoScheduleNoExecuteEffects(n.Spec.Taints, fakePod.Spec.Tolerations)
+}
+
+// hasNonblockingTaint returns true if the node contains at least
+// one taint with a key matching the regexp.
+func hasNonblockingTaint(node *v1.Node, nonblockingTaints string) bool {
+	if node == nil {
+		return false
+	}
+
+	// Simple lookup for nonblocking taints based on comma-delimited list.
+	nonblockingTaintsMap := map[string]struct{}{}
+	for _, t := range strings.Split(nonblockingTaints, ",") {
+		if strings.TrimSpace(t) != "" {
+			nonblockingTaintsMap[strings.TrimSpace(t)] = struct{}{}
+		}
+	}
+
+	for _, taint := range node.Spec.Taints {
+		if _, hasNonblockingTaint := nonblockingTaintsMap[taint.Key]; hasNonblockingTaint {
+			return true
+		}
+	}
+
+	return false
 }
 
 func toleratesTaintsWithNoScheduleNoExecuteEffects(taints []v1.Taint, tolerations []v1.Toleration) bool {

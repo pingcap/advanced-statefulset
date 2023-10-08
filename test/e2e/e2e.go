@@ -56,7 +56,6 @@ import (
 	"k8s.io/component-base/logs"
 	"k8s.io/component-base/version"
 	"k8s.io/klog"
-	"k8s.io/kubernetes/test/e2e/framework"
 	e2ekubectl "k8s.io/kubernetes/test/e2e/framework/kubectl"
 	utilnet "k8s.io/utils/net"
 
@@ -72,7 +71,7 @@ const (
 func setupSuite() {
 	// Run only on Ginkgo node 1
 
-	c, err := framework.LoadClientset()
+	c, err := k8s.LoadClientset()
 	if err != nil {
 		klog.Fatal("Error loading client: ", err)
 	}
@@ -80,7 +79,7 @@ func setupSuite() {
 	// Delete any namespaces except those created by the system. This ensures no
 	// lingering resources are left over from a previous test run.
 	if k8s.TestContext.CleanStart {
-		deleted, err := framework.DeleteNamespaces(c, nil, /* deleteFilter */
+		deleted, err := k8s.DeleteNamespaces(c, nil, /* deleteFilter */
 			[]string{
 				metav1.NamespaceSystem,
 				metav1.NamespaceDefault,
@@ -92,7 +91,7 @@ func setupSuite() {
 			k8s.Failf("Error deleting orphaned namespaces: %v", err)
 		}
 		klog.Infof("Waiting for deletion of the following namespaces: %v", deleted)
-		if err := framework.WaitForNamespacesDeleted(c, deleted, framework.DefaultNamespaceDeletionTimeout); err != nil {
+		if err := k8s.WaitForNamespacesDeleted(c, deleted, k8s.DefaultNamespaceDeletionTimeout); err != nil {
 			k8s.Failf("Failed to delete orphaned namespaces %v: %v", deleted, err)
 		}
 	}
@@ -100,7 +99,7 @@ func setupSuite() {
 	// In large clusters we may get to this point but still have a bunch
 	// of nodes without Routes created. Since this would make a node
 	// unschedulable, we need to wait until all of them are schedulable.
-	k8s.ExpectNoError(framework.WaitForAllNodesSchedulable(c, k8s.TestContext.NodeSchedulableTimeout))
+	k8s.ExpectNoError(k8s.WaitForAllNodesSchedulable(c, k8s.TestContext.NodeSchedulableTimeout))
 
 	// Ensure all pods are running and ready before starting tests (otherwise,
 	// cluster infrastructure pods that are being pulled or started can block
@@ -112,7 +111,7 @@ func setupSuite() {
 	// wasting the whole run), we allow for some not-ready pods (with the
 	// number equal to the number of allowed not-ready nodes).
 	if err := e2epod.WaitForPodsRunningReady(c, metav1.NamespaceSystem, int32(k8s.TestContext.MinStartupPods), int32(k8s.TestContext.AllowedNotReadyNodes), podStartupTimeout, map[string]string{}); err != nil {
-		framework.DumpAllNamespaceInfo(c, metav1.NamespaceSystem)
+		k8s.DumpAllNamespaceInfo(c, metav1.NamespaceSystem)
 		e2ekubectl.LogFailedContainers(c, metav1.NamespaceSystem, k8s.Logf)
 		k8s.Failf("Error waiting for all pods to be running and ready: %v", err)
 	}
@@ -143,7 +142,7 @@ func waitForDaemonSets(c clientset.Interface, ns string, allowedNotReadyNodes in
 	k8s.Logf("Waiting up to %v for all daemonsets in namespace '%s' to start",
 		timeout, ns)
 
-	return wait.PollImmediate(framework.Poll, timeout, func() (bool, error) {
+	return wait.PollImmediate(k8s.Poll, timeout, func() (bool, error) {
 		dsList, err := c.AppsV1().DaemonSets(ns).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			k8s.Logf("Error getting daemonsets in namespace: '%s': %v", ns, err)
@@ -199,7 +198,7 @@ func setupSuitePerGinkgoNode() {
 	// TODO: dual-stack
 	// the dual stack clusters can be ipv4-ipv6 or ipv6-ipv4, order matters,
 	// and services use the primary IP family by default
-	c, err := framework.LoadClientset()
+	c, err := k8s.LoadClientset()
 	if err != nil {
 		klog.Fatal("Error loading client: ", err)
 	}
@@ -228,13 +227,13 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 		}
 	}
 	// Get the client
-	config, err := framework.LoadConfig()
+	config, err := k8s.LoadConfig()
 	k8s.ExpectNoError(err)
 	c, err := clientset.NewForConfig(config)
 	k8s.ExpectNoError(err, "failed to create clientset")
 	// Install CRDs
-	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(k8s.TestContext.RepoRoot, "manifests/crd.v1.yaml"))
-	framework.RunKubectlOrDie(asNamespace, "wait", "--for=condition=Established", "crds/statefulsets.apps.pingcap.com")
+	k8s.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(k8s.TestContext.RepoRoot, "manifests/crd.v1.yaml"))
+	k8s.RunKubectlOrDie(asNamespace, "wait", "--for=condition=Established", "crds/statefulsets.apps.pingcap.com")
 	// Install Controller
 	_, err = c.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -242,9 +241,9 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 		},
 	}, metav1.CreateOptions{})
 	k8s.ExpectNoError(err, "failed to create namespace")
-	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(k8s.TestContext.RepoRoot, "manifests/rbac.yaml"))
-	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(k8s.TestContext.RepoRoot, "manifests/deployment.yaml"))
-	framework.RunKubectlOrDie(asNamespace, "wait", "--for=condition=Available", "deploy/advanced-statefulset-controller")
+	k8s.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(k8s.TestContext.RepoRoot, "manifests/rbac.yaml"))
+	k8s.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(k8s.TestContext.RepoRoot, "manifests/deployment.yaml"))
+	k8s.RunKubectlOrDie(asNamespace, "wait", "--for=condition=Available", "deploy/advanced-statefulset-controller")
 	return nil
 }, func(data []byte) {
 	// Run on all Ginkgo nodes
@@ -285,7 +284,7 @@ func RunE2ETests(t *testing.T) {
 			r = append(r, reporters.NewJUnitReporter(path.Join(k8s.TestContext.ReportDir, fmt.Sprintf("junit_%v%02d.xml", k8s.TestContext.ReportPrefix, config.GinkgoConfig.ParallelNode))))
 		}
 	}
-	klog.Infof("Starting e2e run %q on Ginkgo node %d", framework.RunID, config.GinkgoConfig.ParallelNode)
+	klog.Infof("Starting e2e run %q on Ginkgo node %d", k8s.RunID, config.GinkgoConfig.ParallelNode)
 
 	ginkgo.RunSpecsWithDefaultAndCustomReporters(t, "Kubernetes e2e suite", r)
 }

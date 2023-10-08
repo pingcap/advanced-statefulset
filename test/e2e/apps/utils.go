@@ -26,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
-	"k8s.io/kubernetes/test/e2e/framework"
 
 	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
 	podutil "github.com/pingcap/advanced-statefulset/pkg/third_party/k8s"
@@ -219,7 +218,7 @@ func breakPodHTTPProbe(ss *appsv1.StatefulSet, pod *v1.Pod) error {
 	}
 	// Ignore 'mv' errors to make this idempotent.
 	cmd := fmt.Sprintf("mv -v /usr/local/apache2/htdocs%v /tmp/ || true", path)
-	stdout, err := framework.RunHostCmdWithRetries(pod.Namespace, pod.Name, cmd, statefulSetPoll, statefulPodTimeout)
+	stdout, err := k8s.RunHostCmdWithRetries(pod.Namespace, pod.Name, cmd, statefulSetPoll, statefulPodTimeout)
 	k8s.Logf("stdout of %v on %v: %v", cmd, pod.Name, stdout)
 	return err
 }
@@ -243,7 +242,7 @@ func restorePodHTTPProbe(ss *appsv1.StatefulSet, pod *v1.Pod) error {
 	}
 	// Ignore 'mv' errors to make this idempotent.
 	cmd := fmt.Sprintf("mv -v /tmp%v /usr/local/apache2/htdocs/ || true", path)
-	stdout, err := framework.RunHostCmdWithRetries(pod.Namespace, pod.Name, cmd, statefulSetPoll, statefulPodTimeout)
+	stdout, err := k8s.RunHostCmdWithRetries(pod.Namespace, pod.Name, cmd, statefulSetPoll, statefulPodTimeout)
 	k8s.Logf("stdout of %v on %v: %v", cmd, pod.Name, stdout)
 	return err
 }
