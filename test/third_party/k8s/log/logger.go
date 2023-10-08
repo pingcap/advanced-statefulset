@@ -27,7 +27,7 @@ import (
 
 	"github.com/onsi/ginkgo"
 
-	e2eginkgowrapper "k8s.io/kubernetes/test/e2e/framework/ginkgowrapper"
+	e2eginkgowrapper "github.com/pingcap/advanced-statefulset/test/third_party/k8s/ginkgowrapper"
 )
 
 func nowStamp() string {

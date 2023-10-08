@@ -32,7 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/authentication/serviceaccount"
 	clientset "k8s.io/client-go/kubernetes"
-	imageutils "k8s.io/kubernetes/test/utils/image"
 
 	"github.com/onsi/ginkgo"
 
@@ -48,6 +47,9 @@ const (
 
 	// allowedProfilesAnnotationKey specifies the allowed seccomp profiles.
 	allowedProfilesAnnotationKey = "seccomp.security.alpha.kubernetes.io/allowedProfileNames"
+
+	// NOTE(pingcap): hardcode instead of using "k8s.io/kubernetes/test/utils/image"
+	pauseImage = "registry.k8s.io/pause:3.9"
 )
 
 var (
@@ -105,7 +107,7 @@ func IsPodSecurityPolicyEnabled(kubeClient clientset.Interface) bool {
 		Logf("Found PodSecurityPolicies; testing pod creation to see if PodSecurityPolicy is enabled")
 		testPod := &v1.Pod{
 			ObjectMeta: metav1.ObjectMeta{GenerateName: "psp-test-pod-"},
-			Spec:       v1.PodSpec{Containers: []v1.Container{{Name: "test", Image: imageutils.GetPauseImageName()}}},
+			Spec:       v1.PodSpec{Containers: []v1.Container{{Name: "test", Image: pauseImage}}},
 		}
 		dryRunPod, err := kubeClient.CoreV1().Pods("kube-system").Create(context.TODO(), testPod, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
 		if err != nil {
