@@ -25,14 +25,13 @@ import (
 	"testing"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
-	v1 "k8s.io/api/core/v1"
-	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
-	"k8s.io/kubernetes/pkg/controller/history"
+	k8s "github.com/pingcap/advanced-statefulset/pkg/third_party/k8s"
 )
 
 func TestGetParentNameAndOrdinal(t *testing.T) {
@@ -191,7 +190,7 @@ func TestIsRunningAndReady(t *testing.T) {
 		t.Error("isRunningAndReady does not respect Pod condition")
 	}
 	condition := v1.PodCondition{Type: v1.PodReady, Status: v1.ConditionTrue}
-	podutil.UpdatePodCondition(&pod.Status, &condition)
+	k8s.UpdatePodCondition(&pod.Status, &condition)
 	if !isRunningAndReady(pod) {
 		t.Error("Pod should be running and ready")
 	}
@@ -277,7 +276,7 @@ func TestCreateApplyRevision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !history.EqualRevision(revision, restoredRevision) {
+	if !k8s.EqualRevision(revision, restoredRevision) {
 		t.Errorf("wanted %v got %v", string(revision.Data.Raw), string(restoredRevision.Data.Raw))
 	}
 	value, ok := restoredRevision.Annotations[key]

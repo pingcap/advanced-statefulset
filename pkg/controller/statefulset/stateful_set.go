@@ -22,12 +22,6 @@ import (
 	"reflect"
 	"time"
 
-	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
-	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
-	clientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
-	asscheme "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/scheme"
-	appsinformers "github.com/pingcap/advanced-statefulset/client/client/informers/externalversions/apps/v1"
-	appslisters "github.com/pingcap/advanced-statefulset/client/client/listers/apps/v1"
 	kubeapps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -44,14 +38,23 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/kubernetes/pkg/controller/history"
-
 	"k8s.io/klog"
+
+	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
+	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
+	clientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
+	asscheme "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/scheme"
+	appsinformers "github.com/pingcap/advanced-statefulset/client/client/informers/externalversions/apps/v1"
+	appslisters "github.com/pingcap/advanced-statefulset/client/client/listers/apps/v1"
+	"github.com/pingcap/advanced-statefulset/pkg/third_party/k8s"
 )
 
-// controllerKind contains the schema.GroupVersionKind for this controller type.
-var controllerKind = apps.SchemeGroupVersion.WithKind("StatefulSet")
+var (
+	// controllerKind contains the schema.GroupVersionKind for this controller type.
+	controllerKind = apps.SchemeGroupVersion.WithKind("StatefulSet")
+
+	keyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
+)
 
 // StatefulSetController controls statefulset.
 type StatefulSetController struct {
@@ -62,7 +65,7 @@ type StatefulSetController struct {
 	// Abstracted out for testing.
 	control StatefulSetControlInterface
 	// podControl is used for patching pods.
-	podControl controller.PodControlInterface
+	podControl k8s.PodControlInterface
 	// podLister is able to list/get pods from a shared informer's store
 	podLister corelisters.PodLister
 	// podListerSynced returns true if the pod shared informer has synced at least once
@@ -108,12 +111,12 @@ func NewStatefulSetController(
 				pvcInformer.Lister(),
 				recorder),
 			NewRealStatefulSetStatusUpdater(pcClient, setInformer.Lister()),
-			history.NewHistory(kubeClient, revInformer.Lister()),
+			kubeClient.AppsV1(),
 			recorder,
 		),
 		pvcListerSynced: pvcInformer.Informer().HasSynced,
 		queue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "statefulset"),
-		podControl:      controller.RealPodControl{KubeClient: kubeClient, Recorder: recorder},
+		podControl:      k8s.RealPodControl{KubeClient: kubeClient, Recorder: recorder},
 
 		revListerSynced: revInformer.Informer().HasSynced,
 	}
@@ -304,7 +307,7 @@ func (ssc *StatefulSetController) getPodsForStatefulSet(set *apps.StatefulSet, s
 
 	// If any adoptions are attempted, we should first recheck for deletion with
 	// an uncached quorum read sometime after listing Pods (see #42639).
-	canAdoptFunc := controller.RecheckDeletionTimestamp(func(context.Context) (metav1.Object, error) {
+	canAdoptFunc := k8s.RecheckDeletionTimestamp(func(context.Context) (metav1.Object, error) {
 		fresh, err := ssc.pcClient.AppsV1().StatefulSets(set.Namespace).Get(context.TODO(), set.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
@@ -315,7 +318,7 @@ func (ssc *StatefulSetController) getPodsForStatefulSet(set *apps.StatefulSet, s
 		return fresh, nil
 	})
 
-	cm := controller.NewPodControllerRefManager(ssc.podControl, set, selector, controllerKind, canAdoptFunc)
+	cm := k8s.NewPodControllerRefManager(ssc.podControl, set, selector, controllerKind, canAdoptFunc)
 	return cm.ClaimPods(context.TODO(), pods, filter)
 }
 
@@ -418,7 +421,7 @@ func (ssc *StatefulSetController) resolveControllerRef(namespace string, control
 
 // enqueueStatefulSet enqueues the given statefulset in the work queue.
 func (ssc *StatefulSetController) enqueueStatefulSet(obj interface{}) {
-	key, err := controller.KeyFunc(obj)
+	key, err := keyFunc(obj)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %+v: %v", obj, err))
 		return

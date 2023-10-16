@@ -22,7 +22,7 @@ package v1
 
 import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
-	corev1 "k8s.io/kubernetes/pkg/apis/core/v1"
+	corev1 "github.com/pingcap/advanced-statefulset/client/apis/apps/v1/third_party/k8s"
 )
 
 // RegisterDefaults adds defaulters functions to the given scheme.

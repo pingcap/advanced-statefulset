@@ -45,7 +45,6 @@ import (
 	"github.com/onsi/ginkgo/config"
 	"github.com/onsi/ginkgo/reporters"
 	"github.com/onsi/gomega"
-	e2eutil "github.com/pingcap/advanced-statefulset/test/e2e/util"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,41 +56,30 @@ import (
 	"k8s.io/component-base/logs"
 	"k8s.io/component-base/version"
 	"k8s.io/klog"
-	"k8s.io/kubernetes/test/e2e/framework"
-	e2ekubectl "k8s.io/kubernetes/test/e2e/framework/kubectl"
-	e2elog "k8s.io/kubernetes/test/e2e/framework/log"
-	e2enode "k8s.io/kubernetes/test/e2e/framework/node"
-	e2epod "k8s.io/kubernetes/test/e2e/framework/pod"
-	imageutils "k8s.io/kubernetes/test/utils/image"
 	utilnet "k8s.io/utils/net"
+
+	e2eutil "github.com/pingcap/advanced-statefulset/test/e2e/util"
+	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
+	e2ekubectl "github.com/pingcap/advanced-statefulset/test/third_party/k8s/kubectl"
+	e2epod "github.com/pingcap/advanced-statefulset/test/third_party/k8s/pod"
 )
 
 const (
 	asNamespace = "advanced-statefulset"
 )
 
-var (
-	images = []string{
-		imageutils.GetE2EImage(imageutils.Httpd),
-		imageutils.GetE2EImage(imageutils.HttpdNew),
-		imageutils.GetE2EImage(imageutils.Redis),
-		imageutils.GetE2EImage(imageutils.Kitten),
-		imageutils.GetE2EImage(imageutils.Nautilus),
-	}
-)
-
 func setupSuite() {
 	// Run only on Ginkgo node 1
 
-	c, err := framework.LoadClientset()
+	c, err := k8s.LoadClientset()
 	if err != nil {
 		klog.Fatal("Error loading client: ", err)
 	}
 
 	// Delete any namespaces except those created by the system. This ensures no
 	// lingering resources are left over from a previous test run.
-	if framework.TestContext.CleanStart {
-		deleted, err := framework.DeleteNamespaces(c, nil, /* deleteFilter */
+	if k8s.TestContext.CleanStart {
+		deleted, err := k8s.DeleteNamespaces(c, nil, /* deleteFilter */
 			[]string{
 				metav1.NamespaceSystem,
 				metav1.NamespaceDefault,
@@ -100,56 +88,49 @@ func setupSuite() {
 				"local-path-storage",
 			})
 		if err != nil {
-			framework.Failf("Error deleting orphaned namespaces: %v", err)
+			k8s.Failf("Error deleting orphaned namespaces: %v", err)
 		}
 		klog.Infof("Waiting for deletion of the following namespaces: %v", deleted)
-		if err := framework.WaitForNamespacesDeleted(c, deleted, framework.DefaultNamespaceDeletionTimeout); err != nil {
-			framework.Failf("Failed to delete orphaned namespaces %v: %v", deleted, err)
+		if err := k8s.WaitForNamespacesDeleted(c, deleted, k8s.DefaultNamespaceDeletionTimeout); err != nil {
+			k8s.Failf("Failed to delete orphaned namespaces %v: %v", deleted, err)
 		}
 	}
 
 	// In large clusters we may get to this point but still have a bunch
 	// of nodes without Routes created. Since this would make a node
 	// unschedulable, we need to wait until all of them are schedulable.
-	framework.ExpectNoError(framework.WaitForAllNodesSchedulable(c, framework.TestContext.NodeSchedulableTimeout))
-
-	// If NumNodes is not specified then auto-detect how many are scheduleable and not tainted
-	if framework.TestContext.CloudConfig.NumNodes == framework.DefaultNumNodes {
-		nodes, err := e2enode.GetReadySchedulableNodes(c)
-		framework.ExpectNoError(err)
-		framework.TestContext.CloudConfig.NumNodes = len(nodes.Items)
-	}
+	k8s.ExpectNoError(k8s.WaitForAllNodesSchedulable(c, k8s.TestContext.NodeSchedulableTimeout))
 
 	// Ensure all pods are running and ready before starting tests (otherwise,
 	// cluster infrastructure pods that are being pulled or started can block
 	// test pods from running, and tests that ensure all pods are running and
 	// ready will fail).
-	podStartupTimeout := framework.TestContext.SystemPodsStartupTimeout
+	podStartupTimeout := k8s.TestContext.SystemPodsStartupTimeout
 	// TODO: In large clusters, we often observe a non-starting pods due to
 	// #41007. To avoid those pods preventing the whole test runs (and just
 	// wasting the whole run), we allow for some not-ready pods (with the
 	// number equal to the number of allowed not-ready nodes).
-	if err := e2epod.WaitForPodsRunningReady(c, metav1.NamespaceSystem, int32(framework.TestContext.MinStartupPods), int32(framework.TestContext.AllowedNotReadyNodes), podStartupTimeout, map[string]string{}); err != nil {
-		framework.DumpAllNamespaceInfo(c, metav1.NamespaceSystem)
-		e2ekubectl.LogFailedContainers(c, metav1.NamespaceSystem, framework.Logf)
-		framework.Failf("Error waiting for all pods to be running and ready: %v", err)
+	if err := e2epod.WaitForPodsRunningReady(c, metav1.NamespaceSystem, int32(k8s.TestContext.MinStartupPods), int32(k8s.TestContext.AllowedNotReadyNodes), podStartupTimeout, map[string]string{}); err != nil {
+		k8s.DumpAllNamespaceInfo(c, metav1.NamespaceSystem)
+		e2ekubectl.LogFailedContainers(c, metav1.NamespaceSystem, k8s.Logf)
+		k8s.Failf("Error waiting for all pods to be running and ready: %v", err)
 	}
 
-	if err := waitForDaemonSets(c, metav1.NamespaceSystem, int32(framework.TestContext.AllowedNotReadyNodes), framework.TestContext.SystemDaemonsetStartupTimeout); err != nil {
-		framework.Logf("WARNING: Waiting for all daemonsets to be ready failed: %v", err)
+	if err := waitForDaemonSets(c, metav1.NamespaceSystem, int32(k8s.TestContext.AllowedNotReadyNodes), k8s.TestContext.SystemDaemonsetStartupTimeout); err != nil {
+		k8s.Logf("WARNING: Waiting for all daemonsets to be ready failed: %v", err)
 	}
 
 	// Log the version of the server and this client.
-	framework.Logf("e2e test version: %s", version.Get().GitVersion)
+	k8s.Logf("e2e test version: %s", version.Get().GitVersion)
 
 	dc := c.DiscoveryClient
 
 	serverVersion, serverErr := dc.ServerVersion()
 	if serverErr != nil {
-		framework.Logf("Unexpected server error retrieving version: %v", serverErr)
+		k8s.Logf("Unexpected server error retrieving version: %v", serverErr)
 	}
 	if serverVersion != nil {
-		framework.Logf("kube-apiserver version: %s", serverVersion.GitVersion)
+		k8s.Logf("kube-apiserver version: %s", serverVersion.GitVersion)
 	}
 }
 
@@ -158,13 +139,13 @@ func setupSuite() {
 // daemonset are ready).
 func waitForDaemonSets(c clientset.Interface, ns string, allowedNotReadyNodes int32, timeout time.Duration) error {
 	start := time.Now()
-	framework.Logf("Waiting up to %v for all daemonsets in namespace '%s' to start",
+	k8s.Logf("Waiting up to %v for all daemonsets in namespace '%s' to start",
 		timeout, ns)
 
-	return wait.PollImmediate(framework.Poll, timeout, func() (bool, error) {
+	return wait.PollImmediate(k8s.Poll, timeout, func() (bool, error) {
 		dsList, err := c.AppsV1().DaemonSets(ns).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			framework.Logf("Error getting daemonsets in namespace: '%s': %v", ns, err)
+			k8s.Logf("Error getting daemonsets in namespace: '%s': %v", ns, err)
 			if IsRetryableAPIError(err) {
 				return false, nil
 			}
@@ -172,14 +153,14 @@ func waitForDaemonSets(c clientset.Interface, ns string, allowedNotReadyNodes in
 		}
 		var notReadyDaemonSets []string
 		for _, ds := range dsList.Items {
-			framework.Logf("%d / %d pods ready in namespace '%s' in daemonset '%s' (%d seconds elapsed)", ds.Status.NumberReady, ds.Status.DesiredNumberScheduled, ns, ds.ObjectMeta.Name, int(time.Since(start).Seconds()))
+			k8s.Logf("%d / %d pods ready in namespace '%s' in daemonset '%s' (%d seconds elapsed)", ds.Status.NumberReady, ds.Status.DesiredNumberScheduled, ns, ds.ObjectMeta.Name, int(time.Since(start).Seconds()))
 			if ds.Status.DesiredNumberScheduled-ds.Status.NumberReady > allowedNotReadyNodes {
 				notReadyDaemonSets = append(notReadyDaemonSets, ds.ObjectMeta.Name)
 			}
 		}
 
 		if len(notReadyDaemonSets) > 0 {
-			framework.Logf("there are not ready daemonsets: %v", notReadyDaemonSets)
+			k8s.Logf("there are not ready daemonsets: %v", notReadyDaemonSets)
 			return false, nil
 		}
 
@@ -196,7 +177,7 @@ func getDefaultClusterIPFamily(c clientset.Interface) string {
 	// Get the ClusterIP of the kubernetes service created in the default namespace
 	svc, err := c.CoreV1().Services(metav1.NamespaceDefault).Get(context.TODO(), "kubernetes", metav1.GetOptions{})
 	if err != nil {
-		framework.Failf("Failed to get kubernetes service ClusterIP: %v", err)
+		k8s.Failf("Failed to get kubernetes service ClusterIP: %v", err)
 	}
 
 	if utilnet.IsIPv6String(svc.Spec.ClusterIP) {
@@ -217,52 +198,52 @@ func setupSuitePerGinkgoNode() {
 	// TODO: dual-stack
 	// the dual stack clusters can be ipv4-ipv6 or ipv6-ipv4, order matters,
 	// and services use the primary IP family by default
-	c, err := framework.LoadClientset()
+	c, err := k8s.LoadClientset()
 	if err != nil {
 		klog.Fatal("Error loading client: ", err)
 	}
-	framework.TestContext.IPFamily = getDefaultClusterIPFamily(c)
-	framework.Logf("Cluster IP family: %s", framework.TestContext.IPFamily)
+	k8s.TestContext.IPFamily = getDefaultClusterIPFamily(c)
+	k8s.Logf("Cluster IP family: %s", k8s.TestContext.IPFamily)
 
 	// do not check `kube-root-ca.crt` ConfigMap for Kubernetes
 	gte119, err := e2eutil.ServerVersionGTE(utilversion.MustParseSemantic("v1.19.0"), c.Discovery())
-	framework.ExpectNoError(err)
+	k8s.ExpectNoError(err)
 	if !gte119 {
-		framework.TestContext.VerifyServiceAccount = false
+		k8s.TestContext.VerifyServiceAccount = false
 	}
 }
 
 var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	setupSuite()
 	// Load images
-	kindPath := filepath.Join(framework.TestContext.RepoRoot, "output/bin/kind")
-	for _, image := range images {
-		e2elog.Logf("Loading image %s", image)
+	kindPath := filepath.Join(k8s.TestContext.RepoRoot, "output/bin/kind")
+	for _, image := range e2eutil.Images {
+		k8s.Logf("Loading image %s", image)
 		if err := exec.Command("docker", "pull", image).Run(); err != nil {
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 		}
 		if err := exec.Command(kindPath, "load", "docker-image", "--name", "advanced-statefulset", image).Run(); err != nil {
-			framework.ExpectNoError(err)
+			k8s.ExpectNoError(err)
 		}
 	}
 	// Get the client
-	config, err := framework.LoadConfig()
-	framework.ExpectNoError(err)
+	config, err := k8s.LoadConfig()
+	k8s.ExpectNoError(err)
 	c, err := clientset.NewForConfig(config)
-	framework.ExpectNoError(err, "failed to create clientset")
+	k8s.ExpectNoError(err, "failed to create clientset")
 	// Install CRDs
-	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/crd.v1.yaml"))
-	framework.RunKubectlOrDie(asNamespace, "wait", "--for=condition=Established", "crds/statefulsets.apps.pingcap.com")
+	k8s.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(k8s.TestContext.RepoRoot, "manifests/crd.v1.yaml"))
+	k8s.RunKubectlOrDie(asNamespace, "wait", "--for=condition=Established", "crds/statefulsets.apps.pingcap.com")
 	// Install Controller
 	_, err = c.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: asNamespace,
 		},
 	}, metav1.CreateOptions{})
-	framework.ExpectNoError(err, "failed to create namespace")
-	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/rbac.yaml"))
-	framework.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(framework.TestContext.RepoRoot, "manifests/deployment.yaml"))
-	framework.RunKubectlOrDie(asNamespace, "wait", "--for=condition=Available", "deploy/advanced-statefulset-controller")
+	k8s.ExpectNoError(err, "failed to create namespace")
+	k8s.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(k8s.TestContext.RepoRoot, "manifests/rbac.yaml"))
+	k8s.RunKubectlOrDie(asNamespace, "apply", "-f", filepath.Join(k8s.TestContext.RepoRoot, "manifests/deployment.yaml"))
+	k8s.RunKubectlOrDie(asNamespace, "wait", "--for=condition=Available", "deploy/advanced-statefulset-controller")
 	return nil
 }, func(data []byte) {
 	// Run on all Ginkgo nodes
@@ -285,7 +266,7 @@ func RunE2ETests(t *testing.T) {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	gomega.RegisterFailHandler(framework.Fail)
+	gomega.RegisterFailHandler(k8s.Fail)
 
 	// Disable skipped tests unless they are explicitly requested.
 	if config.GinkgoConfig.FocusString == "" && config.GinkgoConfig.SkipString == "" {
@@ -294,16 +275,16 @@ func RunE2ETests(t *testing.T) {
 
 	// Run tests through the Ginkgo runner with output to console + JUnit for Jenkins
 	var r []ginkgo.Reporter
-	if framework.TestContext.ReportDir != "" {
+	if k8s.TestContext.ReportDir != "" {
 		// TODO: we should probably only be trying to create this directory once
 		// rather than once-per-Ginkgo-node.
-		if err := os.MkdirAll(framework.TestContext.ReportDir, 0755); err != nil {
+		if err := os.MkdirAll(k8s.TestContext.ReportDir, 0755); err != nil {
 			klog.Errorf("Failed creating report directory: %v", err)
 		} else {
-			r = append(r, reporters.NewJUnitReporter(path.Join(framework.TestContext.ReportDir, fmt.Sprintf("junit_%v%02d.xml", framework.TestContext.ReportPrefix, config.GinkgoConfig.ParallelNode))))
+			r = append(r, reporters.NewJUnitReporter(path.Join(k8s.TestContext.ReportDir, fmt.Sprintf("junit_%v%02d.xml", k8s.TestContext.ReportPrefix, config.GinkgoConfig.ParallelNode))))
 		}
 	}
-	klog.Infof("Starting e2e run %q on Ginkgo node %d", framework.RunID, config.GinkgoConfig.ParallelNode)
+	klog.Infof("Starting e2e run %q on Ginkgo node %d", k8s.RunID, config.GinkgoConfig.ParallelNode)
 
 	ginkgo.RunSpecsWithDefaultAndCustomReporters(t, "Kubernetes e2e suite", r)
 }

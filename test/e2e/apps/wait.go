@@ -18,9 +18,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	clientset "k8s.io/client-go/kubernetes"
 
-	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
-	"k8s.io/kubernetes/test/e2e/framework"
-	e2estatefulset "k8s.io/kubernetes/test/e2e/framework/statefulset"
+	podutil "github.com/pingcap/advanced-statefulset/pkg/third_party/k8s"
+	k8s "github.com/pingcap/advanced-statefulset/test/third_party/k8s"
+	e2estatefulset "github.com/pingcap/advanced-statefulset/test/third_party/k8s/statefulset"
 )
 
 // waitForPartitionedRollingUpdate waits for all Pods in set to exist and have the correct revision. set must have
@@ -30,13 +30,13 @@ import (
 func waitForPartitionedRollingUpdate(c clientset.Interface, set *appsv1.StatefulSet) (*appsv1.StatefulSet, *v1.PodList) {
 	var pods *v1.PodList
 	if set.Spec.UpdateStrategy.Type != appsv1.RollingUpdateStatefulSetStrategyType {
-		framework.Failf("StatefulSet %s/%s attempt to wait for partitioned update with updateStrategy %s",
+		k8s.Failf("StatefulSet %s/%s attempt to wait for partitioned update with updateStrategy %s",
 			set.Namespace,
 			set.Name,
 			set.Spec.UpdateStrategy.Type)
 	}
 	if set.Spec.UpdateStrategy.RollingUpdate == nil || set.Spec.UpdateStrategy.RollingUpdate.Partition == nil {
-		framework.Failf("StatefulSet %s/%s attempt to wait for partitioned update with nil RollingUpdate or nil Partition",
+		k8s.Failf("StatefulSet %s/%s attempt to wait for partitioned update with nil RollingUpdate or nil Partition",
 			set.Namespace,
 			set.Name)
 	}
@@ -48,14 +48,14 @@ func waitForPartitionedRollingUpdate(c clientset.Interface, set *appsv1.Stateful
 			return false, nil
 		}
 		if partition <= 0 && set.Status.UpdateRevision != set.Status.CurrentRevision {
-			framework.Logf("Waiting for StatefulSet %s/%s to complete update",
+			k8s.Logf("Waiting for StatefulSet %s/%s to complete update",
 				set.Namespace,
 				set.Name,
 			)
 			e2estatefulset.SortStatefulPods(pods)
 			for i := range pods.Items {
 				if pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel] != set.Status.UpdateRevision {
-					framework.Logf("Waiting for Pod %s/%s to have revision %s update revision %s",
+					k8s.Logf("Waiting for Pod %s/%s to have revision %s update revision %s",
 						pods.Items[i].Namespace,
 						pods.Items[i].Name,
 						set.Status.UpdateRevision,
@@ -66,7 +66,7 @@ func waitForPartitionedRollingUpdate(c clientset.Interface, set *appsv1.Stateful
 		}
 		for i := int(*set.Spec.Replicas) - 1; i >= partition; i-- {
 			if pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel] != set.Status.UpdateRevision {
-				framework.Logf("Waiting for Pod %s/%s to have revision %s update revision %s",
+				k8s.Logf("Waiting for Pod %s/%s to have revision %s update revision %s",
 					pods.Items[i].Namespace,
 					pods.Items[i].Name,
 					set.Status.UpdateRevision,
@@ -113,7 +113,7 @@ func waitForPodNotReady(c clientset.Interface, set *appsv1.StatefulSet, podName 
 func waitForRollingUpdate(c clientset.Interface, set *appsv1.StatefulSet) (*appsv1.StatefulSet, *v1.PodList) {
 	var pods *v1.PodList
 	if set.Spec.UpdateStrategy.Type != appsv1.RollingUpdateStatefulSetStrategyType {
-		framework.Failf("StatefulSet %s/%s attempt to wait for rolling update with updateStrategy %s",
+		k8s.Failf("StatefulSet %s/%s attempt to wait for rolling update with updateStrategy %s",
 			set.Namespace,
 			set.Name,
 			set.Spec.UpdateStrategy.Type)
@@ -125,14 +125,14 @@ func waitForRollingUpdate(c clientset.Interface, set *appsv1.StatefulSet) (*apps
 			return false, nil
 		}
 		if set.Status.UpdateRevision != set.Status.CurrentRevision {
-			framework.Logf("Waiting for StatefulSet %s/%s to complete update",
+			k8s.Logf("Waiting for StatefulSet %s/%s to complete update",
 				set.Namespace,
 				set.Name,
 			)
 			e2estatefulset.SortStatefulPods(pods)
 			for i := range pods.Items {
 				if pods.Items[i].Labels[appsv1.StatefulSetRevisionLabel] != set.Status.UpdateRevision {
-					framework.Logf("Waiting for Pod %s/%s to have revision %s update revision %s",
+					k8s.Logf("Waiting for Pod %s/%s to have revision %s update revision %s",
 						pods.Items[i].Namespace,
 						pods.Items[i].Name,
 						set.Status.UpdateRevision,

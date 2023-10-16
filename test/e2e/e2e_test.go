@@ -33,19 +33,16 @@ package e2e
 
 import (
 	"flag"
-	"fmt"
 	"math/rand"
 	"os"
 	"testing"
 	"time"
 
-	"k8s.io/kubernetes/test/e2e/framework"
-	"k8s.io/kubernetes/test/e2e/framework/config"
-	"k8s.io/kubernetes/test/e2e/framework/testfiles"
-	"k8s.io/kubernetes/test/utils/image"
-
 	// test sources
 	_ "github.com/pingcap/advanced-statefulset/test/e2e/apps"
+	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
+	"github.com/pingcap/advanced-statefulset/test/third_party/k8s/config"
+	"github.com/pingcap/advanced-statefulset/test/third_party/k8s/testfiles"
 )
 
 var viperConfig = flag.String("viper-config", "", "The name of a viper config file (https://github.com/spf13/viper#what-is-viper). All e2e command line parameters can also be configured in such a file. May contain a path and may or may not contain the file suffix. The default is to look for an optional file with `e2e` as base name. If a file is specified explicitly, it must be present.")
@@ -53,8 +50,8 @@ var viperConfig = flag.String("viper-config", "", "The name of a viper config fi
 // handleFlags sets up all flags and parses the command line.
 func handleFlags() {
 	config.CopyFlags(config.Flags, flag.CommandLine)
-	framework.RegisterCommonFlags(flag.CommandLine)
-	framework.RegisterClusterFlags(flag.CommandLine)
+	k8s.RegisterCommonFlags(flag.CommandLine)
+	k8s.RegisterClusterFlags(flag.CommandLine)
 	flag.Parse()
 }
 
@@ -62,22 +59,15 @@ func TestMain(m *testing.M) {
 	// Register test flags, then parse flags.
 	handleFlags()
 
-	if framework.TestContext.ListImages {
-		for _, v := range image.GetImageConfigs() {
-			fmt.Println(v.GetE2EImage())
-		}
-		os.Exit(0)
-	}
-
-	framework.AfterReadingAllFlags(&framework.TestContext)
+	k8s.AfterReadingAllFlags(&k8s.TestContext)
 
 	// TODO: Deprecating repo-root over time... instead just use gobindata_util.go , see #23987.
 	// Right now it is still needed, for example by
 	// test/e2e/framework/ingress/ingress_utils.go
 	// for providing the optional secret.yaml file and by
 	// test/e2e/framework/util.go for cluster/log-dump.
-	if framework.TestContext.RepoRoot != "" {
-		testfiles.AddFileSource(testfiles.RootFileSource{Root: framework.TestContext.RepoRoot})
+	if k8s.TestContext.RepoRoot != "" {
+		testfiles.AddFileSource(testfiles.RootFileSource{Root: k8s.TestContext.RepoRoot})
 	}
 
 	rand.Seed(time.Now().UnixNano())

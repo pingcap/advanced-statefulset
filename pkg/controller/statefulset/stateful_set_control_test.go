@@ -28,12 +28,6 @@ import (
 	"testing"
 	"time"
 
-	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
-	clientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
-	pcfake "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/fake"
-	pcinformers "github.com/pingcap/advanced-statefulset/client/client/informers/externalversions"
-	appsinformers "github.com/pingcap/advanced-statefulset/client/client/informers/externalversions/apps/v1"
-	appslisters "github.com/pingcap/advanced-statefulset/client/client/listers/apps/v1"
 	kubeapps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -46,20 +40,26 @@ import (
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
-	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/kubernetes/pkg/controller/history"
+
+	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
+	clientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
+	pcfake "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/fake"
+	pcinformers "github.com/pingcap/advanced-statefulset/client/client/informers/externalversions"
+	appsinformers "github.com/pingcap/advanced-statefulset/client/client/informers/externalversions/apps/v1"
+	appslisters "github.com/pingcap/advanced-statefulset/client/client/listers/apps/v1"
+	k8s "github.com/pingcap/advanced-statefulset/pkg/third_party/k8s"
 )
 
 type invariantFunc func(set *apps.StatefulSet, spc *fakeStatefulPodControl) error
 
 func setupController(client clientset.Interface, kubeClient kubernetes.Interface) (*fakeStatefulPodControl, *fakeStatefulSetStatusUpdater, StatefulSetControlInterface, chan struct{}) {
-	informerFactory := pcinformers.NewSharedInformerFactory(client, controller.NoResyncPeriodFunc())
-	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, controller.NoResyncPeriodFunc())
+	informerFactory := pcinformers.NewSharedInformerFactory(client, 0)
+	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
 	spc := newFakeStatefulPodControl(kubeInformerFactory.Core().V1().Pods(), informerFactory.Apps().V1().StatefulSets())
 	ssu := newFakeStatefulSetStatusUpdater(informerFactory.Apps().V1().StatefulSets())
+	_ = kubeInformerFactory.Apps().V1().ControllerRevisions().Lister() // add informer to the factory
 	recorder := record.NewFakeRecorder(10)
-	ssc := NewDefaultStatefulSetControl(spc, ssu, history.NewFakeHistory(kubeInformerFactory.Apps().V1().ControllerRevisions()), recorder)
+	ssc := NewDefaultStatefulSetControl(spc, ssu, kubeClient.AppsV1(), recorder)
 
 	stop := make(chan struct{})
 	informerFactory.Start(stop)
@@ -510,12 +510,13 @@ func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 	testFn := func(test *testcase, t *testing.T) {
 		kubeClient := fake.NewSimpleClientset()
 		pcClient := pcfake.NewSimpleClientset()
-		informerFactory := pcinformers.NewSharedInformerFactory(pcClient, controller.NoResyncPeriodFunc())
-		kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, controller.NoResyncPeriodFunc())
+		informerFactory := pcinformers.NewSharedInformerFactory(pcClient, 0)
+		kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
 		spc := newFakeStatefulPodControl(kubeInformerFactory.Core().V1().Pods(), informerFactory.Apps().V1().StatefulSets())
 		ssu := newFakeStatefulSetStatusUpdater(informerFactory.Apps().V1().StatefulSets())
+		_ = kubeInformerFactory.Apps().V1().ControllerRevisions().Lister() // add informer to the factory
 		recorder := record.NewFakeRecorder(10)
-		ssc := defaultStatefulSetControl{spc, ssu, history.NewFakeHistory(kubeInformerFactory.Apps().V1().ControllerRevisions()), recorder}
+		ssc := defaultStatefulSetControl{spc, ssu, kubeClient.AppsV1(), recorder}
 
 		stop := make(chan struct{})
 		defer close(stop)
@@ -529,7 +530,7 @@ func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 		)
 		test.set.Status.CollisionCount = new(int32)
 		for i := range test.existing {
-			ssc.controllerHistory.CreateControllerRevision(test.set, test.existing[i], test.set.Status.CollisionCount)
+			ssc.createControllerRevision(test.set, test.existing[i], test.set.Status.CollisionCount)
 		}
 		revisions, err := ssc.ListRevisions(test.set)
 		if err != nil {
@@ -549,10 +550,10 @@ func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 		if test.err && err == nil {
 			t.Errorf("%s: expected error", test.name)
 		}
-		if !test.err && !history.EqualRevision(current, test.expectedCurrent) {
+		if !test.err && !k8s.EqualRevision(current, test.expectedCurrent) {
 			t.Errorf("%s: for current want %v got %v", test.name, test.expectedCurrent, current)
 		}
-		if !test.err && !history.EqualRevision(update, test.expectedUpdate) {
+		if !test.err && !k8s.EqualRevision(update, test.expectedUpdate) {
 			t.Errorf("%s: for update want %v got %v", test.name, test.expectedUpdate, update)
 		}
 		if !test.err && test.expectedCurrent != nil && current != nil && test.expectedCurrent.Revision != current.Revision {
@@ -1343,7 +1344,7 @@ func TestStatefulSetControlRollback(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %s", test.name, err)
 		}
-		history.SortControllerRevisions(revisions)
+		k8s.SortControllerRevisions(revisions)
 		set, err = ApplyRevision(set, revisions[0])
 		if err != nil {
 			t.Fatalf("%s: %s", test.name, err)
@@ -1584,7 +1585,7 @@ type fakeStatefulPodControl struct {
 }
 
 func newFakeStatefulPodControl(podInformer coreinformers.PodInformer, setInformer appsinformers.StatefulSetInformer) *fakeStatefulPodControl {
-	claimsIndexer := cache.NewIndexer(controller.KeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+	claimsIndexer := cache.NewIndexer(keyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	return &fakeStatefulPodControl{
 		podInformer.Lister(),
 		corelisters.NewPersistentVolumeClaimLister(claimsIndexer),
@@ -1667,7 +1668,7 @@ func (spc *fakeStatefulPodControl) setPodReady(set *apps.StatefulSet, ordinal in
 	sort.Sort(ascendingOrdinal(pods))
 	pod := pods[ordinal].DeepCopy()
 	condition := v1.PodCondition{Type: v1.PodReady, Status: v1.ConditionTrue}
-	podutil.UpdatePodCondition(&pod.Status, &condition)
+	k8s.UpdatePodCondition(&pod.Status, &condition)
 	fakeResourceVersion(pod)
 	spc.podsIndexer.Update(pod)
 	return spc.podsLister.Pods(set.Namespace).List(selector)
@@ -1680,7 +1681,7 @@ func (spc *fakeStatefulPodControl) addTerminatingPod(set *apps.StatefulSet, ordi
 	pod.DeletionTimestamp = &deleted
 	condition := v1.PodCondition{Type: v1.PodReady, Status: v1.ConditionTrue}
 	fakeResourceVersion(pod)
-	podutil.UpdatePodCondition(&pod.Status, &condition)
+	k8s.UpdatePodCondition(&pod.Status, &condition)
 	spc.podsIndexer.Update(pod)
 	selector, err := metav1.LabelSelectorAsSelector(set.Spec.Selector)
 	if err != nil {
@@ -1741,7 +1742,7 @@ func (spc *fakeStatefulPodControl) DeleteStatefulPod(set *apps.StatefulSet, pod 
 		defer spc.deletePodTracker.reset()
 		return spc.deletePodTracker.err
 	}
-	if key, err := controller.KeyFunc(pod); err != nil {
+	if key, err := keyFunc(pod); err != nil {
 		return err
 	} else if obj, found, err := spc.podsIndexer.GetByKey(key); err != nil {
 		return err
