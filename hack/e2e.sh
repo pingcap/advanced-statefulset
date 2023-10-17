@@ -101,7 +101,7 @@ echo "DOCKER_IO_MIRROR: $DOCKER_IO_MIRROR"
 echo "KUBE_WORKERS: $KUBE_WORKERS"
 
 declare -A kind_node_images
-kind_node_images["v1.18.2"]="kindest/node:v1.18.2@sha256:7b27a6d0f2517ff88ba444025beae41491b016bc6af573ba467b70c5e8e0d85f"
+kind_node_images["v1.19.16"]="kindest/node:v1.19.16@sha256:476cb3269232888437b61deca013832fee41f9f074f9bed79f57e4280f7c48b7"
 kind_node_images["v1.20.15"]="kindest/node:v1.20.15@sha256:a32bf55309294120616886b5338f95dd98a2f7231519c7dedcec32ba29699394"
 kind_node_images["v1.21.14"]="kindest/node:v1.21.14@sha256:8a4e9bb3f415d2bb81629ce33ef9c76ba514c14d707f9797a01e3216376ba093"
 kind_node_images["v1.22.17"]="kindest/node:v1.22.17@sha256:f5b2e5698c6c9d6d0adc419c0deae21a425c07d81bbf3b6a6834042f25d4fba2"
@@ -220,10 +220,10 @@ EOF
 - role: worker
 EOF
     }
+
     # kubeadm config patches
-    if hack::version_ge $KUBE_VERSION "v1.18.0"; then
-        # CustomResourceDefaulting feature gate is removed in https://github.com/kubernetes/kubernetes/pull/87475.
-        cat <<EOF >> $tmpfile
+    # CustomResourceDefaulting feature gate is removed in https://github.com/kubernetes/kubernetes/pull/87475.
+    cat <<EOF >> $tmpfile
 kubeadmConfigPatches:
 - |
   apiVersion: kubeadm.k8s.io/v1beta2
@@ -248,30 +248,6 @@ kubeadmConfigPatches:
     kubeletExtraArgs:
       "v": "4"
 EOF
-    else
-        cat <<EOF >> $tmpfile
-kubeadmConfigPatches:
-- |
-  apiVersion: kubeadm.k8s.io/v1alpha3
-  kind: ClusterConfiguration
-  metadata:
-    name: config
-  apiServerExtraArgs:
-    v: "4"
-  schedulerExtraArgs:
-    v: "4"
-  controllerManagerExtraArgs:
-    v: "4"
-- |
-  apiVersion: kubeadm.k8s.io/v1alpha3
-  kind: InitConfiguration
-  metadata:
-    name: config
-  nodeRegistration:
-    kubeletExtraArgs:
-      "v": "4"
-EOF
-    fi
 
     # Retry on error. Sometimes, kind will fail with the following error:
     #
