@@ -23,7 +23,6 @@ jobs:
         - test
         # - test-integration
         - e2e-examples
-        - e2e-v1.19
         - e2e-v1.20
         - e2e-v1.21
         - e2e-v1.22

@@ -101,7 +101,6 @@ echo "DOCKER_IO_MIRROR: $DOCKER_IO_MIRROR"
 echo "KUBE_WORKERS: $KUBE_WORKERS"
 
 declare -A kind_node_images
-kind_node_images["v1.19.16"]="kindest/node:v1.19.16@sha256:476cb3269232888437b61deca013832fee41f9f074f9bed79f57e4280f7c48b7"
 kind_node_images["v1.20.15"]="kindest/node:v1.20.15@sha256:a32bf55309294120616886b5338f95dd98a2f7231519c7dedcec32ba29699394"
 kind_node_images["v1.21.14"]="kindest/node:v1.21.14@sha256:8a4e9bb3f415d2bb81629ce33ef9c76ba514c14d707f9797a01e3216376ba093"
 kind_node_images["v1.22.17"]="kindest/node:v1.22.17@sha256:f5b2e5698c6c9d6d0adc419c0deae21a425c07d81bbf3b6a6834042f25d4fba2"
