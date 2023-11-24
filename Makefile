@@ -39,11 +39,11 @@ build: $(ALL_TARGETS)
 .PHONY: all
 
 $(ALL_TARGETS):
-	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 $(GO) build -ldflags "${LDFLAGS}" -o output/bin/$(OS)/$(ARCH)/$@ $(SRC_PREFIX)/$@
+	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 $(GO) build -ldflags "${LDFLAGS}" -o output/bin/$(OS)/$@ $(SRC_PREFIX)/$@
 .PHONY: $(ALL_TARGETS)
 
 docker:
-	docker build --tag "${DOCKER_REPO}/advanced-statefulset:${IMAGE_TAG}" --build-arg=TARGETARCH=$(ARCH) .
+	docker build --tag "${DOCKER_REPO}/advanced-statefulset:${IMAGE_TAG}" .
 
 test: test-client
 	hack/make-rules/test.sh $(WHAT)
