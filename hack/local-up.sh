@@ -35,4 +35,4 @@ KUBE_VERSION=$(kubectl version --short | awk '/Server Version:/ {print $3}')
 kubectl --kubeconfig $cfgfile apply -f manifests/crd.v1.yaml
 
 kubectl --kubeconfig $cfgfile -n kube-system delete ep advanced-statefulset-controller --ignore-not-found
-./output/bin/linux/${ARCH}/cmd/controller-manager --kubeconfig $cfgfile -v 4 --leader-elect-resource-name advanced-statefulset-controller --leader-elect-resource-namespace kube-system
+./output/bin/linux/cmd/controller-manager --kubeconfig $cfgfile -v 4 --leader-elect-resource-name advanced-statefulset-controller --leader-elect-resource-namespace kube-system
