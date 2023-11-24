@@ -18,7 +18,7 @@ RUN make cmd/controller-manager
 
 # https://github.com/GoogleContainerTools/distroless#why-should-i-use-distroless-images
 FROM gcr.io/distroless/static:latest
-ARG TARGETARCH=amd64
+ARG TARGETARCH
 
 COPY --from=builder /go/src/github.com/pingcap/advanced-statefulset/output/bin/linux/${TARGETARCH}/cmd/controller-manager  /usr/local/bin/advanced-statefulset-controller-manager
 ENTRYPOINT ["/usr/local/bin/advanced-statefulset-controller-manager"]
