@@ -280,7 +280,7 @@ function e2e::build() {
         return
 	fi
 	echo "info: building image $CONTROLLER_IMAGE"
-	docker build -t $CONTROLLER_IMAGE --build-arg=TARGETARCH=$ARCH .
+	docker build -t $CONTROLLER_IMAGE .
 }
 
 export CONTROLLER_IMAGE=pingcap/advanced-statefulset:latest
