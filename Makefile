@@ -16,6 +16,10 @@ GO  := go
 ARCH ?= $(shell go env GOARCH)
 OS ?= $(shell go env GOOS)
 
+DOCKER_REGISTRY ?= localhost:5000
+DOCKER_REPO ?= ${DOCKER_REGISTRY}/pingcap
+IMAGE_TAG ?= latest
+
 ALL_TARGETS := cmd/controller-manager
 SRC_PREFIX := github.com/pingcap/advanced-statefulset
 GIT_VERSION = $(shell ./hack/version.sh | awk -F': ' '/^GIT_VERSION:/ {print $$2}')
@@ -37,6 +41,9 @@ build: $(ALL_TARGETS)
 $(ALL_TARGETS):
 	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 $(GO) build -ldflags "${LDFLAGS}" -o output/bin/$(OS)/$(ARCH)/$@ $(SRC_PREFIX)/$@
 .PHONY: $(ALL_TARGETS)
+
+docker:
+	docker build --tag "${DOCKER_REPO}/advanced-statefulset:${IMAGE_TAG}" --build-arg=TARGETARCH=$(ARCH) .
 
 test: test-client
 	hack/make-rules/test.sh $(WHAT)
