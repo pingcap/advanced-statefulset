@@ -27,6 +27,7 @@ jobs:
         - e2e-v1.21
         - e2e-v1.22
         - e2e-v1.23
+        - e2e-v1.24
     steps:
     - name: Set up Go
       uses: actions/setup-go@v2
