@@ -17,6 +17,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
 	componentbaseconfigv1alpha1 "k8s.io/component-base/config/v1alpha1"
 )
@@ -47,7 +48,11 @@ func NewDefaultGenericComponentConfiguration() GenericComponentConfiguration {
 		KubeAPIBurst:            30,
 		ControllerStartInterval: metav1.Duration{Duration: 0 * time.Second},
 	}
-	leaderElection := componentbaseconfigv1alpha1.LeaderElectionConfiguration{}
+	leaderElection := componentbaseconfigv1alpha1.LeaderElectionConfiguration{
+		// https://github.com/kubernetes/kubernetes/pull/84084
+		// https://github.com/kubernetes/kubernetes/pull/106852
+		ResourceLock: resourcelock.EndpointsLeasesResourceLock,
+	}
 	componentbaseconfigv1alpha1.RecommendedDefaultLeaderElectionConfiguration(&leaderElection)
 	componentbaseconfigv1alpha1.Convert_v1alpha1_LeaderElectionConfiguration_To_config_LeaderElectionConfiguration(&leaderElection, &c.LeaderElection, nil)
 	return c

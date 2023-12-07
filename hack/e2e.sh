@@ -84,7 +84,7 @@ SKIP_UP=${SKIP_UP:-}
 SKIP_DOWN=${SKIP_DOWN:-}
 SKIP_TEST=${SKIP_TEST:-}
 REUSE_CLUSTER=${REUSE_CLUSTER:-}
-KUBE_VERSION=${KUBE_VERSION:-v1.23}
+KUBE_VERSION=${KUBE_VERSION:-v1.24}
 KUBECONFIG=${KUBECONFIG:-~/.kube/config}
 CLUSTER=${CLUSTER:-advanced-statefulset}
 DOCKER_IO_MIRROR=${DOCKER_IO_MIRROR:-}
@@ -105,6 +105,7 @@ kind_node_images["v1.20.15"]="kindest/node:v1.20.15@sha256:a32bf5530929412061688
 kind_node_images["v1.21.14"]="kindest/node:v1.21.14@sha256:8a4e9bb3f415d2bb81629ce33ef9c76ba514c14d707f9797a01e3216376ba093"
 kind_node_images["v1.22.17"]="kindest/node:v1.22.17@sha256:f5b2e5698c6c9d6d0adc419c0deae21a425c07d81bbf3b6a6834042f25d4fba2"
 kind_node_images["v1.23.17"]="kindest/node:v1.23.17@sha256:59c989ff8a517a93127d4a536e7014d28e235fb3529d9fba91b3951d461edfdb"
+kind_node_images["v1.24.15"]="kindest/node:v1.24.15@sha256:7db4f8bea3e14b82d12e044e25e34bd53754b7f2b0e9d56df21774e6f66a70ab" # no image for v1.24.17 yet
 
 hack::ensure_kind
 hack::ensure_kubectl
