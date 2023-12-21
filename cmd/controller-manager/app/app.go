@@ -26,6 +26,7 @@ import (
 	"github.com/pingcap/advanced-statefulset/cmd/controller-manager/options"
 	"github.com/pingcap/advanced-statefulset/pkg/controller/statefulset"
 	"github.com/pingcap/advanced-statefulset/pkg/verflag"
+	"github.com/pingcap/advanced-statefulset/pkg/version"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -34,7 +35,6 @@ import (
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/cli/globalflag"
 	"k8s.io/component-base/term"
-	"k8s.io/component-base/version"
 	"k8s.io/klog"
 )
 

@@ -54,10 +54,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/component-base/logs"
-	"k8s.io/component-base/version"
 	"k8s.io/klog"
 	utilnet "k8s.io/utils/net"
 
+	"github.com/pingcap/advanced-statefulset/pkg/version"
 	e2eutil "github.com/pingcap/advanced-statefulset/test/e2e/util"
 	"github.com/pingcap/advanced-statefulset/test/third_party/k8s"
 	e2ekubectl "github.com/pingcap/advanced-statefulset/test/third_party/k8s/kubectl"
