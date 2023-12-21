@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+LDFLAGS ?= $(shell ./hack/version.sh)
+
 GO  := go
 
 ARCH ?= $(shell go env GOARCH)

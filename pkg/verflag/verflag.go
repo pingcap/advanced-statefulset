@@ -13,8 +13,6 @@
 
 // Package verflag defines utility functions to handle command line flags
 // related to version of Advanced StatefulSet.
-// This is modifed from k8s.io/component-base/version/verflag. Use it when it's
-// possible to customize version prefix.
 
 package verflag
 
@@ -25,7 +23,7 @@ import (
 
 	flag "github.com/spf13/pflag"
 
-	"k8s.io/component-base/version"
+	"github.com/pingcap/advanced-statefulset/pkg/version"
 )
 
 type versionValue int
