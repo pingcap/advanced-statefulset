@@ -21,7 +21,7 @@ fi
 OUTPUT=${ROOT}/output
 OUTPUT_BIN=${OUTPUT}/bin
 
-K8S_VERSION=${K8S_VERSION:-0.24.17} # TODO: update for `applyconfiguration-gen` to use `K8S_VERSION` instead after 0.26.0
+K8S_VERSION=${K8S_VERSION:-0.25.16} # TODO: update for `applyconfiguration-gen` to use `K8S_VERSION` instead after 0.26.0
 
 function hack::ensure_codegen() {
     echo "Installing codegen..."

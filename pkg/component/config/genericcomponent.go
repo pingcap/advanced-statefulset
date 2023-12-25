@@ -51,7 +51,7 @@ func NewDefaultGenericComponentConfiguration() GenericComponentConfiguration {
 	leaderElection := componentbaseconfigv1alpha1.LeaderElectionConfiguration{
 		// https://github.com/kubernetes/kubernetes/pull/84084
 		// https://github.com/kubernetes/kubernetes/pull/106852
-		ResourceLock: resourcelock.EndpointsLeasesResourceLock,
+		ResourceLock: resourcelock.LeasesResourceLock,
 	}
 	componentbaseconfigv1alpha1.RecommendedDefaultLeaderElectionConfiguration(&leaderElection)
 	componentbaseconfigv1alpha1.Convert_v1alpha1_LeaderElectionConfiguration_To_config_LeaderElectionConfiguration(&leaderElection, &c.LeaderElection, nil)
