@@ -49,8 +49,8 @@ func NewDefaultGenericComponentConfiguration() GenericComponentConfiguration {
 		ControllerStartInterval: metav1.Duration{Duration: 0 * time.Second},
 	}
 	leaderElection := componentbaseconfigv1alpha1.LeaderElectionConfiguration{
-		// https://github.com/kubernetes/kubernetes/pull/84084
-		// https://github.com/kubernetes/kubernetes/pull/106852
+		// https://github.com/kubernetes/kubernetes/blob/341052f4c7c5dfed0a099607382b43f86bc36067/pkg/scheduler/apis/config/v1/defaults.go#L130-L135
+		// starting in 1.20 K8s migrated to Lease lock
 		ResourceLock: resourcelock.LeasesResourceLock,
 	}
 	componentbaseconfigv1alpha1.RecommendedDefaultLeaderElectionConfiguration(&leaderElection)
