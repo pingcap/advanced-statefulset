@@ -3,7 +3,7 @@ module github.com/pingcap/advanced-statefulset/client
 go 1.21
 
 require (
-	github.com/docker/distribution v2.7.1+incompatible
+	github.com/docker/distribution v2.8.2+incompatible
 	github.com/google/go-cmp v0.5.8
 	k8s.io/api v0.25.16
 	k8s.io/apimachinery v0.25.16
