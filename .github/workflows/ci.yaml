@@ -23,11 +23,11 @@ jobs:
         - test
         # - test-integration
         - e2e-examples
-        - e2e-v1.23
         - e2e-v1.24
         - e2e-v1.25
         - e2e-v1.26
         - e2e-v1.27
+        - e2e-v1.28
     steps:
     - name: Set up Go
       uses: actions/setup-go@v2

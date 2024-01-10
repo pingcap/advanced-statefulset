@@ -30,7 +30,7 @@ cfgfile=$(mktemp)
 trap "test -f $cfgfile && rm $cfgfile" EXIT
 kind get kubeconfig --name "$CLUSTER" > $cfgfile
 
-KUBE_VERSION=$(kubectl version --short | awk '/Server Version:/ {print $3}')
+KUBE_VERSION=$(kubectl version | awk '/Server Version:/ {print $3}')
 
 kubectl --kubeconfig $cfgfile apply -f manifests/crd.v1.yaml
 
