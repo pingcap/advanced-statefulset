@@ -56,8 +56,7 @@ test-client:
 .PHONY: test-client
 
 test-integration: openapi-spec
-	@echo "skip integration tests now, ref https://github.com/kubernetes/kubernetes/issues/119220"
-	# hack/make-rules/test-integration.sh $(WHAT)
+	hack/make-rules/test-integration.sh $(WHAT)
 .PHONY: test-integration
 
 e2e:
