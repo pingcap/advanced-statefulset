@@ -1,6 +1,6 @@
 module github.com/pingcap/advanced-statefulset/client
 
-go 1.21
+go 1.23.1
 
 require (
 	github.com/docker/distribution v2.7.1+incompatible
