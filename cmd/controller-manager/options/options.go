@@ -35,7 +35,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	cliflag "k8s.io/component-base/cli/flag"
 	componentbaseconfig "k8s.io/component-base/config"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // ControllerManagerOptions is the main context object for the advanced-statefulset-controller-manager.

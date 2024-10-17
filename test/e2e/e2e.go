@@ -54,7 +54,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/component-base/logs"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	utilnet "k8s.io/utils/net"
 
 	"github.com/pingcap/advanced-statefulset/pkg/version"
