@@ -37,7 +37,7 @@ import (
 	appsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
 	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"

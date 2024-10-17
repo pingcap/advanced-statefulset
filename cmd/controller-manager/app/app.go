@@ -35,7 +35,7 @@ import (
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/cli/globalflag"
 	"k8s.io/component-base/term"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // ResyncPeriod returns a function which generates a duration each time it is
