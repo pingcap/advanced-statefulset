@@ -181,6 +181,127 @@ func TestSetDeleteSlots(t *testing.T) {
 	}
 }
 
+func TestSetPausedReconcile(t *testing.T) {
+	tests := []struct {
+		name string
+		set  bool
+		sts  asappsv1.StatefulSet
+		want asappsv1.StatefulSet
+	}{
+		{
+			name: "set paused reconcile",
+			set:  true,
+			sts: asappsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{},
+			},
+			want: asappsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						PausedReconcileAnn: "true",
+					},
+				},
+			},
+		},
+		{
+			name: "unset paused reconcile",
+			set:  false,
+			sts: asappsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						PausedReconcileAnn: "true",
+					},
+				},
+			},
+			want: asappsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{},
+				},
+			},
+		},
+		{
+			name: "toggle paused reconcile to false",
+			set:  false,
+			sts: asappsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						PausedReconcileAnn: "true",
+					},
+				},
+			},
+			want: asappsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetPausedReconcile(&tt.sts, tt.set)
+			if diff := cmp.Diff(tt.want, tt.sts); diff != "" {
+				t.Errorf("unexpected result (-want, +got): %s", diff)
+			}
+		})
+	}
+}
+
+func TestGetPausedReconcile(t *testing.T) {
+	tests := []struct {
+		name string
+		sts  asappsv1.StatefulSet
+		want bool
+	}{
+		{
+			name: "no annotation",
+			sts: asappsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{},
+			},
+			want: false,
+		},
+		{
+			name: "empty annotation",
+			sts: asappsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "paused reconcile",
+			sts: asappsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						PausedReconcileAnn: "true",
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "not paused reconcile",
+			sts: asappsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						PausedReconcileAnn: "false",
+					},
+				},
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetPausedReconcile(&tt.sts)
+			if got != tt.want {
+				t.Errorf("GetPausedReconcile want %v got %v", tt.want, got)
+			}
+		})
+	}
+}
+
 func int32ptr(i int32) *int32 {
 	return &i
 }

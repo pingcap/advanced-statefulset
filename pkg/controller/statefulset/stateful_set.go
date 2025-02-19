@@ -474,6 +474,12 @@ func (ssc *StatefulSetController) sync(key string) error {
 		return err
 	}
 
+	// If the StatefulSet is paused, don't do anything.
+	if helper.GetPausedReconcile(set) {
+		klog.V(4).Infof("StatefulSet %v/%v is paused, skipping", set.Namespace, set.Name)
+		return nil
+	}
+
 	selector, err := metav1.LabelSelectorAsSelector(set.Spec.Selector)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("error converting StatefulSet %v selector: %v", key, err))
