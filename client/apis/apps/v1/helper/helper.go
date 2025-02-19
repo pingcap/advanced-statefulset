@@ -23,6 +23,13 @@ import (
 
 const (
 	DeleteSlotsAnn = "delete-slots"
+
+	// PausedReconcileAnn is the annotation key for the paused reconcile.
+	// If the value is "true", the controller will not reconcile the statefulset.
+	// The controller will not delete the pods, update the status, etc.
+	// We use an annotation instead of a field in the status
+	// so that we can convert between the K8s built-in StatefulSet and ours.
+	PausedReconcileAnn = "paused-reconcile"
 )
 
 func GetDeleteSlots(set metav1.Object) (deleteSlots sets.Int32) {
@@ -85,6 +92,31 @@ func GetMaxReplicaCountAndDeleteSlots(replicas int32, deleteSlots sets.Int32) (i
 		}
 	}
 	return replicaCount, deleteSlotsCopy
+}
+
+func SetPausedReconcile(set metav1.Object, paused bool) {
+	annotations := set.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	if paused {
+		annotations[PausedReconcileAnn] = "true"
+	} else {
+		delete(annotations, PausedReconcileAnn)
+	}
+	set.SetAnnotations(annotations)
+}
+
+func GetPausedReconcile(set metav1.Object) bool {
+	annotations := set.GetAnnotations()
+	if annotations == nil {
+		return false
+	}
+	value, ok := annotations[PausedReconcileAnn]
+	if !ok {
+		return false
+	}
+	return value == "true"
 }
 
 func GetPodOrdinals(replicas int32, set metav1.Object) sets.Int32 {
