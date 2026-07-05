@@ -334,6 +334,7 @@ func shouldSyncLabels(revision *kubeapps.ControllerRevision) bool {
 }
 
 func syncLabels(kubeClient kubernetes.Interface, set *apps.StatefulSet, revision *kubeapps.ControllerRevision) (*kubeapps.ControllerRevision, error) {
+	revision = revision.DeepCopy()
 	labels := revision.ObjectMeta.Labels
 	if labels == nil {
 		labels = make(map[string]string)
@@ -341,6 +342,7 @@ func syncLabels(kubeClient kubernetes.Interface, set *apps.StatefulSet, revision
 	for k, v := range set.Spec.Template.Labels {
 		labels[k] = v
 	}
+	delete(labels, helper.UpgradeToAdvancedStatefulSetAnn)
 	revision.ObjectMeta.Labels = labels
 	return kubeClient.AppsV1().ControllerRevisions(revision.Namespace).Update(context.TODO(), revision, metav1.UpdateOptions{})
 }
@@ -351,22 +353,22 @@ func (ssc *StatefulSetController) adoptOrphanRevisions(set *apps.StatefulSet) er
 	if err != nil {
 		return err
 	}
-	hasOrphans := false
+	orphanRevisions := []*kubeapps.ControllerRevision{}
+	revisionsToSyncLabels := []*kubeapps.ControllerRevision{}
 	for i := range revisions {
-		if metav1.GetControllerOf(revisions[i]) == nil {
-			hasOrphans = true
-			break
+		owner := metav1.GetControllerOf(revisions[i])
+		if owner == nil {
+			orphanRevisions = append(orphanRevisions, revisions[i])
+			continue
+		}
+		if owner.UID != set.GetUID() {
+			continue
+		}
+		if shouldSyncLabels(revisions[i]) {
+			revisionsToSyncLabels = append(revisionsToSyncLabels, revisions[i])
 		}
 	}
-	if hasOrphans {
-		for i := range revisions {
-			if shouldSyncLabels(revisions[i]) {
-				revisions[i], err = syncLabels(ssc.kubeClient, set, revisions[i])
-				if err != nil {
-					return err
-				}
-			}
-		}
+	if len(orphanRevisions) > 0 {
 		fresh, err := ssc.pcClient.AppsV1().StatefulSets(set.Namespace).Get(context.TODO(), set.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
@@ -374,7 +376,19 @@ func (ssc *StatefulSetController) adoptOrphanRevisions(set *apps.StatefulSet) er
 		if fresh.UID != set.UID {
 			return fmt.Errorf("original StatefulSet %v/%v is gone: got uid %v, wanted %v", set.Namespace, set.Name, fresh.UID, set.UID)
 		}
-		return ssc.control.AdoptOrphanRevisions(set, revisions)
+		if err := ssc.control.AdoptOrphanRevisions(set, orphanRevisions); err != nil {
+			return err
+		}
+		for i := range orphanRevisions {
+			if shouldSyncLabels(orphanRevisions[i]) {
+				revisionsToSyncLabels = append(revisionsToSyncLabels, orphanRevisions[i])
+			}
+		}
+	}
+	for i := range revisionsToSyncLabels {
+		if _, err := syncLabels(ssc.kubeClient, set, revisionsToSyncLabels[i]); err != nil {
+			return err
+		}
 	}
 	return nil
 }

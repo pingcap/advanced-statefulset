@@ -81,6 +81,29 @@ type defaultStatefulSetControl struct {
 	recorder      record.EventRecorder
 }
 
+var builtinStatefulSetKind = kubeapps.SchemeGroupVersion.WithKind("StatefulSet")
+
+func isOrphanOrOwnedBy(revision *kubeapps.ControllerRevision, parent metav1.Object) bool {
+	owner := metav1.GetControllerOfNoCopy(revision)
+	return owner == nil || owner.UID == parent.GetUID()
+}
+
+// During migration, ControllerRevisions keep the builtin StatefulSet owner until GC orphans them.
+func isBuiltinStatefulSetUpgradeRevision(revision *kubeapps.ControllerRevision, parent metav1.Object) bool {
+	owner := metav1.GetControllerOfNoCopy(revision)
+	if owner == nil {
+		return false
+	}
+	if owner.APIVersion != builtinStatefulSetKind.GroupVersion().String() || owner.Kind != builtinStatefulSetKind.Kind || owner.Name != parent.GetName() {
+		return false
+	}
+	return revision.Labels[helper.UpgradeToAdvancedStatefulSetAnn] == parent.GetName()
+}
+
+func isUsableRevisionForSet(revision *kubeapps.ControllerRevision, parent metav1.Object) bool {
+	return isOrphanOrOwnedBy(revision, parent) || isBuiltinStatefulSetUpgradeRevision(revision, parent)
+}
+
 // UpdateStatefulSet executes the core logic loop for a stateful set, applying the predictable and
 // consistent monotonic update strategy by default - scale up proceeds in ordinal order, no new pod
 // is created while any pod is unhealthy, and pods are terminated in descending order. The burst
@@ -152,7 +175,15 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*k
 		return nil, err
 	}
 	res := []*kubeapps.ControllerRevision{}
+	seen := map[string]struct{}{}
 	for _, item := range append(revisions.Items, revisinsToUpgrade.Items...) {
+		if !isUsableRevisionForSet(&item, set) {
+			continue
+		}
+		if _, ok := seen[item.Name]; ok {
+			continue
+		}
+		seen[item.Name] = struct{}{}
 		local := item
 		res = append(res, &local)
 	}
@@ -163,6 +194,12 @@ func (ssc *defaultStatefulSetControl) AdoptOrphanRevisions(
 	set *apps.StatefulSet,
 	revisions []*kubeapps.ControllerRevision) error {
 	for i := range revisions {
+		if owner := metav1.GetControllerOfNoCopy(revisions[i]); owner != nil {
+			if owner.UID == set.GetUID() {
+				continue
+			}
+			return fmt.Errorf("attempt to adopt revision owned by %v", owner)
+		}
 		adopted, err := ssc.adoptControllerRevision(set, controllerKind, revisions[i])
 		if err != nil {
 			return err
@@ -191,6 +228,9 @@ func (ssc *defaultStatefulSetControl) truncateHistory(
 	}
 	// collect live revisions and historic revisions
 	for i := range revisions {
+		if isBuiltinStatefulSetUpgradeRevision(revisions[i], set) {
+			continue
+		}
 		if !live[revisions[i].Name] {
 			history = append(history, revisions[i])
 		}
@@ -247,11 +287,15 @@ func (ssc *defaultStatefulSetControl) getStatefulSetRevisions(
 	} else if equalCount > 0 {
 		// if the equivalent revision is not immediately prior we will roll back by incrementing the
 		// Revision of the equivalent revision
-		updateRevision, err = ssc.updateControllerRevision(
-			equalRevisions[equalCount-1],
-			updateRevision.Revision)
-		if err != nil {
-			return nil, nil, collisionCount, err
+		newRevision := updateRevision.Revision
+		updateRevision = equalRevisions[equalCount-1]
+		if !isBuiltinStatefulSetUpgradeRevision(updateRevision, set) {
+			updateRevision, err = ssc.updateControllerRevision(
+				updateRevision,
+				newRevision)
+			if err != nil {
+				return nil, nil, collisionCount, err
+			}
 		}
 	} else {
 		//if there is no equivalent revision we create a new one
@@ -704,7 +748,7 @@ func (ssc *defaultStatefulSetControl) createControllerRevision(parent metav1.Obj
 			if err != nil {
 				return nil, err
 			}
-			if bytes.Equal(exists.Data.Raw, clone.Data.Raw) {
+			if bytes.Equal(exists.Data.Raw, clone.Data.Raw) && isUsableRevisionForSet(exists, parent) {
 				return exists, nil
 			}
 			*collisionCount++
