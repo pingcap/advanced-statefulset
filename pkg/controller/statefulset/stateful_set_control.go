@@ -196,7 +196,7 @@ func (ssc *defaultStatefulSetControl) AdoptOrphanRevisions(
 	for i := range revisions {
 		if owner := metav1.GetControllerOfNoCopy(revisions[i]); owner != nil {
 			if owner.UID == set.GetUID() {
-				continue
+				continue // already adopted by a prior partial reconcile; nothing to do
 			}
 			return fmt.Errorf("attempt to adopt revision owned by %v", owner)
 		}
@@ -228,6 +228,9 @@ func (ssc *defaultStatefulSetControl) truncateHistory(
 	}
 	// collect live revisions and historic revisions
 	for i := range revisions {
+		// Not ours to delete yet: still owned by the builtin StatefulSet being
+		// migrated. Deleting it here could break currentRevision resolution before
+		// GC orphans it and we adopt it.
 		if isBuiltinStatefulSetUpgradeRevision(revisions[i], set) {
 			continue
 		}
@@ -289,6 +292,9 @@ func (ssc *defaultStatefulSetControl) getStatefulSetRevisions(
 		// Revision of the equivalent revision
 		newRevision := updateRevision.Revision
 		updateRevision = equalRevisions[equalCount-1]
+		// Skip bumping the Revision of a revision we don't own yet; writing to an
+		// object still controlled by the builtin StatefulSet would race with
+		// migration. It gets corrected once GC orphans it and we adopt it.
 		if !isBuiltinStatefulSetUpgradeRevision(updateRevision, set) {
 			updateRevision, err = ssc.updateControllerRevision(
 				updateRevision,
@@ -748,6 +754,9 @@ func (ssc *defaultStatefulSetControl) createControllerRevision(parent metav1.Obj
 			if err != nil {
 				return nil, err
 			}
+			// A data-equal revision owned by a foreign controller (outside an
+			// in-progress migration) must not be reused, or we'd silently borrow
+			// someone else's history entry.
 			if bytes.Equal(exists.Data.Raw, clone.Data.Raw) && isUsableRevisionForSet(exists, parent) {
 				return exists, nil
 			}

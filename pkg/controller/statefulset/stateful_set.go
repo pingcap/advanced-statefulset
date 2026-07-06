@@ -342,6 +342,10 @@ func syncLabels(kubeClient kubernetes.Interface, set *apps.StatefulSet, revision
 	for k, v := range set.Spec.Template.Labels {
 		labels[k] = v
 	}
+	// The marker is the migration-in-progress signal: ListRevisions matches
+	// revisions by it, and shouldSyncLabels re-triggers this func while it's
+	// present. Drop it once selector labels are restored so the revision stops
+	// being treated as mid-migration.
 	delete(labels, helper.UpgradeToAdvancedStatefulSetAnn)
 	revision.ObjectMeta.Labels = labels
 	return kubeClient.AppsV1().ControllerRevisions(revision.Namespace).Update(context.TODO(), revision, metav1.UpdateOptions{})
@@ -362,6 +366,9 @@ func (ssc *StatefulSetController) adoptOrphanRevisions(set *apps.StatefulSet) er
 			continue
 		}
 		if owner.UID != set.GetUID() {
+			// ListRevisions already filtered out truly-foreign owners; reaching here
+			// means this is the builtin StatefulSet being migrated. Wait for GC to
+			// orphan it before adopting.
 			continue
 		}
 		if shouldSyncLabels(revisions[i]) {
