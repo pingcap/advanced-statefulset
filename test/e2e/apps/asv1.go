@@ -473,11 +473,50 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 			ginkgo.By("Wait for all pods are running and ready")
 			e2esset.WaitForRunningAndReady(c, *ss.Spec.Replicas, ss)
 
+			// Roll the builtin StatefulSet once so migration must preserve more than one
+			// ControllerRevision (history + current), exercising adoption with real history.
+			newImage := NewWebserverImage
+			oldImage := ss.Spec.Template.Spec.Containers[0].Image
+			k8s.ExpectNotEqual(oldImage, newImage, "Incorrect test setup: should update to a different image")
+			ginkgo.By(fmt.Sprintf("Rolling update image from %s to %s to build revision history", oldImage, newImage))
+			ss, err = updateStatefulSetWithRetries(c, ns, ss.Name, func(update *appsv1.StatefulSet) {
+				update.Spec.Template.Spec.Containers[0].Image = newImage
+			})
+			k8s.ExpectNoError(err)
+			ginkgo.By("Wait for the rolling update to complete")
+			e2esset.WaitForState(c, ss, func(set *appsv1.StatefulSet, pods *v1.PodList) (bool, error) {
+				if set.Status.CurrentRevision != set.Status.UpdateRevision {
+					return false, nil
+				}
+				if set.Status.ReadyReplicas != *set.Spec.Replicas {
+					return false, nil
+				}
+				if len(pods.Items) != int(*set.Spec.Replicas) {
+					return false, nil
+				}
+				for i := range pods.Items {
+					if pods.Items[i].Spec.Containers[0].Image != newImage {
+						return false, nil
+					}
+				}
+				return true, nil
+			})
+			ss = waitForStatus(c, ss)
+
 			selector, err := metav1.LabelSelectorAsSelector(ss.Spec.Selector)
 			k8s.ExpectNoError(err)
 			revisionListOptions := metav1.ListOptions{LabelSelector: selector.String()}
 			oldRevisionList, err := c.AppsV1().ControllerRevisions(ns).List(context.TODO(), revisionListOptions)
 			k8s.ExpectNoError(err)
+			gomega.Expect(len(oldRevisionList.Items)).To(gomega.BeNumerically(">=", 2), "expected revision history (>= 2 revisions) before migration")
+
+			// Record pod identities so we can assert the migration is seamless (no restart).
+			podsBeforeUpgrade := e2esset.GetPodList(c, ss)
+			gomega.Expect(podsBeforeUpgrade.Items).To(gomega.HaveLen(int(*ss.Spec.Replicas)))
+			uidBeforeUpgrade := map[string]string{}
+			for i := range podsBeforeUpgrade.Items {
+				uidBeforeUpgrade[podsBeforeUpgrade.Items[i].Name] = string(podsBeforeUpgrade.Items[i].UID)
+			}
 
 			ginkgo.By(fmt.Sprintf("Upgrading the builtin StatefulSet %s/%s", ss.Namespace, ss.Name))
 			ss, err = c.AppsV1().StatefulSets(ns).Get(context.TODO(), ss.Name, metav1.GetOptions{})
@@ -526,6 +565,26 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 				return true, nil
 			})
 			k8s.ExpectNoError(err)
+
+			// The migration must be seamless: existing pods keep their identity (no restart).
+			ginkgo.By("Verifying that the migration did not restart any pod")
+			gomega.Consistently(func() error {
+				podList := e2esset.GetPodList(c, ss)
+				if len(podList.Items) != int(*ss.Spec.Replicas) {
+					return fmt.Errorf("expected %d pods, got %d", int(*ss.Spec.Replicas), len(podList.Items))
+				}
+				for i := range podList.Items {
+					name := podList.Items[i].Name
+					want, ok := uidBeforeUpgrade[name]
+					if !ok {
+						return fmt.Errorf("unexpected pod %s appeared after migration", name)
+					}
+					if string(podList.Items[i].UID) != want {
+						return fmt.Errorf("pod %s was recreated during migration: uid %s != %s", name, podList.Items[i].UID, want)
+					}
+				}
+				return nil
+			}, 30*time.Second, 3*time.Second).Should(gomega.Succeed())
 		})
 	})
 
