@@ -17,12 +17,14 @@ limitations under the License.
 package statefulset
 
 import (
+	"context"
 	"sort"
 	"testing"
 
 	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
 	"github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/fake"
 	informers "github.com/pingcap/advanced-statefulset/client/client/informers/externalversions"
+	kubeapps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -48,6 +50,321 @@ func TestStatefulSetControllerCreates(t *testing.T) {
 	}
 	if set.Status.Replicas != 3 {
 		t.Errorf("set.Status.Replicas = %v; want 3", set.Status.Replicas)
+	}
+}
+
+func TestStatefulSetControllerAdoptOrphanRevisionsSyncsUpgradeLabels(t *testing.T) {
+	set := newStatefulSet(3)
+	set.UID = "set-uid"
+	set.Status.CollisionCount = new(int32)
+
+	owned := newRevisionOrDie(set, 1)
+	markRevisionForUpgrade(set, owned)
+
+	orphanSet := set.DeepCopy()
+	orphanSet.Spec.Template.Spec.Containers[0].Image = "orphan"
+	orphan := newRevisionOrDie(orphanSet, 2)
+	orphan.OwnerReferences = nil
+	markRevisionForUpgrade(set, orphan)
+
+	ssc, _ := newFakeStatefulSetController(set, owned, orphan)
+	if err := ssc.adoptOrphanRevisions(set); err != nil {
+		t.Fatalf("adoptOrphanRevisions() error: %v", err)
+	}
+
+	for _, revision := range []*kubeapps.ControllerRevision{owned, orphan} {
+		got, err := ssc.kubeClient.AppsV1().ControllerRevisions(set.Namespace).Get(context.TODO(), revision.Name, metav1.GetOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertRevisionSelectorLabels(t, set, got)
+		if revisionHasUpgradeMarker(got) {
+			t.Fatalf("expected upgrade marker to be removed from revision %s", got.Name)
+		}
+	}
+
+	adopted, err := ssc.kubeClient.AppsV1().ControllerRevisions(set.Namespace).Get(context.TODO(), orphan.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner := metav1.GetControllerOf(adopted)
+	if owner == nil {
+		t.Fatal("expected orphan revision to be adopted")
+	}
+	if owner.UID != set.UID {
+		t.Fatalf("expected owner UID %s, got %s", set.UID, owner.UID)
+	}
+}
+
+func TestStatefulSetControllerAdoptOrphanRevisionsSyncsUpgradeLabelsWithoutOrphans(t *testing.T) {
+	set := newStatefulSet(3)
+	set.UID = "set-uid"
+	set.Status.CollisionCount = new(int32)
+
+	owned := newRevisionOrDie(set, 1)
+	markRevisionForUpgrade(set, owned)
+
+	ssc, _ := newFakeStatefulSetController(set, owned)
+	if err := ssc.adoptOrphanRevisions(set); err != nil {
+		t.Fatalf("adoptOrphanRevisions() error: %v", err)
+	}
+
+	got, err := ssc.kubeClient.AppsV1().ControllerRevisions(set.Namespace).Get(context.TODO(), owned.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertRevisionSelectorLabels(t, set, got)
+	if revisionHasUpgradeMarker(got) {
+		t.Fatalf("expected upgrade marker to be removed from revision %s", got.Name)
+	}
+	owner := metav1.GetControllerOf(got)
+	if owner == nil {
+		t.Fatal("expected revision owner to remain")
+	}
+	if owner.UID != set.UID {
+		t.Fatalf("expected owner UID %s, got %s", set.UID, owner.UID)
+	}
+}
+
+func TestStatefulSetControllerAdoptOrphanRevisionsSkipsDifferentOwnerUpgradeLabels(t *testing.T) {
+	set := newStatefulSet(3)
+	set.UID = "set-uid"
+	set.Status.CollisionCount = new(int32)
+
+	revision := newRevisionOrDie(set, 1)
+	revision.OwnerReferences[0].UID = "other-uid"
+	markRevisionForUpgrade(set, revision)
+
+	ssc, _ := newFakeStatefulSetController(set, revision)
+	if err := ssc.adoptOrphanRevisions(set); err != nil {
+		t.Fatalf("adoptOrphanRevisions() error: %v", err)
+	}
+
+	got, err := ssc.kubeClient.AppsV1().ControllerRevisions(set.Namespace).Get(context.TODO(), revision.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !revisionHasUpgradeMarker(got) {
+		t.Fatalf("expected upgrade marker to remain on revision %s", got.Name)
+	}
+	for k := range set.Spec.Selector.MatchLabels {
+		if _, ok := got.Labels[k]; ok {
+			t.Fatalf("expected selector label %s to remain absent on revision %s", k, got.Name)
+		}
+	}
+	owner := metav1.GetControllerOf(got)
+	if owner == nil {
+		t.Fatal("expected revision owner to remain")
+	}
+	if owner.UID != "other-uid" {
+		t.Fatalf("expected owner UID %s, got %s", "other-uid", owner.UID)
+	}
+}
+
+func TestStatefulSetControllerAdoptOrphanRevisionsSyncsOnlyAdoptableUpgradeLabels(t *testing.T) {
+	set := newStatefulSet(3)
+	set.UID = "set-uid"
+	set.Status.CollisionCount = new(int32)
+
+	otherOwned := newRevisionOrDie(set, 1)
+	otherOwned.OwnerReferences[0].UID = "other-uid"
+	markRevisionForUpgrade(set, otherOwned)
+
+	orphanSet := set.DeepCopy()
+	orphanSet.Spec.Template.Spec.Containers[0].Image = "orphan"
+	orphan := newRevisionOrDie(orphanSet, 2)
+	orphan.OwnerReferences = nil
+	markRevisionForUpgrade(set, orphan)
+
+	ssc, _ := newFakeStatefulSetController(set, otherOwned, orphan)
+	if err := ssc.adoptOrphanRevisions(set); err != nil {
+		t.Fatalf("adoptOrphanRevisions() error: %v", err)
+	}
+
+	gotOrphan, err := ssc.kubeClient.AppsV1().ControllerRevisions(set.Namespace).Get(context.TODO(), orphan.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertRevisionSelectorLabels(t, set, gotOrphan)
+	if revisionHasUpgradeMarker(gotOrphan) {
+		t.Fatalf("expected upgrade marker to be removed from revision %s", gotOrphan.Name)
+	}
+	orphanOwner := metav1.GetControllerOf(gotOrphan)
+	if orphanOwner == nil {
+		t.Fatal("expected orphan revision to be adopted")
+	}
+	if orphanOwner.UID != set.UID {
+		t.Fatalf("expected owner UID %s, got %s", set.UID, orphanOwner.UID)
+	}
+
+	gotOther, err := ssc.kubeClient.AppsV1().ControllerRevisions(set.Namespace).Get(context.TODO(), otherOwned.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !revisionHasUpgradeMarker(gotOther) {
+		t.Fatalf("expected upgrade marker to remain on revision %s", gotOther.Name)
+	}
+	for k := range set.Spec.Selector.MatchLabels {
+		if _, ok := gotOther.Labels[k]; ok {
+			t.Fatalf("expected selector label %s to remain absent on revision %s", k, gotOther.Name)
+		}
+	}
+	otherOwner := metav1.GetControllerOf(gotOther)
+	if otherOwner == nil {
+		t.Fatal("expected different owner to remain")
+	}
+	if otherOwner.UID != "other-uid" {
+		t.Fatalf("expected owner UID %s, got %s", "other-uid", otherOwner.UID)
+	}
+}
+
+func TestStatefulSetControllerSyncIgnoresDifferentOwnerUpgradeRevisions(t *testing.T) {
+	set := newStatefulSet(0)
+	set.UID = "set-uid"
+	set.Status.CollisionCount = new(int32)
+	historyLimit := int32(0)
+	set.Spec.RevisionHistoryLimit = &historyLimit
+
+	sameData := newRevisionOrDie(set, 7)
+	sameData.OwnerReferences[0].UID = "other-uid"
+	markRevisionForUpgrade(set, sameData)
+
+	differentDataSet := set.DeepCopy()
+	differentDataSet.Spec.Template.Spec.Containers[0].Image = "foreign"
+	differentData := newRevisionOrDie(differentDataSet, 8)
+	differentData.OwnerReferences[0].UID = "other-uid"
+	markRevisionForUpgrade(set, differentData)
+
+	ssc, spc := newFakeStatefulSetController(set, sameData, differentData)
+	if err := spc.setsIndexer.Add(set); err != nil {
+		t.Fatal(err)
+	}
+
+	key, err := cache.MetaNamespaceKeyFunc(set)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ssc.sync(key); err != nil {
+		t.Fatalf("sync() error: %v", err)
+	}
+
+	gotSet, err := spc.setsLister.StatefulSets(set.Namespace).Get(set.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotSet.Status.CurrentRevision == "" || gotSet.Status.UpdateRevision == "" {
+		t.Fatalf("expected sync to set current/update revisions, got current=%s update=%s",
+			gotSet.Status.CurrentRevision, gotSet.Status.UpdateRevision)
+	}
+	if gotSet.Status.CurrentRevision == sameData.Name || gotSet.Status.UpdateRevision == sameData.Name {
+		t.Fatalf("expected same-data foreign revision %s not to be current/update, got current=%s update=%s",
+			sameData.Name, gotSet.Status.CurrentRevision, gotSet.Status.UpdateRevision)
+	}
+	if gotSet.Status.CurrentRevision == differentData.Name || gotSet.Status.UpdateRevision == differentData.Name {
+		t.Fatalf("expected different-data foreign revision %s not to be current/update, got current=%s update=%s",
+			differentData.Name, gotSet.Status.CurrentRevision, gotSet.Status.UpdateRevision)
+	}
+
+	for _, revision := range []*kubeapps.ControllerRevision{sameData, differentData} {
+		got, err := ssc.kubeClient.AppsV1().ControllerRevisions(set.Namespace).Get(context.TODO(), revision.Name, metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("expected foreign revision %s to remain: %v", revision.Name, err)
+		}
+		if !revisionHasUpgradeMarker(got) {
+			t.Fatalf("expected upgrade marker to remain on revision %s", got.Name)
+		}
+		for k := range set.Spec.Selector.MatchLabels {
+			if _, ok := got.Labels[k]; ok {
+				t.Fatalf("expected selector label %s to remain absent on revision %s", k, got.Name)
+			}
+		}
+		owner := metav1.GetControllerOf(got)
+		if owner == nil {
+			t.Fatalf("expected foreign owner to remain on revision %s", got.Name)
+		}
+		if owner.UID != "other-uid" {
+			t.Fatalf("expected owner UID %s, got %s", "other-uid", owner.UID)
+		}
+	}
+}
+
+func TestStatefulSetControllerSyncPreservesBuiltinOwnerUpgradeRevision(t *testing.T) {
+	set := newStatefulSet(1)
+	set.UID = "set-uid"
+	set.Status.CollisionCount = new(int32)
+	historyLimit := int32(0)
+	set.Spec.RevisionHistoryLimit = &historyLimit
+
+	revision := newRevisionOrDie(set, 1)
+	revision.OwnerReferences[0].APIVersion = kubeapps.SchemeGroupVersion.String()
+	revision.OwnerReferences[0].UID = "native-sts-uid"
+	markRevisionForUpgrade(set, revision)
+	set.Status.CurrentRevision = revision.Name
+	set.Status.UpdateRevision = revision.Name
+
+	historySet := set.DeepCopy()
+	historySet.Spec.Template.Spec.Containers[0].Image = "history"
+	historyRevision := newRevisionOrDie(historySet, 0)
+	historyRevision.OwnerReferences[0].APIVersion = kubeapps.SchemeGroupVersion.String()
+	historyRevision.OwnerReferences[0].UID = "native-sts-uid"
+	markRevisionForUpgrade(set, historyRevision)
+
+	pod := newStatefulSetPod(set, 0)
+	pod.Status.Phase = v1.PodRunning
+	setPodRevision(pod, revision.Name)
+
+	ssc, spc := newFakeStatefulSetController(set, revision, historyRevision)
+	if err := spc.setsIndexer.Add(set); err != nil {
+		t.Fatal(err)
+	}
+	if err := spc.podsIndexer.Add(pod); err != nil {
+		t.Fatal(err)
+	}
+
+	key, err := cache.MetaNamespaceKeyFunc(set)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ssc.sync(key); err != nil {
+		t.Fatalf("sync() error: %v", err)
+	}
+
+	gotSet, err := spc.setsLister.StatefulSets(set.Namespace).Get(set.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotSet.Status.CurrentRevision != revision.Name || gotSet.Status.UpdateRevision != revision.Name {
+		t.Fatalf("expected migrated revision %s to stay current/update, got current=%s update=%s",
+			revision.Name, gotSet.Status.CurrentRevision, gotSet.Status.UpdateRevision)
+	}
+	if gotSet.Status.CurrentReplicas != 1 || gotSet.Status.UpdatedReplicas != 1 {
+		t.Fatalf("expected existing pod revision to stay current/updated, got current=%d updated=%d",
+			gotSet.Status.CurrentReplicas, gotSet.Status.UpdatedReplicas)
+	}
+	if gotSet.Status.CollisionCount == nil || *gotSet.Status.CollisionCount != 0 {
+		t.Fatalf("expected collision count to remain 0, got %v", gotSet.Status.CollisionCount)
+	}
+
+	for _, wantRevision := range []*kubeapps.ControllerRevision{revision, historyRevision} {
+		gotRevision, err := ssc.kubeClient.AppsV1().ControllerRevisions(set.Namespace).Get(context.TODO(), wantRevision.Name, metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("expected builtin-owned revision %s to remain: %v", wantRevision.Name, err)
+		}
+		if !revisionHasUpgradeMarker(gotRevision) {
+			t.Fatalf("expected upgrade marker to remain on revision %s until it is orphaned", gotRevision.Name)
+		}
+		for k := range set.Spec.Selector.MatchLabels {
+			if _, ok := gotRevision.Labels[k]; ok {
+				t.Fatalf("expected selector label %s to remain absent on revision %s until it is orphaned", k, gotRevision.Name)
+			}
+		}
+		owner := metav1.GetControllerOf(gotRevision)
+		if owner == nil {
+			t.Fatalf("expected builtin StatefulSet owner to remain on revision %s", gotRevision.Name)
+		}
+		if owner.APIVersion != kubeapps.SchemeGroupVersion.String() || owner.UID != "native-sts-uid" {
+			t.Fatalf("expected builtin StatefulSet owner to remain on revision %s, got %v", gotRevision.Name, owner)
+		}
 	}
 }
 
