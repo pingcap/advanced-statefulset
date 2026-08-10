@@ -17,6 +17,7 @@ limitations under the License.
 package statefulset
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -42,6 +43,7 @@ import (
 	"k8s.io/client-go/tools/record"
 
 	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
+	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
 	clientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
 	pcfake "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/fake"
 	pcinformers "github.com/pingcap/advanced-statefulset/client/client/informers/externalversions"
@@ -632,6 +634,170 @@ func TestStatefulSetControl_getSetRevisions(t *testing.T) {
 	}
 	for i := range tests {
 		testFn(&tests[i], t)
+	}
+}
+
+func TestStatefulSetControlListRevisionsDedupesUpgradeRevision(t *testing.T) {
+	set := newStatefulSet(3)
+	set.UID = "set-uid"
+	set.Status.CollisionCount = new(int32)
+
+	revision := newRevisionOrDie(set, 1)
+	if revision.Labels == nil {
+		revision.Labels = map[string]string{}
+	}
+	revision.Labels[helper.UpgradeToAdvancedStatefulSetAnn] = set.Name
+
+	kubeClient := fake.NewSimpleClientset(revision)
+	ssc := defaultStatefulSetControl{csAppsV1: kubeClient.AppsV1()}
+
+	revisions, err := ssc.ListRevisions(set)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(revisions) != 1 {
+		t.Fatalf("expected one deduped revision, got %d", len(revisions))
+	}
+	if revisions[0].Name != revision.Name {
+		t.Fatalf("expected revision %s, got %s", revision.Name, revisions[0].Name)
+	}
+}
+
+func TestStatefulSetControlListRevisionsSkipsDifferentOwnerUpgradeRevision(t *testing.T) {
+	set := newStatefulSet(3)
+	set.UID = "set-uid"
+	set.Status.CollisionCount = new(int32)
+
+	revision := newRevisionOrDie(set, 1)
+	revision.OwnerReferences[0].UID = "other-uid"
+	markRevisionForUpgrade(set, revision)
+
+	kubeClient := fake.NewSimpleClientset(revision)
+	ssc := defaultStatefulSetControl{csAppsV1: kubeClient.AppsV1()}
+
+	revisions, err := ssc.ListRevisions(set)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(revisions) != 0 {
+		t.Fatalf("expected different-owner upgrade revision to be filtered, got %d revisions", len(revisions))
+	}
+}
+
+func TestStatefulSetControlListRevisionsIncludesBuiltinOwnerUpgradeRevision(t *testing.T) {
+	set := newStatefulSet(3)
+	set.UID = "set-uid"
+	set.Status.CollisionCount = new(int32)
+
+	revision := newRevisionOrDie(set, 1)
+	revision.OwnerReferences[0].APIVersion = kubeapps.SchemeGroupVersion.String()
+	revision.OwnerReferences[0].UID = "native-sts-uid"
+	markRevisionForUpgrade(set, revision)
+
+	kubeClient := fake.NewSimpleClientset(revision)
+	ssc := defaultStatefulSetControl{csAppsV1: kubeClient.AppsV1()}
+
+	revisions, err := ssc.ListRevisions(set)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(revisions) != 1 {
+		t.Fatalf("expected builtin-owner upgrade revision to be included, got %d revisions", len(revisions))
+	}
+	if revisions[0].Name != revision.Name {
+		t.Fatalf("expected revision %s, got %s", revision.Name, revisions[0].Name)
+	}
+}
+
+func TestStatefulSetControlRollbackDoesNotBumpBuiltinOwnerUpgradeRevision(t *testing.T) {
+	set := newStatefulSet(3)
+	set.UID = "set-uid"
+	set.Status.CollisionCount = new(int32)
+
+	rollbackRevision := newRevisionOrDie(set, 1)
+	rollbackRevision.OwnerReferences[0].APIVersion = kubeapps.SchemeGroupVersion.String()
+	rollbackRevision.OwnerReferences[0].UID = "native-sts-uid"
+	markRevisionForUpgrade(set, rollbackRevision)
+
+	newerSet := set.DeepCopy()
+	newerSet.Spec.Template.Spec.Containers[0].Image = "newer"
+	newerRevision := newRevisionOrDie(newerSet, 2)
+	newerRevision.OwnerReferences[0].APIVersion = kubeapps.SchemeGroupVersion.String()
+	newerRevision.OwnerReferences[0].UID = "native-sts-uid"
+	markRevisionForUpgrade(set, newerRevision)
+
+	kubeClient := fake.NewSimpleClientset(rollbackRevision, newerRevision)
+	ssc := defaultStatefulSetControl{csAppsV1: kubeClient.AppsV1()}
+
+	revisions, err := ssc.ListRevisions(set)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, updateRevision, _, err := ssc.getStatefulSetRevisions(set, revisions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updateRevision.Name != rollbackRevision.Name {
+		t.Fatalf("expected rollback to use revision %s, got %s", rollbackRevision.Name, updateRevision.Name)
+	}
+
+	got, err := kubeClient.AppsV1().ControllerRevisions(set.Namespace).Get(context.TODO(), rollbackRevision.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Revision != rollbackRevision.Revision {
+		t.Fatalf("expected builtin-owned rollback revision number to remain %d, got %d", rollbackRevision.Revision, got.Revision)
+	}
+}
+
+func TestStatefulSetControlAdoptOrphanRevisionsSkipsAlreadyOwned(t *testing.T) {
+	set := newStatefulSet(3)
+	set.UID = "set-uid"
+	set.Status.CollisionCount = new(int32)
+
+	owned := newRevisionOrDie(set, 1)
+	orphanSet := set.DeepCopy()
+	orphanSet.Spec.Template.Spec.Containers[0].Image = "orphan"
+	orphan := newRevisionOrDie(orphanSet, 2)
+	orphan.OwnerReferences = nil
+
+	kubeClient := fake.NewSimpleClientset(owned, orphan)
+	ssc := defaultStatefulSetControl{csAppsV1: kubeClient.AppsV1()}
+
+	if err := ssc.AdoptOrphanRevisions(set, []*kubeapps.ControllerRevision{owned, orphan}); err != nil {
+		t.Fatalf("AdoptOrphanRevisions() error: %v", err)
+	}
+
+	adopted, err := kubeClient.AppsV1().ControllerRevisions(set.Namespace).Get(context.TODO(), orphan.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner := metav1.GetControllerOf(adopted)
+	if owner == nil {
+		t.Fatal("expected orphan revision to be adopted")
+	}
+	if owner.UID != set.UID {
+		t.Fatalf("expected owner UID %s, got %s", set.UID, owner.UID)
+	}
+}
+
+func TestStatefulSetControlAdoptOrphanRevisionsRejectsDifferentOwner(t *testing.T) {
+	set := newStatefulSet(3)
+	set.UID = "set-uid"
+	set.Status.CollisionCount = new(int32)
+
+	revision := newRevisionOrDie(set, 1)
+	revision.OwnerReferences[0].UID = "other-uid"
+
+	kubeClient := fake.NewSimpleClientset(revision)
+	ssc := defaultStatefulSetControl{csAppsV1: kubeClient.AppsV1()}
+
+	err := ssc.AdoptOrphanRevisions(set, []*kubeapps.ControllerRevision{revision})
+	if err == nil {
+		t.Fatal("expected different owner to be rejected")
+	}
+	if !strings.Contains(err.Error(), "attempt to adopt revision owned by") {
+		t.Fatalf("expected owner conflict error, got %v", err)
 	}
 }
 
@@ -2165,5 +2331,30 @@ func newRevisionOrDie(set *apps.StatefulSet, revision int64) *kubeapps.Controlle
 	if err != nil {
 		panic(err)
 	}
+	rev.Namespace = set.Namespace
 	return rev
+}
+
+func markRevisionForUpgrade(set *apps.StatefulSet, revision *kubeapps.ControllerRevision) {
+	if revision.Labels == nil {
+		revision.Labels = map[string]string{}
+	}
+	for k := range set.Spec.Selector.MatchLabels {
+		delete(revision.Labels, k)
+	}
+	revision.Labels[helper.UpgradeToAdvancedStatefulSetAnn] = set.Name
+}
+
+func revisionHasUpgradeMarker(revision *kubeapps.ControllerRevision) bool {
+	_, ok := revision.Labels[helper.UpgradeToAdvancedStatefulSetAnn]
+	return ok
+}
+
+func assertRevisionSelectorLabels(t *testing.T, set *apps.StatefulSet, revision *kubeapps.ControllerRevision) {
+	t.Helper()
+	for k, v := range set.Spec.Template.Labels {
+		if revision.Labels[k] != v {
+			t.Fatalf("expected revision %s label %s=%s, got %s", revision.Name, k, v, revision.Labels[k])
+		}
+	}
 }
