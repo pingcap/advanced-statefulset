@@ -28,6 +28,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
@@ -185,5 +186,54 @@ func TestFromBuiltinStatefulSet(t *testing.T) {
 				t.Errorf("want %v got %v", tt.want, got)
 			}
 		})
+	}
+}
+
+func TestHijackWatchStatusEvents(t *testing.T) {
+	source := watch.NewFake()
+	bridge := newHijackWatch(source)
+	defer bridge.Stop()
+	status := &metav1.Status{Status: metav1.StatusFailure, Code: 410, Reason: metav1.StatusReasonExpired}
+	go source.Error(status)
+	select {
+	case event := <-bridge.ResultChan():
+		if event.Type != watch.Error || event.Object != status {
+			t.Fatalf("unexpected error event: %#v", event)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("error event not forwarded")
+	}
+	go source.Add(testAsObj.DeepCopy())
+	select {
+	case event := <-bridge.ResultChan():
+		obj, ok := event.Object.(*appsv1.StatefulSet)
+		if !ok || event.Type != watch.Added || obj.Name != testAsObj.Name {
+			t.Fatalf("unexpected converted event: %#v", event)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("normal event not forwarded")
+	}
+}
+
+func TestHijackWatchUnexpectedObject(t *testing.T) {
+	source := watch.NewFake()
+	bridge := newHijackWatch(source)
+	defer bridge.Stop()
+	go source.Add(&metav1.Status{})
+	select {
+	case event := <-bridge.ResultChan():
+		if event.Type != watch.Error {
+			t.Fatalf("unexpected event: %#v", event)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("unexpected object did not produce an error event")
+	}
+	select {
+	case _, ok := <-bridge.ResultChan():
+		if ok {
+			t.Fatal("watch not closed")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("watch did not terminate")
 	}
 }

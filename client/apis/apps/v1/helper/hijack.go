@@ -195,13 +195,25 @@ func (w *hijackWatch) receive() {
 			if !ok {
 				return
 			}
+			if event.Type == watch.Error {
+				w.result <- event
+				continue
+			}
 			asts, ok := event.Object.(*asv1.StatefulSet)
 			if !ok {
-				panic("unreachable")
+				w.result <- watch.Event{Type: watch.Error, Object: &metav1.Status{
+					Status: metav1.StatusFailure, Reason: metav1.StatusReasonInternalError,
+					Code: 500, Message: "unexpected object in Advanced StatefulSet watch",
+				}}
+				return
 			}
 			sts, err := ToBuiltinStatefulSet(asts)
 			if err != nil {
-				panic(err)
+				w.result <- watch.Event{Type: watch.Error, Object: &metav1.Status{
+					Status: metav1.StatusFailure, Reason: metav1.StatusReasonInternalError,
+					Code: 500, Message: "cannot convert Advanced StatefulSet watch object",
+				}}
+				return
 			}
 			w.result <- watch.Event{
 				Type:   event.Type,
