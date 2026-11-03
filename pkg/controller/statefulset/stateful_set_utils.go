@@ -267,7 +267,7 @@ func newStatefulSetPod(set *apps.StatefulSet, ordinal int) *v1.Pod {
 func newVersionedStatefulSetPod(currentSet, updateSet *apps.StatefulSet, currentRevision, updateRevision string, ordinal int) *v1.Pod {
 	if currentSet.Spec.UpdateStrategy.Type == apps.RollingUpdateStatefulSetStrategyType &&
 		(currentSet.Spec.UpdateStrategy.RollingUpdate == nil && ordinal < int(currentSet.Status.CurrentReplicas)) ||
-		(currentSet.Spec.UpdateStrategy.RollingUpdate != nil && ordinal < int(*currentSet.Spec.UpdateStrategy.RollingUpdate.Partition)) {
+		(currentSet.Spec.UpdateStrategy.RollingUpdate != nil && currentSet.Spec.UpdateStrategy.RollingUpdate.Partition != nil && ordinal < int(*currentSet.Spec.UpdateStrategy.RollingUpdate.Partition)) {
 		pod := newStatefulSetPod(currentSet, ordinal)
 		setPodRevision(pod, currentRevision)
 		return pod

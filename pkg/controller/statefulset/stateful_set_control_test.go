@@ -2399,3 +2399,12 @@ func TestMaximumOrdinalUnhealthyPod(t *testing.T) {
 		t.Fatalf("replicas = %d, want 1", status.Replicas)
 	}
 }
+
+func TestNewVersionedPodWithOmittedPartition(t *testing.T) {
+	current, updated := newStatefulSet(1), newStatefulSet(1)
+	current.Spec.UpdateStrategy.RollingUpdate = &apps.RollingUpdateStatefulSetStrategy{}
+	pod := newVersionedStatefulSetPod(current, updated, "current", "updated", 0)
+	if getPodRevision(pod) != "updated" {
+		t.Fatalf("revision = %s, want updated", getPodRevision(pod))
+	}
+}
