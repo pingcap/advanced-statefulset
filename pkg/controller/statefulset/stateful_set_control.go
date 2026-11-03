@@ -342,6 +342,9 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 	updateRevision *kubeapps.ControllerRevision,
 	collisionCount int32,
 	pods []*v1.Pod) (*apps.StatefulSetStatus, error) {
+	if rolling := set.Spec.UpdateStrategy.RollingUpdate; rolling != nil && rolling.Partition != nil && *rolling.Partition < 0 {
+		return nil, fmt.Errorf("rolling update partition must not be negative")
+	}
 	// get the current and update revisions of the set.
 	currentSet, err := ApplyRevision(set, currentRevision)
 	if err != nil {
@@ -428,7 +431,7 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 		}
 		if !isHealthy(replicas[i]) {
 			unhealthy++
-			if ord := getOrdinal(replicas[i]); ord < firstUnhealthyOrdinal {
+			if ord := getOrdinal(replicas[i]); firstUnhealthyPod == nil || ord < firstUnhealthyOrdinal {
 				firstUnhealthyOrdinal = ord
 				firstUnhealthyPod = replicas[i]
 			}
@@ -438,7 +441,7 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 	for i := range condemned {
 		if !isHealthy(condemned[i]) {
 			unhealthy++
-			if ord := getOrdinal(condemned[i]); ord < firstUnhealthyOrdinal {
+			if ord := getOrdinal(condemned[i]); firstUnhealthyPod == nil || ord < firstUnhealthyOrdinal {
 				firstUnhealthyOrdinal = ord
 				firstUnhealthyPod = condemned[i]
 			}
@@ -610,7 +613,7 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 
 	// we compute the minimum ordinal of the target sequence for a destructive update based on the strategy.
 	updateMin := 0
-	if set.Spec.UpdateStrategy.RollingUpdate != nil {
+	if set.Spec.UpdateStrategy.RollingUpdate != nil && set.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
 		updateMin = int(*set.Spec.UpdateStrategy.RollingUpdate.Partition)
 	}
 	// we terminate the Pod with the largest ordinal that does not match the update revision.
