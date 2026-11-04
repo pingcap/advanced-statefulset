@@ -2358,3 +2358,53 @@ func assertRevisionSelectorLabels(t *testing.T, set *apps.StatefulSet, revision 
 		}
 	}
 }
+
+func TestRollingUpdatePartitionValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		partition *int32
+		wantError bool
+	}{
+		{name: "omitted"},
+		{name: "zero", partition: func() *int32 { v := int32(0); return &v }()},
+		{name: "negative", partition: func() *int32 { v := int32(-1); return &v }(), wantError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			set := newStatefulSet(0)
+			set.Spec.UpdateStrategy.RollingUpdate = &apps.RollingUpdateStatefulSetStrategy{Partition: tc.partition}
+			revision := newRevisionOrDie(set, 1)
+			control := &defaultStatefulSetControl{}
+			_, err := control.updateStatefulSet(set, revision, revision, 0, nil)
+			if (err != nil) != tc.wantError {
+				t.Fatalf("error = %v, wantError = %v", err, tc.wantError)
+			}
+		})
+	}
+}
+
+func TestMaximumOrdinalUnhealthyPod(t *testing.T) {
+	set := newStatefulSet(0)
+	set.Spec.PodManagementPolicy = apps.OrderedReadyPodManagement
+	revision := newRevisionOrDie(set, 1)
+	pod := newStatefulSetPod(set, int(^uint32(0)>>1))
+	// Return after health accounting without deleting the test pod.
+	now := metav1.Now()
+	set.DeletionTimestamp = &now
+	control := &defaultStatefulSetControl{}
+	status, err := control.updateStatefulSet(set, revision, revision, 0, []*v1.Pod{pod})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.Replicas != 1 {
+		t.Fatalf("replicas = %d, want 1", status.Replicas)
+	}
+}
+
+func TestNewVersionedPodWithOmittedPartition(t *testing.T) {
+	current, updated := newStatefulSet(1), newStatefulSet(1)
+	current.Spec.UpdateStrategy.RollingUpdate = &apps.RollingUpdateStatefulSetStrategy{}
+	pod := newVersionedStatefulSetPod(current, updated, "current", "updated", 0)
+	if getPodRevision(pod) != "updated" {
+		t.Fatalf("revision = %s, want updated", getPodRevision(pod))
+	}
+}
