@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/apimachinery/pkg/util/sets"
 	appsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
@@ -104,6 +105,17 @@ func isUsableRevisionForSet(revision *kubeapps.ControllerRevision, parent metav1
 	return isOrphanOrOwnedBy(revision, parent) || isBuiltinStatefulSetUpgradeRevision(revision, parent)
 }
 
+func desiredReplicaSlots(set *apps.StatefulSet) (int32, sets.Int32, error) {
+	if set.Spec.Replicas == nil {
+		return 0, nil, fmt.Errorf("replicas must be specified")
+	}
+	slots, err := helper.GetDeleteSlotsChecked(set)
+	if err != nil {
+		return 0, nil, err
+	}
+	return helper.GetMaxReplicaCountAndDeleteSlotsChecked(*set.Spec.Replicas, slots)
+}
+
 // UpdateStatefulSet executes the core logic loop for a stateful set, applying the predictable and
 // consistent monotonic update strategy by default - scale up proceeds in ordinal order, no new pod
 // is created while any pod is unhealthy, and pods are terminated in descending order. The burst
@@ -111,6 +123,9 @@ func isUsableRevisionForSet(revision *kubeapps.ControllerRevision, parent metav1
 // in no particular order. Clients using the burst strategy should be careful to ensure they
 // understand the consistency implications of having unpredictable numbers of pods available.
 func (ssc *defaultStatefulSetControl) UpdateStatefulSet(set *apps.StatefulSet, pods []*v1.Pod) error {
+	if _, _, err := desiredReplicaSlots(set); err != nil {
+		return err
+	}
 
 	// list all revisions and sort them
 	revisions, err := ssc.ListRevisions(set)
@@ -364,8 +379,10 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 	*status.CollisionCount = collisionCount
 
 	// desired replica slots: [0, replicaCount) - [delete slots]
-	deleteSlots := helper.GetDeleteSlots(set)
-	_replicaCount, deleteSlots := helper.GetMaxReplicaCountAndDeleteSlots(*set.Spec.Replicas, deleteSlots)
+	_replicaCount, deleteSlots, err := desiredReplicaSlots(set)
+	if err != nil {
+		return nil, err
+	}
 	replicaCount := int(_replicaCount)
 
 	// slice that will contain all Pods such that 0 <= getOrdinal(pod) < set.Spec.Replicas and not in deleteSlots

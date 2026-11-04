@@ -15,6 +15,7 @@ package helper
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +33,7 @@ const (
 	PausedReconcileAnn = "paused-reconcile"
 )
 
+// Deprecated: use GetDeleteSlotsChecked when reading untrusted annotations.
 func GetDeleteSlots(set metav1.Object) (deleteSlots sets.Int32) {
 	deleteSlots = sets.NewInt32()
 	annotations := set.GetAnnotations()
@@ -72,12 +74,16 @@ func SetDeleteSlots(set metav1.Object, deleteSlots sets.Int32) (err error) {
 }
 
 func AddDeleteSlots(set metav1.Object, deleteSlots sets.Int32) (err error) {
-	currentDeleteSlots := GetDeleteSlots(set)
+	currentDeleteSlots, err := GetDeleteSlotsChecked(set)
+	if err != nil {
+		return err
+	}
 	return SetDeleteSlots(set, currentDeleteSlots.Union(deleteSlots))
 }
 
 // GetMaxReplicaCountAndDeleteSlots returns the max replica count and delete
 // slots. The desired slots of this stateful set will be [0, replicaCount) - [delete slots].
+// Deprecated: use GetMaxReplicaCountAndDeleteSlotsChecked for bounded reconciliation.
 func GetMaxReplicaCountAndDeleteSlots(replicas int32, deleteSlots sets.Int32) (int32, sets.Int32) {
 	replicaCount := replicas
 	deleteSlotsCopy := sets.NewInt32()
@@ -154,4 +160,72 @@ func GetMinPodOrdinal(replicas int32, set metav1.Object) int32 {
 		}
 	}
 	return min
+}
+
+// MaxReplicaCount bounds the ordinal range materialized by the controller.
+const MaxReplicaCount int32 = 10000
+
+// GetDeleteSlotsChecked rejects malformed, negative and excessive delete slots.
+func GetDeleteSlotsChecked(set metav1.Object) (sets.Int32, error) {
+	value, exists := set.GetAnnotations()[DeleteSlotsAnn]
+	if !exists {
+		return sets.NewInt32(), nil
+	}
+	var slots []int32
+	if err := json.Unmarshal([]byte(value), &slots); err != nil || slots == nil {
+		return nil, fmt.Errorf("delete-slots must be a JSON array of non-negative int32 ordinals")
+	}
+	if len(slots) > int(MaxReplicaCount) {
+		return nil, fmt.Errorf("too many delete-slots (maximum %d)", MaxReplicaCount)
+	}
+	for _, slot := range slots {
+		if slot < 0 {
+			return nil, fmt.Errorf("delete-slots must not contain negative ordinals")
+		}
+	}
+	return sets.NewInt32(slots...), nil
+}
+
+// GetMaxReplicaCountAndDeleteSlotsChecked validates before any dense allocation.
+func GetMaxReplicaCountAndDeleteSlotsChecked(replicas int32, deleteSlots sets.Int32) (int32, sets.Int32, error) {
+	if replicas < 0 || replicas > MaxReplicaCount {
+		return 0, nil, fmt.Errorf("replicas must be between 0 and %d", MaxReplicaCount)
+	}
+	if deleteSlots.Len() > int(MaxReplicaCount) {
+		return 0, nil, fmt.Errorf("too many delete-slots")
+	}
+	count := int64(replicas)
+	effective := sets.NewInt32()
+	for _, slot := range deleteSlots.List() {
+		if slot < 0 {
+			return 0, nil, fmt.Errorf("delete-slots must not contain negative ordinals")
+		}
+		if int64(slot) < count {
+			count++
+			if count > int64(MaxReplicaCount) {
+				return 0, nil, fmt.Errorf("replica ordinal range exceeds maximum %d", MaxReplicaCount)
+			}
+			effective.Insert(slot)
+		}
+	}
+	return int32(count), effective, nil
+}
+
+// GetPodOrdinalsChecked is the error-returning counterpart of GetPodOrdinals.
+func GetPodOrdinalsChecked(replicas int32, set metav1.Object) (sets.Int32, error) {
+	slots, err := GetDeleteSlotsChecked(set)
+	if err != nil {
+		return nil, err
+	}
+	count, slots, err := GetMaxReplicaCountAndDeleteSlotsChecked(replicas, slots)
+	if err != nil {
+		return nil, err
+	}
+	ordinals := sets.NewInt32()
+	for i := int32(0); i < count; i++ {
+		if !slots.Has(i) {
+			ordinals.Insert(i)
+		}
+	}
+	return ordinals, nil
 }

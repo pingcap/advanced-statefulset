@@ -23,6 +23,8 @@ spec:
             properties:
               replicas:
                 type: integer
+                format: int32
+                maximum: 10000
                 minimum: 0
                 default: 1
               selector:
@@ -95,6 +97,8 @@ spec:
             properties:
               replicas:
                 type: integer
+                format: int32
+                maximum: 10000
                 minimum: 0
                 default: 1
               selector:

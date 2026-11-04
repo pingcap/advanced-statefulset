@@ -501,6 +501,10 @@ func (ssc *StatefulSetController) sync(key string) error {
 		return nil
 	}
 
+	if _, _, err := desiredReplicaSlots(set); err != nil {
+		return err
+	}
+
 	selector, err := metav1.LabelSelectorAsSelector(set.Spec.Selector)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("error converting StatefulSet %v selector: %v", key, err))
