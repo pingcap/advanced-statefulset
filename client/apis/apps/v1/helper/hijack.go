@@ -164,6 +164,7 @@ type hijackWatch struct {
 	sync.Mutex
 	source  watch.Interface
 	result  chan watch.Event
+	done    chan struct{}
 	stopped bool
 }
 
@@ -171,6 +172,7 @@ func newHijackWatch(source watch.Interface) watch.Interface {
 	w := &hijackWatch{
 		source: source,
 		result: make(chan watch.Event),
+		done:   make(chan struct{}),
 	}
 	go w.receive()
 	return w
@@ -181,7 +183,17 @@ func (w *hijackWatch) Stop() {
 	defer w.Unlock()
 	if !w.stopped {
 		w.stopped = true
+		close(w.done)
 		w.source.Stop()
+	}
+}
+
+func (w *hijackWatch) send(event watch.Event) bool {
+	select {
+	case <-w.done:
+		return false
+	case w.result <- event:
+		return true
 	}
 }
 
@@ -191,21 +203,39 @@ func (w *hijackWatch) receive() {
 	defer utilruntime.HandleCrash()
 	for {
 		select {
+		case <-w.done:
+			return
 		case event, ok := <-w.source.ResultChan():
 			if !ok {
 				return
 			}
+			if event.Type == watch.Error {
+				if !w.send(event) {
+					return
+				}
+				continue
+			}
 			asts, ok := event.Object.(*asv1.StatefulSet)
 			if !ok {
-				panic("unreachable")
+				w.send(watch.Event{Type: watch.Error, Object: &metav1.Status{
+					Status: metav1.StatusFailure, Reason: metav1.StatusReasonInternalError,
+					Code: 500, Message: "unexpected object in Advanced StatefulSet watch",
+				}})
+				return
 			}
 			sts, err := ToBuiltinStatefulSet(asts)
 			if err != nil {
-				panic(err)
+				w.send(watch.Event{Type: watch.Error, Object: &metav1.Status{
+					Status: metav1.StatusFailure, Reason: metav1.StatusReasonInternalError,
+					Code: 500, Message: "cannot convert Advanced StatefulSet watch object",
+				}})
+				return
 			}
-			w.result <- watch.Event{
+			if !w.send(watch.Event{
 				Type:   event.Type,
 				Object: sts,
+			}) {
+				return
 			}
 		}
 	}

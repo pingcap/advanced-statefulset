@@ -15,6 +15,7 @@ package helper
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
@@ -183,6 +185,107 @@ func TestFromBuiltinStatefulSet(t *testing.T) {
 			}
 			if !apiequality.Semantic.DeepEqual(tt.want, got) {
 				t.Errorf("want %v got %v", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestHijackWatchStatusEvents(t *testing.T) {
+	source := watch.NewFake()
+	bridge := newHijackWatch(source)
+	defer bridge.Stop()
+	status := &metav1.Status{Status: metav1.StatusFailure, Code: 410, Reason: metav1.StatusReasonExpired}
+	go source.Error(status)
+	select {
+	case event := <-bridge.ResultChan():
+		if event.Type != watch.Error || event.Object != status {
+			t.Fatalf("unexpected error event: %#v", event)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("error event not forwarded")
+	}
+	go source.Add(testAsObj.DeepCopy())
+	select {
+	case event := <-bridge.ResultChan():
+		obj, ok := event.Object.(*appsv1.StatefulSet)
+		if !ok || event.Type != watch.Added || obj.Name != testAsObj.Name {
+			t.Fatalf("unexpected converted event: %#v", event)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("normal event not forwarded")
+	}
+}
+
+func TestHijackWatchUnexpectedObject(t *testing.T) {
+	source := watch.NewFake()
+	bridge := newHijackWatch(source)
+	defer bridge.Stop()
+	go source.Add(&metav1.Status{})
+	select {
+	case event := <-bridge.ResultChan():
+		if event.Type != watch.Error {
+			t.Fatalf("unexpected event: %#v", event)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("unexpected object did not produce an error event")
+	}
+	select {
+	case _, ok := <-bridge.ResultChan():
+		if ok {
+			t.Fatal("watch not closed")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("watch did not terminate")
+	}
+}
+
+// This source deliberately leaves its channel open when stopped: the bridge
+// must cancel its own receive loop and any pending result delivery.
+type stopOnlyWatch struct {
+	events chan watch.Event
+	stops  int32
+}
+
+func (w *stopOnlyWatch) Stop()                          { atomic.AddInt32(&w.stops, 1) }
+func (w *stopOnlyWatch) ResultChan() <-chan watch.Event { return w.events }
+
+func TestHijackWatchStopWithoutConsumer(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		event *watch.Event
+	}{
+		{name: "idle"},
+		{name: "forwarded error", event: &watch.Event{Type: watch.Error, Object: &metav1.Status{Code: 410}}},
+		{name: "synthesized error", event: &watch.Event{Type: watch.Added, Object: &metav1.Status{}}},
+		{name: "normal event", event: &watch.Event{Type: watch.Added, Object: testAsObj.DeepCopy()}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := &stopOnlyWatch{events: make(chan watch.Event)}
+			bridge := &hijackWatch{source: source, result: make(chan watch.Event), done: make(chan struct{})}
+			finished := make(chan struct{})
+			go func() { defer close(finished); bridge.receive() }()
+			if tc.event != nil {
+				// The unbuffered source send confirms the bridge received the event.
+				source.events <- *tc.event
+			}
+			bridge.Stop()
+			bridge.Stop()
+			select {
+			case <-finished:
+			case <-time.After(time.Second):
+				t.Error("receive did not exit after Stop without a result consumer")
+				close(source.events)
+				go func() {
+					for range bridge.ResultChan() {
+					}
+				}()
+				<-finished
+			}
+			if stops := atomic.LoadInt32(&source.stops); stops != 1 {
+				t.Fatalf("source stopped %d times, want 1", stops)
+			}
+			if event, ok := <-bridge.ResultChan(); ok {
+				t.Fatalf("result channel still open: %#v", event)
 			}
 		})
 	}
