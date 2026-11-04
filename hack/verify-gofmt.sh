@@ -22,13 +22,13 @@ cd $ROOT
 
 gofmt=$(which gofmt)
 
-PKGS=$(go list -f '{{.Dir}}' ./...)
+PKGS=$(go list ./... | grep -v /vendor/)
 
 # gofmt exits with non-zero exit code if it finds a problem unrelated to
 # formatting (e.g., a file does not parse correctly). Without "|| true" this
 # would have led to no useful error message from gofmt, because the script would
 # have failed before getting to the "echo" in the block below.
-diff=$(while IFS= read -r package_dir; do "${gofmt}" -d -s "$package_dir"; done <<<"${PKGS}" 2>&1) || true
+diff=$(xargs -n 1 -I pkg echo ${GOPATH}/src/pkg <<<"${PKGS}" | xargs ${gofmt} -d -s 2>&1) || true
 if [[ -n "${diff}" ]]; then
     echo "${diff}"
     exit 1
