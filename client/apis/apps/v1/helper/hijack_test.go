@@ -15,6 +15,7 @@ package helper
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -235,5 +236,57 @@ func TestHijackWatchUnexpectedObject(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("watch did not terminate")
+	}
+}
+
+// This source deliberately leaves its channel open when stopped: the bridge
+// must cancel its own receive loop and any pending result delivery.
+type stopOnlyWatch struct {
+	events chan watch.Event
+	stops  int32
+}
+
+func (w *stopOnlyWatch) Stop()                          { atomic.AddInt32(&w.stops, 1) }
+func (w *stopOnlyWatch) ResultChan() <-chan watch.Event { return w.events }
+
+func TestHijackWatchStopWithoutConsumer(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		event *watch.Event
+	}{
+		{name: "idle"},
+		{name: "forwarded error", event: &watch.Event{Type: watch.Error, Object: &metav1.Status{Code: 410}}},
+		{name: "synthesized error", event: &watch.Event{Type: watch.Added, Object: &metav1.Status{}}},
+		{name: "normal event", event: &watch.Event{Type: watch.Added, Object: testAsObj.DeepCopy()}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := &stopOnlyWatch{events: make(chan watch.Event)}
+			bridge := &hijackWatch{source: source, result: make(chan watch.Event), done: make(chan struct{})}
+			finished := make(chan struct{})
+			go func() { defer close(finished); bridge.receive() }()
+			if tc.event != nil {
+				// The unbuffered source send confirms the bridge received the event.
+				source.events <- *tc.event
+			}
+			bridge.Stop()
+			bridge.Stop()
+			select {
+			case <-finished:
+			case <-time.After(time.Second):
+				t.Error("receive did not exit after Stop without a result consumer")
+				close(source.events)
+				go func() {
+					for range bridge.ResultChan() {
+					}
+				}()
+				<-finished
+			}
+			if stops := atomic.LoadInt32(&source.stops); stops != 1 {
+				t.Fatalf("source stopped %d times, want 1", stops)
+			}
+			if event, ok := <-bridge.ResultChan(); ok {
+				t.Fatalf("result channel still open: %#v", event)
+			}
+		})
 	}
 }
