@@ -1,0 +1,29 @@
+name: Jenkins PR pipeline regression
+
+on:
+  pull_request:
+    paths:
+      - 'hack/jenkins/**'
+      - '.github/workflows/jenkins-security.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  groovy:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Exercise trusted pipeline loading and isolated PR agents
+        shell: bash
+        run: |
+          set -euo pipefail
+          test_dir=$(mktemp -d)
+          trap 'rm -rf "$test_dir"' EXIT
+          curl --fail --silent --show-error --location --retry 3 --proto '=https' --tlsv1.2 \
+            https://repo.maven.apache.org/maven2/org/apache/groovy/groovy/4.0.24/groovy-4.0.24.jar \
+            -o "$test_dir/groovy.jar"
+          echo "6e313a3218bfd0ff0b889469711d1936ff3b92a0995f8b99b432675bcf6369be1810a997a7f0585fee274c4f81683ccd6cce468000b560f0b974ed1ab13e615d  $test_dir/groovy.jar" | sha512sum --check
+          java -cp "$test_dir/groovy.jar" groovy.ui.GroovyMain hack/jenkins/tests/pr_pipeline_test.groovy

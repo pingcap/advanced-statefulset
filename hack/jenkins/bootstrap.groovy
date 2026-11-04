@@ -1,33 +1,19 @@
-//
-// Bootstrap Jenkins Pipeline Script
-//
+// Configure this bootstrap from a trusted branch in the Jenkins job, never a PR.
 node {
-    println("ghprbPullId: " + ghprbPullId)
-    println("ghprbPullTitle: " + ghprbPullTitle)
-    println("ghprbPullLink: " + ghprbPullLink)
-    println("ghprbPullDescription: "+ ghprbPullDescription)
-   
-    def CREDENTIALS_ID = "github-sre-bot-ssh"
-    def GIT_URL = "git@github.com:pingcap/advanced-statefulset.git"
-    def GIT_REF = "${ghprbActualCommit}"
-
-    checkout changelog: false,
-        poll: false,
-        scm: [
-        $class: 'GitSCM',
-        branches: [[name: "${GIT_REF}"]],
-        doGenerateSubmoduleConfigurations: false,
-        extensions: [],
-        submoduleCfg: [],
-        userRemoteConfigs: [[
-            credentialsId: "${CREDENTIALS_ID}",
-            refspec: '+refs/heads/*:refs/remotes/origin/* +refs/pull/*:refs/remotes/origin/pr/*',
-            url: "${GIT_URL}",
-            ]]
+    def gitUrl = 'https://github.com/pingcap/advanced-statefulset.git'
+    def gitRef = "${ghprbActualCommit}"
+    if (!(gitRef ==~ /[0-9a-fA-F]{40}/)) {
+        error('PR commit must be a full Git SHA')
+    }
+    def pipeline
+    dir('trusted-pipeline') {
+        deleteDir()
+        checkout changelog: false, poll: false, scm: [
+            $class: 'GitSCM',
+            branches: [[name: 'refs/remotes/origin/master']],
+            userRemoteConfigs: [[url: gitUrl, refspec: '+refs/heads/master:refs/remotes/origin/master']]
         ]
-    
-    def jenkins = load "hack/jenkins/build.groovy"
-    jenkins.call(GIT_URL, GIT_REF)
+        pipeline = load 'hack/jenkins/build.groovy'
+    }
+    pipeline.call(gitUrl, gitRef)
 }
-
-// vim: et
