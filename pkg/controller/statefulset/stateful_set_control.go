@@ -97,7 +97,8 @@ func isBuiltinStatefulSetUpgradeRevision(revision *kubeapps.ControllerRevision, 
 	if owner.APIVersion != builtinStatefulSetKind.GroupVersion().String() || owner.Kind != builtinStatefulSetKind.Kind || owner.Name != parent.GetName() {
 		return false
 	}
-	return revision.Labels[helper.UpgradeToAdvancedStatefulSetAnn] == parent.GetName()
+	sourceUID := parent.GetAnnotations()[helper.UpgradeFromStatefulSetUIDAnn]
+	return sourceUID != "" && string(owner.UID) == sourceUID && revision.Labels[helper.UpgradeToAdvancedStatefulSetAnn] == parent.GetName()
 }
 
 func isUsableRevisionForSet(revision *kubeapps.ControllerRevision, parent metav1.Object) bool {
@@ -160,6 +161,9 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*k
 	if err != nil {
 		return nil, err
 	}
+	if set.Spec.Selector == nil || selector.Empty() {
+		return nil, fmt.Errorf("StatefulSet selector must not be empty")
+	}
 	revisions, err := ssc.csAppsV1.ControllerRevisions(set.GetNamespace()).List(
 		context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
@@ -176,16 +180,41 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*k
 	}
 	res := []*kubeapps.ControllerRevision{}
 	seen := map[string]struct{}{}
-	for _, item := range append(revisions.Items, revisinsToUpgrade.Items...) {
+	appendUsable := func(item kubeapps.ControllerRevision, markerOnly bool) error {
+		referenced := item.Name == set.Status.CurrentRevision || item.Name == set.Status.UpdateRevision
 		if !isUsableRevisionForSet(&item, set) {
-			continue
+			if referenced {
+				return fmt.Errorf("referenced revision %s is not bound to this StatefulSet; wait for migration orphaning", item.Name)
+			}
+			return nil
+		}
+		if markerOnly && metav1.GetControllerOfNoCopy(&item) == nil {
+			sourceUID := set.Annotations[helper.UpgradeFromStatefulSetUIDAnn]
+			bound := sourceUID != "" && item.Annotations[helper.UpgradeFromStatefulSetUIDAnn] == sourceUID
+			// Older helpers have no UID annotation. Preserve only explicitly referenced
+			// orphan history until the new controller has adopted and restored labels.
+			legacy := sourceUID == "" && referenced
+			if !bound && !legacy {
+				return nil
+			}
 		}
 		if _, ok := seen[item.Name]; ok {
-			continue
+			return nil
 		}
 		seen[item.Name] = struct{}{}
 		local := item
 		res = append(res, &local)
+		return nil
+	}
+	for _, item := range revisions.Items {
+		if err := appendUsable(item, false); err != nil {
+			return nil, err
+		}
+	}
+	for _, item := range revisinsToUpgrade.Items {
+		if err := appendUsable(item, true); err != nil {
+			return nil, err
+		}
 	}
 	return res, nil
 }

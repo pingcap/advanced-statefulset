@@ -2336,6 +2336,17 @@ func newRevisionOrDie(set *apps.StatefulSet, revision int64) *kubeapps.Controlle
 }
 
 func markRevisionForUpgrade(set *apps.StatefulSet, revision *kubeapps.ControllerRevision) {
+	if set.Annotations == nil {
+		set.Annotations = map[string]string{}
+	}
+	if set.Annotations[helper.UpgradeFromStatefulSetUIDAnn] == "" {
+		set.Annotations[helper.UpgradeFromStatefulSetUIDAnn] = "native-sts-uid"
+	}
+	if revision.Annotations == nil {
+		revision.Annotations = map[string]string{}
+	}
+	revision.Annotations[helper.UpgradeFromStatefulSetUIDAnn] = set.Annotations[helper.UpgradeFromStatefulSetUIDAnn]
+
 	if revision.Labels == nil {
 		revision.Labels = map[string]string{}
 	}

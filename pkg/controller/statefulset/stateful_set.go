@@ -508,6 +508,10 @@ func (ssc *StatefulSetController) sync(key string) error {
 		return nil
 	}
 
+	if set.Spec.Selector == nil || selector.Empty() {
+		return fmt.Errorf("StatefulSet selector must not be empty")
+	}
+
 	if err := ssc.adoptOrphanRevisions(set); err != nil {
 		klog.Errorf("adoptOrphanRevisions: %v\n", err)
 		return err
