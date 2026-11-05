@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -34,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/apimachinery/pkg/util/sets"
 	appsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
@@ -104,6 +106,22 @@ func isUsableRevisionForSet(revision *kubeapps.ControllerRevision, parent metav1
 	return isOrphanOrOwnedBy(revision, parent) || isBuiltinStatefulSetUpgradeRevision(revision, parent)
 }
 
+// Bound Pod operations per reconcile, not the size of a valid StatefulSet.
+const maxPodOperationsPerSync = 500
+
+var errReconcileLimit = stderrors.New("pod operation budget exhausted")
+
+func desiredReplicaSlots(set *apps.StatefulSet) (int32, sets.Int32, error) {
+	if set.Spec.Replicas == nil {
+		return 0, nil, fmt.Errorf("replicas must be specified")
+	}
+	slots, err := helper.GetDeleteSlotsChecked(set)
+	if err != nil {
+		return 0, nil, err
+	}
+	return helper.GetMaxReplicaCountAndDeleteSlotsChecked(*set.Spec.Replicas, slots)
+}
+
 // UpdateStatefulSet executes the core logic loop for a stateful set, applying the predictable and
 // consistent monotonic update strategy by default - scale up proceeds in ordinal order, no new pod
 // is created while any pod is unhealthy, and pods are terminated in descending order. The burst
@@ -111,6 +129,9 @@ func isUsableRevisionForSet(revision *kubeapps.ControllerRevision, parent metav1
 // in no particular order. Clients using the burst strategy should be careful to ensure they
 // understand the consistency implications of having unpredictable numbers of pods available.
 func (ssc *defaultStatefulSetControl) UpdateStatefulSet(set *apps.StatefulSet, pods []*v1.Pod) error {
+	if _, _, err := desiredReplicaSlots(set); err != nil {
+		return err
+	}
 
 	// list all revisions and sort them
 	revisions, err := ssc.ListRevisions(set)
@@ -127,13 +148,15 @@ func (ssc *defaultStatefulSetControl) UpdateStatefulSet(set *apps.StatefulSet, p
 
 	// perform the main update function and get the status
 	status, err := ssc.updateStatefulSet(set, currentRevision, updateRevision, collisionCount, pods)
-	if err != nil {
+	if err != nil && err != errReconcileLimit {
 		return err
 	}
 
-	// update the set's status
-	err = ssc.updateStatefulSetStatus(set, status)
-	if err != nil {
+	// Record progress even when the next batch must be requeued.
+	if statusErr := ssc.updateStatefulSetStatus(set, status); statusErr != nil {
+		return statusErr
+	}
+	if err == errReconcileLimit {
 		return err
 	}
 
@@ -345,6 +368,12 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 	if rolling := set.Spec.UpdateStrategy.RollingUpdate; rolling != nil && rolling.Partition != nil && *rolling.Partition < 0 {
 		return nil, fmt.Errorf("rolling update partition must not be negative")
 	}
+	_replicaCount, deleteSlots, err := desiredReplicaSlots(set)
+	if err != nil {
+		return nil, err
+	}
+	replicaCount := int(_replicaCount)
+
 	// get the current and update revisions of the set.
 	currentSet, err := ApplyRevision(set, currentRevision)
 	if err != nil {
@@ -363,13 +392,8 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 	status.CollisionCount = new(int32)
 	*status.CollisionCount = collisionCount
 
-	// desired replica slots: [0, replicaCount) - [delete slots]
-	deleteSlots := helper.GetDeleteSlots(set)
-	_replicaCount, deleteSlots := helper.GetMaxReplicaCountAndDeleteSlots(*set.Spec.Replicas, deleteSlots)
-	replicaCount := int(_replicaCount)
-
-	// slice that will contain all Pods such that 0 <= getOrdinal(pod) < set.Spec.Replicas and not in deleteSlots
-	replicas := make([]*v1.Pod, replicaCount)
+	// Index only existing Pods; the desired ordinal range may be extremely large.
+	byOrdinal := make(map[int]*v1.Pod, len(pods))
 	// slice that will contain all Pods such that set.Spec.Replicas <= getOrdinal(pod) or exist in deleteSlots
 	condemned := make([]*v1.Pod, 0, len(pods))
 	unhealthy := 0
@@ -396,9 +420,8 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 		}
 
 		if ord := getOrdinal(pods[i]); 0 <= ord && ord < replicaCount && !deleteSlots.Has(int32(ord)) {
-			// if the ordinal of the pod is within the range of the current number of replicas,
-			// insert it at the indirection of its ordinal
-			replicas[ord] = pods[i]
+			// Keep the Pod at its actual ordinal, including gaps from deleted slots.
+			byOrdinal[ord] = pods[i]
 
 		} else if ord >= replicaCount || deleteSlots.Has(int32(ord)) {
 			// if the ordinal is greater than the number of replicas add it to the condemned list
@@ -407,28 +430,36 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 		// If the ordinal could not be parsed (ord < 0), ignore the Pod.
 	}
 
-	// for any empty indices in the sequence [0,set.Spec.Replicas) and do not exist in deleteSlots create a new Pod at the correct revision
-	for ord := 0; ord < replicaCount; ord++ {
-		if deleteSlots.Has(int32(ord)) {
-			continue
-		}
-		if replicas[ord] == nil {
-			replicas[ord] = newVersionedStatefulSetPod(
-				currentSet,
-				updateSet,
-				currentRevision.Name,
-				updateRevision.Name, ord)
+	// Track only the next batch of missing Pod identities. Scanning is bounded by
+	// existing Pods, annotation slots and this batch, never by spec.replicas.
+	missing := 0
+	missingLimit := maxPodOperationsPerSync
+	if !allowsBurst(set) {
+		missingLimit = 1
+	}
+	if set.DeletionTimestamp == nil {
+		for ord := 0; ord < replicaCount && missing < missingLimit; ord++ {
+			if deleteSlots.Has(int32(ord)) || byOrdinal[ord] != nil {
+				continue
+			}
+			// Only keep an identity placeholder. Copy the potentially large Pod
+			// template immediately before creation, not for the whole batch.
+			byOrdinal[ord] = &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: getPodName(set, ord)}}
+			missing++
 		}
 	}
+	moreMissing := int64(len(byOrdinal)) < int64(*set.Spec.Replicas)
+	replicas := make([]*v1.Pod, 0, len(byOrdinal))
+	for _, pod := range byOrdinal {
+		replicas = append(replicas, pod)
+	}
+	sort.Sort(ascendingOrdinal(replicas))
 
 	// sort the condemned Pods by their ordinals
 	sort.Sort(ascendingOrdinal(condemned))
 
 	// find the first unhealthy Pod
 	for i := range replicas {
-		if replicas[i] == nil {
-			continue
-		}
 		if !isHealthy(replicas[i]) {
 			unhealthy++
 			if ord := getOrdinal(replicas[i]); firstUnhealthyPod == nil || ord < firstUnhealthyOrdinal {
@@ -463,12 +494,10 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 	}
 
 	monotonic := !allowsBurst(set)
+	remaining := maxPodOperationsPerSync
 
 	// Examine each replica with respect to its ordinal
 	for i := range replicas {
-		if replicas[i] == nil {
-			continue
-		}
 		// Delete and recreate pods which finished running.
 		//
 		// Note that pods with phase Succeeded will also trigger this event. This is
@@ -490,9 +519,13 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 					set.Name,
 					replicas[i].Name)
 			}
+			if remaining == 0 {
+				return &status, errReconcileLimit
+			}
 			if err := ssc.podControl.DeleteStatefulPod(set, replicas[i]); err != nil {
 				return &status, err
 			}
+			remaining--
 			if getPodRevision(replicas[i]) == currentRevision.Name {
 				status.CurrentReplicas--
 			}
@@ -500,18 +533,21 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 				status.UpdatedReplicas--
 			}
 			status.Replicas--
-			replicas[i] = newVersionedStatefulSetPod(
-				currentSet,
-				updateSet,
-				currentRevision.Name,
-				updateRevision.Name,
-				i)
+			replicas[i] = &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: replicas[i].Name}}
 		}
 		// If we find a Pod that has not been created we create the Pod
 		if !isCreated(replicas[i]) {
-			if err := ssc.podControl.CreateStatefulPod(set, replicas[i]); err != nil {
+			if remaining == 0 {
+				return &status, errReconcileLimit
+			}
+			pod := newVersionedStatefulSetPod(currentSet, updateSet,
+				currentRevision.Name, updateRevision.Name, getOrdinal(replicas[i]))
+			if err := ssc.podControl.CreateStatefulPod(set, pod); err != nil {
 				return &status, err
 			}
+			// Retain only the revision needed by status and rolling-update checks.
+			setPodRevision(replicas[i], getPodRevision(pod))
+			remaining--
 			status.Replicas++
 			if getPodRevision(replicas[i]) == currentRevision.Name {
 				status.CurrentReplicas++
@@ -554,9 +590,17 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 		}
 		// Make a deep copy so we don't mutate the shared cache
 		replica := replicas[i].DeepCopy()
+		if remaining == 0 {
+			return &status, errReconcileLimit
+		}
 		if err := ssc.podControl.UpdateStatefulPod(updateSet, replica); err != nil {
 			return &status, err
 		}
+		remaining--
+	}
+
+	if moreMissing {
+		return &status, errReconcileLimit
 	}
 
 	// At this point, all of the current Replicas are Running and Ready, we can consider termination.
@@ -592,9 +636,13 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 			set.Name,
 			condemned[target].Name)
 
+		if remaining == 0 {
+			return &status, errReconcileLimit
+		}
 		if err := ssc.podControl.DeleteStatefulPod(set, condemned[target]); err != nil {
 			return &status, err
 		}
+		remaining--
 		if getPodRevision(condemned[target]) == currentRevision.Name {
 			status.CurrentReplicas--
 		}
@@ -617,9 +665,9 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 		updateMin = int(*set.Spec.UpdateStrategy.RollingUpdate.Partition)
 	}
 	// we terminate the Pod with the largest ordinal that does not match the update revision.
-	for target := len(replicas) - 1; target >= updateMin; target-- {
-		if replicas[target] == nil {
-			continue
+	for target := len(replicas) - 1; target >= 0; target-- {
+		if getOrdinal(replicas[target]) < updateMin {
+			break
 		}
 		// delete the Pod if it is not already terminating and does not match the update revision.
 		if getPodRevision(replicas[target]) != updateRevision.Name && !isTerminating(replicas[target]) {
@@ -627,6 +675,9 @@ func (ssc *defaultStatefulSetControl) updateStatefulSet(
 				set.Namespace,
 				set.Name,
 				replicas[target].Name)
+			if remaining == 0 {
+				return &status, errReconcileLimit
+			}
 			err := ssc.podControl.DeleteStatefulPod(set, replicas[target])
 			status.CurrentReplicas--
 			return &status, err
