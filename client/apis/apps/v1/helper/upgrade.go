@@ -15,12 +15,14 @@ package helper
 
 import (
 	"context"
+	"fmt"
 
 	asv1 "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
 	asclientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
@@ -29,6 +31,10 @@ const (
 	// UpgradeToAdvancedStatefulSetAnn represents the annotation key used to
 	// help migration to Advanced StatefulSet
 	UpgradeToAdvancedStatefulSetAnn = "apps.pingcap.com/upgrade-to-asts"
+
+	// UpgradeFromStatefulSetUIDAnn records the source identity for helper retries.
+	// Controller history admission does not depend on this annotation.
+	UpgradeFromStatefulSetUIDAnn = "apps.pingcap.com/upgrade-from-statefulset-uid"
 )
 
 // Upgrade upgrades Kubernetes builtin StatefulSet to Advanced StatefulSet.
@@ -42,11 +48,30 @@ const (
 // - remove sts selector lebels from controller revisions and set a special annotation for Advanced StatefulSet (can be skipped if Kubernetes cluster has http://issues.k8s.io/84982 fixed)
 // - create advanced sts
 // - delete sts with DeletePropagationOrphan policy
-//
 func Upgrade(ctx context.Context, c clientset.Interface, asc asclientset.Interface, sts *appsv1.StatefulSet) (*asv1.StatefulSet, error) {
+	if sts.UID == "" {
+		return nil, fmt.Errorf("source StatefulSet UID is required")
+	}
+	source, err := c.AppsV1().StatefulSets(sts.Namespace).Get(ctx, sts.Name, metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		migrated, getErr := asc.AppsV1().StatefulSets(sts.Namespace).Get(ctx, sts.Name, metav1.GetOptions{})
+		if getErr == nil && migrated.Annotations[UpgradeFromStatefulSetUIDAnn] == string(sts.UID) {
+			return migrated, nil
+		}
+		return nil, err
+	}
+	if err != nil {
+		return nil, err
+	}
+	if source.UID != sts.UID {
+		return nil, fmt.Errorf("source StatefulSet UID changed")
+	}
 	selector, err := metav1.LabelSelectorAsSelector(sts.Spec.Selector)
 	if err != nil {
 		return nil, err
+	}
+	if sts.Spec.Selector == nil || selector.Empty() {
+		return nil, fmt.Errorf("source StatefulSet selector must not be empty")
 	}
 	// It's important to empty statefulset selector labels,
 	// otherwise sts will adopt it again on delete event and then
@@ -57,7 +82,32 @@ func Upgrade(ctx context.Context, c clientset.Interface, asc asclientset.Interfa
 	if err != nil {
 		return nil, err
 	}
+	// A previous helper may have removed selector labels before a failed retry.
+	marked, err := c.AppsV1().ControllerRevisions(sts.Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labels.Set{UpgradeToAdvancedStatefulSetAnn: sts.Name}.AsSelector().String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	oldRevisionList.Items = append(oldRevisionList.Items, marked.Items...)
 	for _, revision := range oldRevisionList.Items {
+		if seen[revision.Name] {
+			continue
+		}
+		seen[revision.Name] = true
+
+		owner := metav1.GetControllerOf(&revision)
+		if owner == nil || owner.APIVersion != appsv1.SchemeGroupVersion.String() || owner.Kind != "StatefulSet" || owner.Name != sts.Name || owner.UID != sts.UID {
+			continue
+		}
+		if revision.Labels == nil {
+			revision.Labels = map[string]string{}
+		}
+		if revision.Annotations == nil {
+			revision.Annotations = map[string]string{}
+		}
+		revision.Annotations[UpgradeFromStatefulSetUIDAnn] = string(sts.UID)
 		for key := range sts.Spec.Selector.MatchLabels {
 			delete(revision.Labels, key)
 		}
@@ -79,6 +129,10 @@ func Upgrade(ctx context.Context, c clientset.Interface, asc asclientset.Interfa
 	if err != nil {
 		return nil, err
 	}
+	if upgradedSts.Annotations == nil {
+		upgradedSts.Annotations = map[string]string{}
+	}
+	upgradedSts.Annotations[UpgradeFromStatefulSetUIDAnn] = string(sts.UID)
 	if notFound {
 		asts = upgradedSts.DeepCopy()
 		// https://github.com/kubernetes/apiserver/blob/kubernetes-1.16.0/pkg/storage/etcd3/store.go#L141-L143
@@ -94,6 +148,10 @@ func Upgrade(ctx context.Context, c clientset.Interface, asc asclientset.Interfa
 		}
 		klog.V(2).Infof("Succesfully created the new Advanced StatefulSet %s/%s", asts.Namespace, asts.Name)
 	} else {
+		if asts.Annotations == nil {
+			asts.Annotations = map[string]string{}
+		}
+		asts.Annotations[UpgradeFromStatefulSetUIDAnn] = string(sts.UID)
 		asts.Spec = upgradedSts.Spec
 		asts, err = asc.AppsV1().StatefulSets(asts.Namespace).Update(ctx, asts, metav1.UpdateOptions{})
 		if err != nil {
@@ -113,6 +171,7 @@ func Upgrade(ctx context.Context, c clientset.Interface, asc asclientset.Interfa
 	policy := metav1.DeletePropagationOrphan
 	err = c.AppsV1().StatefulSets(sts.Namespace).Delete(ctx, sts.Name, metav1.DeleteOptions{
 		PropagationPolicy: &policy,
+		Preconditions:     &metav1.Preconditions{UID: &sts.UID},
 	})
 	if err != nil && !apierrors.IsNotFound(err) {
 		// ignore IsNotFound error

@@ -366,9 +366,7 @@ func (ssc *StatefulSetController) adoptOrphanRevisions(set *apps.StatefulSet) er
 			continue
 		}
 		if owner.UID != set.GetUID() {
-			// ListRevisions already filtered out truly-foreign owners; reaching here
-			// means this is the builtin StatefulSet being migrated. Wait for GC to
-			// orphan it before adopting.
+			// Never adopt or relabel history still controlled by another object.
 			continue
 		}
 		if shouldSyncLabels(revisions[i]) {
@@ -511,6 +509,10 @@ func (ssc *StatefulSetController) sync(key string) error {
 		utilruntime.HandleError(fmt.Errorf("error converting StatefulSet %v selector: %v", key, err))
 		// This is a non-transient error, so don't retry.
 		return nil
+	}
+
+	if set.Spec.Selector == nil || selector.Empty() {
+		return fmt.Errorf("StatefulSet selector must not be empty")
 	}
 
 	if err := ssc.adoptOrphanRevisions(set); err != nil {
