@@ -201,6 +201,26 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*k
 			return nil, err
 		}
 	}
+	// Status references can outlive both selector and migration labels.
+	for _, name := range []string{set.Status.CurrentRevision, set.Status.UpdateRevision} {
+		if name == "" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		revision, err := ssc.csAppsV1.ControllerRevisions(set.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if errors.IsNotFound(err) {
+			seen[name] = struct{}{}
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if err := appendUsable(*revision); err != nil {
+			return nil, err
+		}
+	}
 	return res, nil
 }
 
