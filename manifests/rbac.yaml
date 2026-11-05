@@ -9,27 +9,24 @@ kind: ClusterRole
 metadata:
   name: advanced-statefulset-controller
 rules:
-- apiGroups:
-  - apps.pingcap.com
-  resources:
-  - '*'
-  verbs:
-  - '*'
-- apiGroups:
-  - 'apps'
-  resources:
-  - 'controllerrevisions'
-  verbs:
-  - '*'
-- apiGroups:
-  - ''
-  resources:
-  - 'events'
-  - 'pods'
-  - 'persistentvolumeclaims'
-  - 'persistentvolumes'
-  verbs:
-  - '*'
+- apiGroups: [apps.pingcap.com]
+  resources: [statefulsets]
+  verbs: [get, list, watch]
+- apiGroups: [apps.pingcap.com]
+  resources: [statefulsets/status, statefulsets/finalizers]
+  verbs: [update]
+- apiGroups: [apps]
+  resources: [controllerrevisions]
+  verbs: [get, list, watch, create, update, patch, delete]
+- apiGroups: ['']
+  resources: [pods]
+  verbs: [get, list, watch, create, update, patch, delete]
+- apiGroups: ['']
+  resources: [persistentvolumeclaims]
+  verbs: [get, list, watch, create]
+- apiGroups: ['']
+  resources: [events]
+  verbs: [create, update, patch]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -50,18 +47,9 @@ metadata:
   name: advanced-statefulset-controller
   namespace: advanced-statefulset
 rules:
-- apiGroups:
-  - ''
-  resources:
-  - 'endpoints'
-  verbs:
-  - '*'
-- apiGroups:
-  - 'coordination.k8s.io'
-  resources:
-  - 'leases'
-  verbs:
-  - '*'
+- apiGroups: [coordination.k8s.io]
+  resources: [leases]
+  verbs: [get, create, update]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
