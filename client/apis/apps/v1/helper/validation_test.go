@@ -30,9 +30,12 @@ func TestCheckedOrdinals(t *testing.T) {
 	}{
 		{"normal", "[0,2,2,2147483647]", 3, true, []int32{1, 3, 4}},
 		{"zero", "[0]", 0, true, []int32{}},
+		{"zero-slot", "[0]", 1, true, []int32{1}},
 		{"negative", "[-1]", 1, false, nil},
 		{"malformed", "[0,", 1, false, nil},
 		{"null", "null", 1, false, nil},
+		{"null-element", "[null]", 1, false, nil},
+		{"mixed-null-element", "[1,null]", 1, false, nil},
 		{"out-of-int32", "[2147483648]", 1, false, nil},
 		{"overflow", "[0]", math.MaxInt32, false, nil},
 		{"huge", "[]", math.MaxInt32, false, nil},
@@ -52,11 +55,15 @@ func TestCheckedOrdinals(t *testing.T) {
 	if _, _, err := GetMaxReplicaCountAndDeleteSlotsChecked(1, sets.NewInt32(-1)); err == nil {
 		t.Fatal("negative set accepted")
 	}
-	obj := &metav1.ObjectMeta{Annotations: map[string]string{DeleteSlotsAnn: "[bad"}}
-	if err := AddDeleteSlots(obj, sets.NewInt32(0)); err == nil {
-		t.Fatal("AddDeleteSlots overwrote malformed metadata")
-	}
-	if obj.Annotations[DeleteSlotsAnn] != "[bad" {
-		t.Fatal("malformed slots were changed")
+	for _, slots := range []string{"[bad", "null", "[null]", "[1,null]"} {
+		t.Run("AddDeleteSlots/"+slots, func(t *testing.T) {
+			obj := &metav1.ObjectMeta{Annotations: map[string]string{DeleteSlotsAnn: slots, "other": "keep"}}
+			if err := AddDeleteSlots(obj, sets.NewInt32(0)); err == nil {
+				t.Error("AddDeleteSlots accepted invalid metadata")
+			}
+			if obj.Annotations[DeleteSlotsAnn] != slots || obj.Annotations["other"] != "keep" {
+				t.Fatal("invalid metadata was changed")
+			}
+		})
 	}
 }

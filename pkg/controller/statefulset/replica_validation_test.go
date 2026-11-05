@@ -30,6 +30,8 @@ func TestInvalidSlotsDoNotWriteObjects(t *testing.T) {
 	}{
 		{name: "negative-slot", slots: "[-1]", replicas: 1},
 		{name: "malformed", slots: "[0,", replicas: 1},
+		{name: "null-element", slots: "[null]", replicas: 1},
+		{name: "mixed-null-element", slots: "[1,null]", replicas: 1},
 		{name: "overflow", slots: "[0]", replicas: math.MaxInt32},
 		{name: "huge", replicas: math.MaxInt32},
 		{name: "negative-replicas", replicas: -1},

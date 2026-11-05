@@ -171,19 +171,24 @@ func GetDeleteSlotsChecked(set metav1.Object) (sets.Int32, error) {
 	if !exists {
 		return sets.NewInt32(), nil
 	}
-	var slots []int32
+	var slots []*int32
 	if err := json.Unmarshal([]byte(value), &slots); err != nil || slots == nil {
 		return nil, fmt.Errorf("delete-slots must be a JSON array of non-negative int32 ordinals")
 	}
 	if len(slots) > int(MaxReplicaCount) {
 		return nil, fmt.Errorf("too many delete-slots (maximum %d)", MaxReplicaCount)
 	}
+	deleteSlots := sets.NewInt32()
 	for _, slot := range slots {
-		if slot < 0 {
+		if slot == nil {
+			return nil, fmt.Errorf("delete-slots must not contain null ordinals")
+		}
+		if *slot < 0 {
 			return nil, fmt.Errorf("delete-slots must not contain negative ordinals")
 		}
+		deleteSlots.Insert(*slot)
 	}
-	return sets.NewInt32(slots...), nil
+	return deleteSlots, nil
 }
 
 // GetMaxReplicaCountAndDeleteSlotsChecked validates before any dense allocation.
