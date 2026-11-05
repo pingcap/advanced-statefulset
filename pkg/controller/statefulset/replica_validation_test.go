@@ -30,13 +30,10 @@ func TestInvalidSlotsDoNotWriteObjects(t *testing.T) {
 	}{
 		{name: "negative-slot", slots: "[-1]", replicas: 1},
 		{name: "malformed", slots: "[0,", replicas: 1},
-		{name: "null-element", slots: "[null]", replicas: 1},
-		{name: "mixed-null-element", slots: "[1,null]", replicas: 1},
+		{name: "out-of-int32", slots: "[2147483648]", replicas: 1},
 		{name: "overflow", slots: "[0]", replicas: math.MaxInt32},
-		{name: "huge", replicas: math.MaxInt32},
 		{name: "negative-replicas", replicas: -1},
 		{name: "nil-replicas", nilReplicas: true},
-		{name: "ordinal-budget", slots: "[0]", replicas: helper.MaxReplicaCount},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			set := newStatefulSet(int(tc.replicas))
@@ -64,8 +61,7 @@ func TestInvalidSlotsDoNotWriteObjects(t *testing.T) {
 func TestInvalidSlotsRejectedBeforeApplyingRevision(t *testing.T) {
 	set := newStatefulSet(1)
 	set.Annotations = map[string]string{helper.DeleteSlotsAnn: "[-1]"}
-	revision := newRevisionOrDie(set, 1)
-	_, err := (&defaultStatefulSetControl{}).updateStatefulSet(set, revision, revision, 0, nil)
+	_, err := (&defaultStatefulSetControl{}).updateStatefulSet(set, nil, nil, 0, nil)
 	if err == nil {
 		t.Fatal("invalid replica configuration accepted")
 	}
