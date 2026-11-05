@@ -88,7 +88,7 @@ func isOrphanOrOwnedBy(revision *kubeapps.ControllerRevision, parent metav1.Obje
 	return owner == nil || owner.UID == parent.GetUID()
 }
 
-// During migration, ControllerRevisions keep the builtin StatefulSet owner until GC orphans them.
+// A marked builtin-owned revision is a reason to wait for GC, never to trust its data.
 func isBuiltinStatefulSetUpgradeRevision(revision *kubeapps.ControllerRevision, parent metav1.Object) bool {
 	owner := metav1.GetControllerOfNoCopy(revision)
 	if owner == nil {
@@ -97,12 +97,7 @@ func isBuiltinStatefulSetUpgradeRevision(revision *kubeapps.ControllerRevision, 
 	if owner.APIVersion != builtinStatefulSetKind.GroupVersion().String() || owner.Kind != builtinStatefulSetKind.Kind || owner.Name != parent.GetName() {
 		return false
 	}
-	sourceUID := parent.GetAnnotations()[helper.UpgradeFromStatefulSetUIDAnn]
-	return sourceUID != "" && string(owner.UID) == sourceUID && revision.Labels[helper.UpgradeToAdvancedStatefulSetAnn] == parent.GetName()
-}
-
-func isUsableRevisionForSet(revision *kubeapps.ControllerRevision, parent metav1.Object) bool {
-	return isOrphanOrOwnedBy(revision, parent) || isBuiltinStatefulSetUpgradeRevision(revision, parent)
+	return revision.Labels[helper.UpgradeToAdvancedStatefulSetAnn] == parent.GetName()
 }
 
 // UpdateStatefulSet executes the core logic loop for a stateful set, applying the predictable and
@@ -180,23 +175,13 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*k
 	}
 	res := []*kubeapps.ControllerRevision{}
 	seen := map[string]struct{}{}
-	appendUsable := func(item kubeapps.ControllerRevision, markerOnly bool) error {
+	appendUsable := func(item kubeapps.ControllerRevision) error {
 		referenced := item.Name == set.Status.CurrentRevision || item.Name == set.Status.UpdateRevision
-		if !isUsableRevisionForSet(&item, set) {
-			if referenced {
-				return fmt.Errorf("referenced revision %s is not bound to this StatefulSet; wait for migration orphaning", item.Name)
+		if !isOrphanOrOwnedBy(&item, set) {
+			if referenced || isBuiltinStatefulSetUpgradeRevision(&item, set) {
+				return fmt.Errorf("revision %s is still owned by another controller; wait for orphaning", item.Name)
 			}
 			return nil
-		}
-		if markerOnly && metav1.GetControllerOfNoCopy(&item) == nil {
-			sourceUID := set.Annotations[helper.UpgradeFromStatefulSetUIDAnn]
-			bound := sourceUID != "" && item.Annotations[helper.UpgradeFromStatefulSetUIDAnn] == sourceUID
-			// Older helpers have no UID annotation. Preserve only explicitly referenced
-			// orphan history until the new controller has adopted and restored labels.
-			legacy := sourceUID == "" && referenced
-			if !bound && !legacy {
-				return nil
-			}
 		}
 		if _, ok := seen[item.Name]; ok {
 			return nil
@@ -207,12 +192,12 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*k
 		return nil
 	}
 	for _, item := range revisions.Items {
-		if err := appendUsable(item, false); err != nil {
+		if err := appendUsable(item); err != nil {
 			return nil, err
 		}
 	}
 	for _, item := range revisinsToUpgrade.Items {
-		if err := appendUsable(item, true); err != nil {
+		if err := appendUsable(item); err != nil {
 			return nil, err
 		}
 	}
@@ -257,10 +242,8 @@ func (ssc *defaultStatefulSetControl) truncateHistory(
 	}
 	// collect live revisions and historic revisions
 	for i := range revisions {
-		// Not ours to delete yet: still owned by the builtin StatefulSet being
-		// migrated. Deleting it here could break currentRevision resolution before
-		// GC orphans it and we adopt it.
-		if isBuiltinStatefulSetUpgradeRevision(revisions[i], set) {
+		// Never delete history that is still controlled by another object.
+		if !isOrphanOrOwnedBy(revisions[i], set) {
 			continue
 		}
 		if !live[revisions[i].Name] {
@@ -321,16 +304,9 @@ func (ssc *defaultStatefulSetControl) getStatefulSetRevisions(
 		// Revision of the equivalent revision
 		newRevision := updateRevision.Revision
 		updateRevision = equalRevisions[equalCount-1]
-		// Skip bumping the Revision of a revision we don't own yet; writing to an
-		// object still controlled by the builtin StatefulSet would race with
-		// migration. It gets corrected once GC orphans it and we adopt it.
-		if !isBuiltinStatefulSetUpgradeRevision(updateRevision, set) {
-			updateRevision, err = ssc.updateControllerRevision(
-				updateRevision,
-				newRevision)
-			if err != nil {
-				return nil, nil, collisionCount, err
-			}
+		updateRevision, err = ssc.updateControllerRevision(updateRevision, newRevision)
+		if err != nil {
+			return nil, nil, collisionCount, err
 		}
 	} else {
 		//if there is no equivalent revision we create a new one
@@ -786,10 +762,8 @@ func (ssc *defaultStatefulSetControl) createControllerRevision(parent metav1.Obj
 			if err != nil {
 				return nil, err
 			}
-			// A data-equal revision owned by a foreign controller (outside an
-			// in-progress migration) must not be reused, or we'd silently borrow
-			// someone else's history entry.
-			if bytes.Equal(exists.Data.Raw, clone.Data.Raw) && isUsableRevisionForSet(exists, parent) {
+			// A data-equal revision with another controller owner must not be reused.
+			if bytes.Equal(exists.Data.Raw, clone.Data.Raw) && isOrphanOrOwnedBy(exists, parent) {
 				return exists, nil
 			}
 			*collisionCount++

@@ -366,9 +366,7 @@ func (ssc *StatefulSetController) adoptOrphanRevisions(set *apps.StatefulSet) er
 			continue
 		}
 		if owner.UID != set.GetUID() {
-			// ListRevisions already filtered out truly-foreign owners; reaching here
-			// means this is the builtin StatefulSet being migrated. Wait for GC to
-			// orphan it before adopting.
+			// Never adopt or relabel history still controlled by another object.
 			continue
 		}
 		if shouldSyncLabels(revisions[i]) {

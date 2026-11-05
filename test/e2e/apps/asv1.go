@@ -343,16 +343,7 @@ var _ = SIGDescribe("Advanced StatefulSet [v1]", func() {
 			oldRevisionList, err := c.AppsV1().ControllerRevisions(ns).List(context.TODO(), revisionListOptions)
 			k8s.ExpectNoError(err)
 			upgradeLabel := helper.UpgradeToAdvancedStatefulSetAnn
-			// Bind both sides before orphaning; Create does not retain builtin status.
-			if ss.Annotations == nil {
-				ss.Annotations = map[string]string{}
-			}
-			ss.Annotations[helper.UpgradeFromStatefulSetUIDAnn] = string(ss.UID)
 			for _, revision := range oldRevisionList.Items {
-				if revision.Annotations == nil {
-					revision.Annotations = map[string]string{}
-				}
-				revision.Annotations[helper.UpgradeFromStatefulSetUIDAnn] = string(ss.UID)
 				// It's important to empty statefulset selector labels,
 				// otherwise sts will adopt it again on delete event and then
 				// GC will delete revisions because they are not orphans.

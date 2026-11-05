@@ -32,7 +32,8 @@ const (
 	// help migration to Advanced StatefulSet
 	UpgradeToAdvancedStatefulSetAnn = "apps.pingcap.com/upgrade-to-asts"
 
-	// UpgradeFromStatefulSetUIDAnn binds migration history to its source object.
+	// UpgradeFromStatefulSetUIDAnn records the source identity for helper retries.
+	// Controller history admission does not depend on this annotation.
 	UpgradeFromStatefulSetUIDAnn = "apps.pingcap.com/upgrade-from-statefulset-uid"
 )
 

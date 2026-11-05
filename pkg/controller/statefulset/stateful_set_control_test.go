@@ -684,69 +684,40 @@ func TestStatefulSetControlListRevisionsSkipsDifferentOwnerUpgradeRevision(t *te
 	}
 }
 
-func TestStatefulSetControlListRevisionsIncludesBuiltinOwnerUpgradeRevision(t *testing.T) {
+func TestStatefulSetControlListRevisionsWaitsForBuiltinOwner(t *testing.T) {
 	set := newStatefulSet(3)
-	set.UID = "set-uid"
-	set.Status.CollisionCount = new(int32)
-
 	revision := newRevisionOrDie(set, 1)
 	revision.OwnerReferences[0].APIVersion = kubeapps.SchemeGroupVersion.String()
 	revision.OwnerReferences[0].UID = "native-sts-uid"
 	markRevisionForUpgrade(set, revision)
-
 	kubeClient := fake.NewSimpleClientset(revision)
 	ssc := defaultStatefulSetControl{csAppsV1: kubeClient.AppsV1()}
-
-	revisions, err := ssc.ListRevisions(set)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(revisions) != 1 {
-		t.Fatalf("expected builtin-owner upgrade revision to be included, got %d revisions", len(revisions))
-	}
-	if revisions[0].Name != revision.Name {
-		t.Fatalf("expected revision %s, got %s", revision.Name, revisions[0].Name)
+	if _, err := ssc.ListRevisions(set); err == nil {
+		t.Fatal("builtin-owned history must wait for orphaning")
 	}
 }
 
-func TestStatefulSetControlRollbackDoesNotBumpBuiltinOwnerUpgradeRevision(t *testing.T) {
+func TestStatefulSetControlRollbackWaitsForBuiltinOwner(t *testing.T) {
 	set := newStatefulSet(3)
-	set.UID = "set-uid"
-	set.Status.CollisionCount = new(int32)
-
 	rollbackRevision := newRevisionOrDie(set, 1)
 	rollbackRevision.OwnerReferences[0].APIVersion = kubeapps.SchemeGroupVersion.String()
 	rollbackRevision.OwnerReferences[0].UID = "native-sts-uid"
 	markRevisionForUpgrade(set, rollbackRevision)
-
 	newerSet := set.DeepCopy()
 	newerSet.Spec.Template.Spec.Containers[0].Image = "newer"
 	newerRevision := newRevisionOrDie(newerSet, 2)
 	newerRevision.OwnerReferences[0].APIVersion = kubeapps.SchemeGroupVersion.String()
 	newerRevision.OwnerReferences[0].UID = "native-sts-uid"
 	markRevisionForUpgrade(set, newerRevision)
-
 	kubeClient := fake.NewSimpleClientset(rollbackRevision, newerRevision)
 	ssc := defaultStatefulSetControl{csAppsV1: kubeClient.AppsV1()}
-
-	revisions, err := ssc.ListRevisions(set)
-	if err != nil {
-		t.Fatal(err)
+	if err := ssc.UpdateStatefulSet(set, nil); err == nil {
+		t.Fatal("rollback used builtin-owned history")
 	}
-	_, updateRevision, _, err := ssc.getStatefulSetRevisions(set, revisions)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if updateRevision.Name != rollbackRevision.Name {
-		t.Fatalf("expected rollback to use revision %s, got %s", rollbackRevision.Name, updateRevision.Name)
-	}
-
-	got, err := kubeClient.AppsV1().ControllerRevisions(set.Namespace).Get(context.TODO(), rollbackRevision.Name, metav1.GetOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Revision != rollbackRevision.Revision {
-		t.Fatalf("expected builtin-owned rollback revision number to remain %d, got %d", rollbackRevision.Revision, got.Revision)
+	for _, action := range kubeClient.Actions() {
+		if action.GetVerb() != "list" {
+			t.Fatalf("rollback mutated source history: %v", action)
+		}
 	}
 }
 
@@ -2336,17 +2307,6 @@ func newRevisionOrDie(set *apps.StatefulSet, revision int64) *kubeapps.Controlle
 }
 
 func markRevisionForUpgrade(set *apps.StatefulSet, revision *kubeapps.ControllerRevision) {
-	if set.Annotations == nil {
-		set.Annotations = map[string]string{}
-	}
-	if set.Annotations[helper.UpgradeFromStatefulSetUIDAnn] == "" {
-		set.Annotations[helper.UpgradeFromStatefulSetUIDAnn] = "native-sts-uid"
-	}
-	if revision.Annotations == nil {
-		revision.Annotations = map[string]string{}
-	}
-	revision.Annotations[helper.UpgradeFromStatefulSetUIDAnn] = set.Annotations[helper.UpgradeFromStatefulSetUIDAnn]
-
 	if revision.Labels == nil {
 		revision.Labels = map[string]string{}
 	}

@@ -325,8 +325,13 @@ func TestStatefulSetControllerSyncPreservesBuiltinOwnerUpgradeRevision(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := ssc.sync(key); err != nil {
-		t.Fatalf("sync() error: %v", err)
+	if err := ssc.sync(key); err == nil {
+		t.Fatal("sync must wait for builtin history orphaning")
+	}
+	for _, action := range ssc.kubeClient.(*kubefake.Clientset).Actions() {
+		if action.GetVerb() != "list" {
+			t.Fatalf("waiting sync mutated source history: %v", action)
+		}
 	}
 
 	gotSet, err := spc.setsLister.StatefulSets(set.Namespace).Get(set.Name)
@@ -337,8 +342,8 @@ func TestStatefulSetControllerSyncPreservesBuiltinOwnerUpgradeRevision(t *testin
 		t.Fatalf("expected migrated revision %s to stay current/update, got current=%s update=%s",
 			revision.Name, gotSet.Status.CurrentRevision, gotSet.Status.UpdateRevision)
 	}
-	if gotSet.Status.CurrentReplicas != 1 || gotSet.Status.UpdatedReplicas != 1 {
-		t.Fatalf("expected existing pod revision to stay current/updated, got current=%d updated=%d",
+	if gotSet.Status.CurrentReplicas != 0 || gotSet.Status.UpdatedReplicas != 0 {
+		t.Fatalf("expected status to stay unchanged while waiting, got current=%d updated=%d",
 			gotSet.Status.CurrentReplicas, gotSet.Status.UpdatedReplicas)
 	}
 	if gotSet.Status.CollisionCount == nil || *gotSet.Status.CollisionCount != 0 {
