@@ -499,6 +499,11 @@ func (ssc *StatefulSetController) sync(key string) error {
 		return nil
 	}
 
+	if _, _, err := desiredReplicaSlots(set); err != nil {
+		utilruntime.HandleError(fmt.Errorf("invalid StatefulSet %v replica configuration: %v", key, err))
+		return nil
+	}
+
 	selector, err := metav1.LabelSelectorAsSelector(set.Spec.Selector)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("error converting StatefulSet %v selector: %v", key, err))
@@ -529,6 +534,10 @@ func (ssc *StatefulSetController) syncStatefulSet(set *apps.StatefulSet, pods []
 	klog.V(4).Infof("Syncing StatefulSet %v/%v with %d pods", set.Namespace, set.Name, len(pods))
 	// TODO: investigate where we mutate the set during the update as it is not obvious.
 	if err := ssc.control.UpdateStatefulSet(set.DeepCopy(), pods); err != nil {
+		if err == errReconcileLimit {
+			ssc.queue.AddAfter(set.Namespace+"/"+set.Name, 100*time.Millisecond)
+			return nil
+		}
 		return err
 	}
 	klog.V(4).Infof("Successfully synced StatefulSet %s/%s successful", set.Namespace, set.Name)

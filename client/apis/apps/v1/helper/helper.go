@@ -15,6 +15,7 @@ package helper
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +33,7 @@ const (
 	PausedReconcileAnn = "paused-reconcile"
 )
 
+// Deprecated: use GetDeleteSlotsChecked when reading untrusted annotations.
 func GetDeleteSlots(set metav1.Object) (deleteSlots sets.Int32) {
 	deleteSlots = sets.NewInt32()
 	annotations := set.GetAnnotations()
@@ -72,12 +74,16 @@ func SetDeleteSlots(set metav1.Object, deleteSlots sets.Int32) (err error) {
 }
 
 func AddDeleteSlots(set metav1.Object, deleteSlots sets.Int32) (err error) {
-	currentDeleteSlots := GetDeleteSlots(set)
+	currentDeleteSlots, err := GetDeleteSlotsChecked(set)
+	if err != nil {
+		return err
+	}
 	return SetDeleteSlots(set, currentDeleteSlots.Union(deleteSlots))
 }
 
 // GetMaxReplicaCountAndDeleteSlots returns the max replica count and delete
 // slots. The desired slots of this stateful set will be [0, replicaCount) - [delete slots].
+// Deprecated: use GetMaxReplicaCountAndDeleteSlotsChecked for bounded reconciliation.
 func GetMaxReplicaCountAndDeleteSlots(replicas int32, deleteSlots sets.Int32) (int32, sets.Int32) {
 	replicaCount := replicas
 	deleteSlotsCopy := sets.NewInt32()
@@ -154,4 +160,67 @@ func GetMinPodOrdinal(replicas int32, set metav1.Object) int32 {
 		}
 	}
 	return min
+}
+
+// GetDeleteSlotsChecked rejects malformed and negative delete slots.
+// Like GetDeleteSlots, JSON null means no slots and null elements mean ordinal zero.
+func GetDeleteSlotsChecked(set metav1.Object) (sets.Int32, error) {
+	value, exists := set.GetAnnotations()[DeleteSlotsAnn]
+	if !exists {
+		return sets.NewInt32(), nil
+	}
+	var slots []int32
+	if err := json.Unmarshal([]byte(value), &slots); err != nil {
+		return nil, fmt.Errorf("delete-slots must be a JSON array of non-negative int32 ordinals or null")
+	}
+	deleteSlots := sets.NewInt32()
+	for _, slot := range slots {
+		if slot < 0 {
+			return nil, fmt.Errorf("delete-slots must not contain negative ordinals")
+		}
+		deleteSlots.Insert(slot)
+	}
+	return deleteSlots, nil
+}
+
+// GetMaxReplicaCountAndDeleteSlotsChecked rejects negative replicas/slots and
+// ordinal arithmetic that would overflow the legacy int32 ordinal range.
+func GetMaxReplicaCountAndDeleteSlotsChecked(replicas int32, deleteSlots sets.Int32) (int32, sets.Int32, error) {
+	if replicas < 0 {
+		return 0, nil, fmt.Errorf("replicas must not be negative")
+	}
+	count := int64(replicas)
+	effective := sets.NewInt32()
+	for _, slot := range deleteSlots.List() {
+		if slot < 0 {
+			return 0, nil, fmt.Errorf("delete-slots must not contain negative ordinals")
+		}
+		if int64(slot) < count {
+			count++
+			if count > math.MaxInt32 {
+				return 0, nil, fmt.Errorf("replica ordinal range overflows int32")
+			}
+			effective.Insert(slot)
+		}
+	}
+	return int32(count), effective, nil
+}
+
+// VisitPodOrdinalsChecked validates the configuration, then visits desired ordinals
+// in ascending order without materializing the range. Return false to stop early.
+func VisitPodOrdinalsChecked(replicas int32, set metav1.Object, visit func(int32) bool) error {
+	slots, err := GetDeleteSlotsChecked(set)
+	if err != nil {
+		return err
+	}
+	count, slots, err := GetMaxReplicaCountAndDeleteSlotsChecked(replicas, slots)
+	if err != nil {
+		return err
+	}
+	for i := int32(0); i < count; i++ {
+		if !slots.Has(i) && !visit(i) {
+			break
+		}
+	}
+	return nil
 }
