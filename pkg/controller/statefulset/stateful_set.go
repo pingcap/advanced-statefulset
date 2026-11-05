@@ -502,7 +502,8 @@ func (ssc *StatefulSetController) sync(key string) error {
 	}
 
 	if _, _, err := desiredReplicaSlots(set); err != nil {
-		return err
+		utilruntime.HandleError(fmt.Errorf("invalid StatefulSet %v replica configuration: %v", key, err))
+		return nil
 	}
 
 	selector, err := metav1.LabelSelectorAsSelector(set.Spec.Selector)

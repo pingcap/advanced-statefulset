@@ -66,3 +66,41 @@ func TestInvalidSlotsRejectedBeforeApplyingRevision(t *testing.T) {
 		t.Fatal("invalid replica configuration accepted")
 	}
 }
+
+func TestInvalidSlotsWaitForConfigurationUpdate(t *testing.T) {
+	set := newStatefulSet(1)
+	set.Annotations = map[string]string{helper.DeleteSlotsAnn: "[-1]"}
+	controller, pods := newFakeStatefulSetController(set)
+	defer controller.queue.ShutDown()
+	if err := pods.setsIndexer.Update(set); err != nil {
+		t.Fatal(err)
+	}
+	key := set.Namespace + "/" + set.Name
+	controller.enqueueStatefulSet(set)
+	if !controller.processNextWorkItem() {
+		t.Fatal("worker stopped")
+	}
+	if controller.queue.NumRequeues(key) != 0 {
+		t.Fatal("invalid configuration was scheduled for retry")
+	}
+	if len(controller.kubeClient.(*fake.Clientset).Actions()) != 0 || len(controller.pcClient.(*pcfake.Clientset).Actions()) != 0 {
+		t.Fatal("invalid configuration caused API activity")
+	}
+
+	corrected := set.DeepCopy()
+	delete(corrected.Annotations, helper.DeleteSlotsAnn)
+	if err := pods.setsIndexer.Update(corrected); err != nil {
+		t.Fatal(err)
+	}
+	// The informer update handler enqueues annotation changes as well as spec changes.
+	controller.enqueueStatefulSet(corrected)
+	if !controller.processNextWorkItem() {
+		t.Fatal("worker stopped after configuration update")
+	}
+	if controller.queue.NumRequeues(key) != 0 {
+		t.Fatal("corrected configuration failed to reconcile")
+	}
+	if _, err := pods.podsLister.Pods(set.Namespace).Get(set.Name + "-0"); err != nil {
+		t.Fatalf("corrected configuration did not create Pod 0: %v", err)
+	}
+}
