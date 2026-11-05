@@ -29,3 +29,9 @@ binding. No existing objects are rewritten at installation. Restrict CR,
 ControllerRevision and migration-annotation write access to trusted workload
 administrators; UID metadata protects ownership consistency, not against a
 principal already authorized to rewrite history/provenance fields.
+
+For a manual migration, record the source builtin UID in
+`apps.pingcap.com/upgrade-from-statefulset-uid` on both the target ASTS and each
+source-owned revision before orphaning. Keep the upgrade marker on the revisions
+until adoption. Creating the ASTS does not preserve the builtin status, so a
+marker-only orphan cannot rely on the legacy current/update-status exception.
