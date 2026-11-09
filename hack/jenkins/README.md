@@ -11,6 +11,18 @@ GitHub Actions workflow. The removed scripts remain in Git history for historica
 investigation, not as supported deployment examples. This repository change does
 not modify external Jenkins job configuration or revoke credentials.
 
-`release.groovy` is a separate release pipeline. This retirement confirmation
-covers only the legacy PR tests; it makes no claim that release jobs are unused
-or that their credentials have been revoked. The release pipeline is unchanged.
+On 2026-11-09, the repository maintainer approved retiring the legacy Jenkins
+release integration. The GitHub Actions `release` workflow was already in the
+`disabled_manually` state. Its workflow file (`.github/workflows/release.yaml`),
+remote trigger helper (`hack/trigger-jenkins-job.py`), and Jenkins pipeline
+(`hack/jenkins/release.groovy`) have been removed. They remain in Git history for
+historical investigation, not as supported release tooling.
+
+This removal does not disable the external `release_advanced_statefulset` Jenkins
+job or revoke its credentials. The job's status and last build could not be
+verified because its configured host, `internal.pingcap.net`, did not resolve.
+The Jenkins administrator still needs to confirm the job is disabled and its
+remote trigger token is revoked, and remove any job-specific credential access.
+The GitHub Actions secret `JENKINS_TRIGGER_TOKEN` is no longer used by this
+repository and can be removed. Shared credentials must be reviewed for other
+consumers before revocation.
