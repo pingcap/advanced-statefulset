@@ -348,7 +348,10 @@ func ApplyRevision(set *apps.StatefulSet, revision *kubeapps.ControllerRevision)
 	if err != nil {
 		return nil, err
 	}
-	return restoredSet, nil
+	// Confine revision restoration to Spec.Template so a crafted ControllerRevision cannot
+	// override identity, namespace, selector, or volumeClaimTemplates.
+	clone.Spec.Template = restoredSet.Spec.Template
+	return clone, nil
 }
 
 // nextRevision finds the next valid revision number based on revisions. If the length of revisions

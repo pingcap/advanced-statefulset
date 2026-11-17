@@ -321,6 +321,66 @@ func TestRollingUpdateApplyRevision(t *testing.T) {
 	}
 }
 
+func TestApplyRevisionConfinedToTemplate(t *testing.T) {
+	set := newStatefulSet(1)
+	set.Namespace = "tenant-a"
+	set.Status.CollisionCount = new(int32)
+	expected := set.DeepCopy()
+
+	revision, err := newRevision(set, 1, set.Status.CollisionCount)
+	if err != nil {
+		t.Fatal(err)
+	}
+	revision.Data.Raw = []byte(`{
+		"metadata": {
+			"name": "victim-sts",
+			"namespace": "tenant-b"
+		},
+		"spec": {
+			"selector": null,
+			"volumeClaimTemplates": [
+				{
+					"metadata": {"name": "injected-pvc"}
+				}
+			],
+			"template": {
+				"$patch": "replace",
+				"metadata": {
+					"labels": {"foo": "bar"}
+				},
+				"spec": {
+					"containers": [
+						{
+							"name": "nginx",
+							"image": "nginx:1.25"
+						}
+					]
+				}
+			}
+		}
+	}`)
+
+	restoredSet, err := ApplyRevision(set, revision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if restoredSet.Name != expected.Name {
+		t.Errorf("Name = %q, want %q", restoredSet.Name, expected.Name)
+	}
+	if restoredSet.Namespace != expected.Namespace {
+		t.Errorf("Namespace = %q, want %q", restoredSet.Namespace, expected.Namespace)
+	}
+	if !reflect.DeepEqual(restoredSet.Spec.Selector, expected.Spec.Selector) {
+		t.Errorf("Selector = %+v, want %+v", restoredSet.Spec.Selector, expected.Spec.Selector)
+	}
+	if !reflect.DeepEqual(restoredSet.Spec.VolumeClaimTemplates, expected.Spec.VolumeClaimTemplates) {
+		t.Errorf("VolumeClaimTemplates = %+v, want %+v", restoredSet.Spec.VolumeClaimTemplates, expected.Spec.VolumeClaimTemplates)
+	}
+	if len(restoredSet.Spec.Template.Spec.Containers) != 1 || restoredSet.Spec.Template.Spec.Containers[0].Image != "nginx:1.25" {
+		t.Errorf("expected Spec.Template to be updated from revision, got %+v", restoredSet.Spec.Template)
+	}
+}
+
 func TestGetPersistentVolumeClaims(t *testing.T) {
 
 	// nil inherits statefulset labels
