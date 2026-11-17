@@ -27,6 +27,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
 	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
 	"github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/scheme"
@@ -337,59 +338,80 @@ func newRevision(set *apps.StatefulSet, revision int64, collisionCount *int32) (
 // ApplyRevision returns a new StatefulSet constructed by restoring the state in revision to set. If the returned error
 // is nil, the returned StatefulSet is valid.
 func ApplyRevision(set *apps.StatefulSet, revision *kubeapps.ControllerRevision) (*apps.StatefulSet, error) {
-	templateRaw, err := extractRevisionTemplate(revision)
+	templateRaw, hasReplace, err := extractRevisionTemplate(revision)
 	if err != nil {
 		return nil, err
 	}
-	var restoredTemplate v1.PodTemplateSpec
-	if err := json.Unmarshal(templateRaw, &restoredTemplate); err != nil {
-		return nil, err
-	}
 	clone := set.DeepCopy()
+	var restoredTemplate v1.PodTemplateSpec
+	if hasReplace {
+		if err := json.Unmarshal(templateRaw, &restoredTemplate); err != nil {
+			return nil, err
+		}
+	} else {
+		originalTemplate, err := json.Marshal(clone.Spec.Template)
+		if err != nil {
+			return nil, err
+		}
+		patchedTemplate, err := strategicpatch.StrategicMergePatch(originalTemplate, templateRaw, v1.PodTemplateSpec{})
+		if err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(patchedTemplate, &restoredTemplate); err != nil {
+			return nil, err
+		}
+	}
 	clone.Spec.Template = restoredTemplate
 	return clone, nil
 }
 
-// extractRevisionTemplate extracts spec.template from revision.Data.Raw and consumes its
-// template-level "$patch": "replace" directive so revision restoration never touches other fields.
-func extractRevisionTemplate(revision *kubeapps.ControllerRevision) ([]byte, error) {
+// extractRevisionTemplate extracts spec.template from revision.Data.Raw so revision restoration
+// never touches other StatefulSet fields. It returns the cleaned template JSON and whether the
+// template-level "$patch": "replace" directive was present.
+func extractRevisionTemplate(revision *kubeapps.ControllerRevision) ([]byte, bool, error) {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(revision.Data.Raw, &raw); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	specRaw, ok := raw["spec"]
 	if !ok {
-		return nil, fmt.Errorf("revision %s missing spec", revision.Name)
+		return nil, false, fmt.Errorf("revision %s missing spec", revision.Name)
 	}
 	var specMap map[string]json.RawMessage
 	if err := json.Unmarshal(specRaw, &specMap); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if specMap == nil {
-		return nil, fmt.Errorf("revision %s has null spec", revision.Name)
+		return nil, false, fmt.Errorf("revision %s has null spec", revision.Name)
 	}
 	templateRaw, ok := specMap["template"]
 	if !ok {
-		return nil, fmt.Errorf("revision %s missing spec.template", revision.Name)
+		return nil, false, fmt.Errorf("revision %s missing spec.template", revision.Name)
 	}
 	var templateMap map[string]json.RawMessage
 	if err := json.Unmarshal(templateRaw, &templateMap); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if templateMap == nil {
-		return nil, fmt.Errorf("revision %s has null spec.template", revision.Name)
+		return nil, false, fmt.Errorf("revision %s has null spec.template", revision.Name)
 	}
+	hasReplace := false
 	if directiveRaw, ok := templateMap["$patch"]; ok {
 		var directive string
 		if err := json.Unmarshal(directiveRaw, &directive); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		if directive != "replace" {
-			return nil, fmt.Errorf("revision %s has unsupported $patch directive %q in spec.template", revision.Name, directive)
+			return nil, false, fmt.Errorf("revision %s has unsupported $patch directive %q in spec.template", revision.Name, directive)
 		}
 		delete(templateMap, "$patch")
+		hasReplace = true
 	}
-	return json.Marshal(templateMap)
+	cleaned, err := json.Marshal(templateMap)
+	if err != nil {
+		return nil, false, err
+	}
+	return cleaned, hasReplace, nil
 }
 
 // nextRevision finds the next valid revision number based on revisions. If the length of revisions

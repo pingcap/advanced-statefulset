@@ -391,6 +391,34 @@ func TestApplyRevisionConfinedToTemplate(t *testing.T) {
 	if _, err := ApplyRevision(set, revision); err == nil {
 		t.Errorf("expected error for unsupported $patch directive in spec.template")
 	}
+
+	// Partial spec.template patch without $patch: replace must strategic-merge onto PodTemplateSpec
+	// and preserve existing containers.
+	setWithContainers := newStatefulSet(1)
+	setWithContainers.Namespace = "tenant-a"
+	revision.Data.Raw = []byte(`{
+		"metadata": {"namespace": "tenant-b"},
+		"spec": {
+			"template": {
+				"metadata": {
+					"annotations": {"example.com/rev": "v1"}
+				}
+			}
+		}
+	}`)
+	mergedSet, err := ApplyRevision(setWithContainers, revision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mergedSet.Namespace != setWithContainers.Namespace {
+		t.Errorf("Namespace = %q, want %q", mergedSet.Namespace, setWithContainers.Namespace)
+	}
+	if got := mergedSet.Spec.Template.Annotations["example.com/rev"]; got != "v1" {
+		t.Errorf("annotation example.com/rev = %q, want %q", got, "v1")
+	}
+	if !reflect.DeepEqual(mergedSet.Spec.Template.Spec.Containers, setWithContainers.Spec.Template.Spec.Containers) {
+		t.Errorf("Containers = %+v, want preserved %+v", mergedSet.Spec.Template.Spec.Containers, setWithContainers.Spec.Template.Spec.Containers)
+	}
 }
 
 func TestGetPersistentVolumeClaims(t *testing.T) {
