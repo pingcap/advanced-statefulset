@@ -333,7 +333,7 @@ func TestApplyRevisionConfinedToTemplate(t *testing.T) {
 	}
 	revision.Data.Raw = []byte(`{
 		"metadata": {
-			"name": "victim-sts",
+			"name": 123,
 			"namespace": "tenant-b"
 		},
 		"spec": {
@@ -378,6 +378,18 @@ func TestApplyRevisionConfinedToTemplate(t *testing.T) {
 	}
 	if len(restoredSet.Spec.Template.Spec.Containers) != 1 || restoredSet.Spec.Template.Spec.Containers[0].Image != "nginx:1.25" {
 		t.Errorf("expected Spec.Template to be updated from revision, got %+v", restoredSet.Spec.Template)
+	}
+
+	// Spec-level $patch: replace without spec.template must fail instead of erasing the template.
+	revision.Data.Raw = []byte(`{"spec": {"$patch": "replace"}}`)
+	if _, err := ApplyRevision(set, revision); err == nil {
+		t.Errorf("expected error when spec.template is missing")
+	}
+
+	// Unsupported $patch directive inside spec.template must fail.
+	revision.Data.Raw = []byte(`{"spec": {"template": {"$patch": "delete"}}}`)
+	if _, err := ApplyRevision(set, revision); err == nil {
+		t.Errorf("expected error for unsupported $patch directive in spec.template")
 	}
 }
 

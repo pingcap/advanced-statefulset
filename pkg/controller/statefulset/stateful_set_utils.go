@@ -27,7 +27,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
 	apps "github.com/pingcap/advanced-statefulset/client/apis/apps/v1"
 	"github.com/pingcap/advanced-statefulset/client/client/clientset/versioned/scheme"
@@ -338,20 +337,59 @@ func newRevision(set *apps.StatefulSet, revision int64, collisionCount *int32) (
 // ApplyRevision returns a new StatefulSet constructed by restoring the state in revision to set. If the returned error
 // is nil, the returned StatefulSet is valid.
 func ApplyRevision(set *apps.StatefulSet, revision *kubeapps.ControllerRevision) (*apps.StatefulSet, error) {
+	templateRaw, err := extractRevisionTemplate(revision)
+	if err != nil {
+		return nil, err
+	}
+	var restoredTemplate v1.PodTemplateSpec
+	if err := json.Unmarshal(templateRaw, &restoredTemplate); err != nil {
+		return nil, err
+	}
 	clone := set.DeepCopy()
-	patched, err := strategicpatch.StrategicMergePatch([]byte(runtime.EncodeOrDie(patchCodec, clone)), revision.Data.Raw, clone)
-	if err != nil {
-		return nil, err
-	}
-	restoredSet := &apps.StatefulSet{}
-	err = json.Unmarshal(patched, restoredSet)
-	if err != nil {
-		return nil, err
-	}
-	// Confine revision restoration to Spec.Template so a crafted ControllerRevision cannot
-	// override identity, namespace, selector, or volumeClaimTemplates.
-	clone.Spec.Template = restoredSet.Spec.Template
+	clone.Spec.Template = restoredTemplate
 	return clone, nil
+}
+
+// extractRevisionTemplate extracts spec.template from revision.Data.Raw and consumes its
+// template-level "$patch": "replace" directive so revision restoration never touches other fields.
+func extractRevisionTemplate(revision *kubeapps.ControllerRevision) ([]byte, error) {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(revision.Data.Raw, &raw); err != nil {
+		return nil, err
+	}
+	specRaw, ok := raw["spec"]
+	if !ok {
+		return nil, fmt.Errorf("revision %s missing spec", revision.Name)
+	}
+	var specMap map[string]json.RawMessage
+	if err := json.Unmarshal(specRaw, &specMap); err != nil {
+		return nil, err
+	}
+	if specMap == nil {
+		return nil, fmt.Errorf("revision %s has null spec", revision.Name)
+	}
+	templateRaw, ok := specMap["template"]
+	if !ok {
+		return nil, fmt.Errorf("revision %s missing spec.template", revision.Name)
+	}
+	var templateMap map[string]json.RawMessage
+	if err := json.Unmarshal(templateRaw, &templateMap); err != nil {
+		return nil, err
+	}
+	if templateMap == nil {
+		return nil, fmt.Errorf("revision %s has null spec.template", revision.Name)
+	}
+	if directiveRaw, ok := templateMap["$patch"]; ok {
+		var directive string
+		if err := json.Unmarshal(directiveRaw, &directive); err != nil {
+			return nil, err
+		}
+		if directive != "replace" {
+			return nil, fmt.Errorf("revision %s has unsupported $patch directive %q in spec.template", revision.Name, directive)
+		}
+		delete(templateMap, "$patch")
+	}
+	return json.Marshal(templateMap)
 }
 
 // nextRevision finds the next valid revision number based on revisions. If the length of revisions
