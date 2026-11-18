@@ -160,57 +160,63 @@ func TestLegacyOrphanMarkerAndEmptySelector(t *testing.T) {
 }
 
 func TestUnlistedForeignStatusRevisionBlocksSync(t *testing.T) {
-	for _, reference := range []string{"current", "update", "both"} {
-		t.Run(reference, func(t *testing.T) {
-			set := newStatefulSet(1)
-			previous := set.DeepCopy()
-			previous.Spec.Template.Spec.Containers[0].Image = "foreign-template"
-			foreign := newRevisionOrDie(previous, 1)
-			foreign.OwnerReferences[0].UID = "other-controller"
-			foreign.Labels = nil // Neither the selector nor the migration label LIST can find it.
-			if reference != "update" {
-				set.Status.CurrentRevision = foreign.Name
-			}
-			if reference != "current" {
-				set.Status.UpdateRevision = foreign.Name
-			}
-			set.Status.Replicas = 1
-			set.Status.ReadyReplicas = 1
-			set.Status.CurrentReplicas = 1
-			set.Status.UpdatedReplicas = 1
-			originalStatus := set.DeepCopy().Status
-			pod := newStatefulSetPod(previous, 0)
-			pod.Status.Phase = v1.PodRunning
-			pod.Status.Conditions = []v1.PodCondition{{Type: v1.PodReady, Status: v1.ConditionTrue}}
-			setPodRevision(pod, foreign.Name)
-			controller, control := newFakeStatefulSetController(set, foreign)
-			defer controller.queue.ShutDown()
-			if err := control.setsIndexer.Add(set); err != nil {
-				t.Fatal(err)
-			}
-			if err := control.podsIndexer.Add(pod); err != nil {
-				t.Fatal(err)
-			}
-			if err := controller.sync(set.Namespace + "/" + set.Name); err == nil {
-				t.Fatal("unlisted foreign history must block reconciliation")
-			}
-			got, err := control.setsLister.StatefulSets(set.Namespace).Get(set.Name)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !reflect.DeepEqual(got.Status, originalStatus) {
-				t.Fatal("status changed while waiting for foreign history")
-			}
-			gotPod, err := control.podsLister.Pods(set.Namespace).Get(pod.Name)
-			if err != nil || !reflect.DeepEqual(gotPod, pod) {
-				t.Fatalf("existing Pod changed: %v", err)
-			}
-			for _, action := range controller.kubeClient.(*fake.Clientset).Actions() {
-				if action.GetVerb() != "list" && action.GetVerb() != "get" {
-					t.Fatalf("foreign history caused API mutation: %v", action)
+	for _, ownerState := range []string{"foreign", "orphan"} {
+		for _, reference := range []string{"current", "update", "both"} {
+			t.Run(ownerState+"/"+reference, func(t *testing.T) {
+				set := newStatefulSet(1)
+				previous := set.DeepCopy()
+				previous.Spec.Template.Spec.Containers[0].Image = "foreign-template"
+				foreign := newRevisionOrDie(previous, 1)
+				if ownerState == "foreign" {
+					foreign.OwnerReferences[0].UID = "other-controller"
+				} else {
+					foreign.OwnerReferences = nil
 				}
-			}
-		})
+				foreign.Labels = nil // Neither the selector nor the migration label LIST can find it.
+				if reference != "update" {
+					set.Status.CurrentRevision = foreign.Name
+				}
+				if reference != "current" {
+					set.Status.UpdateRevision = foreign.Name
+				}
+				set.Status.Replicas = 1
+				set.Status.ReadyReplicas = 1
+				set.Status.CurrentReplicas = 1
+				set.Status.UpdatedReplicas = 1
+				originalStatus := set.DeepCopy().Status
+				pod := newStatefulSetPod(previous, 0)
+				pod.Status.Phase = v1.PodRunning
+				pod.Status.Conditions = []v1.PodCondition{{Type: v1.PodReady, Status: v1.ConditionTrue}}
+				setPodRevision(pod, foreign.Name)
+				controller, control := newFakeStatefulSetController(set, foreign)
+				defer controller.queue.ShutDown()
+				if err := control.setsIndexer.Add(set); err != nil {
+					t.Fatal(err)
+				}
+				if err := control.podsIndexer.Add(pod); err != nil {
+					t.Fatal(err)
+				}
+				if err := controller.sync(set.Namespace + "/" + set.Name); err == nil {
+					t.Fatal("unlisted foreign or orphan history must block reconciliation")
+				}
+				got, err := control.setsLister.StatefulSets(set.Namespace).Get(set.Name)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(got.Status, originalStatus) {
+					t.Fatal("status changed while waiting for unlisted history")
+				}
+				gotPod, err := control.podsLister.Pods(set.Namespace).Get(pod.Name)
+				if err != nil || !reflect.DeepEqual(gotPod, pod) {
+					t.Fatalf("existing Pod changed: %v", err)
+				}
+				for _, action := range controller.kubeClient.(*fake.Clientset).Actions() {
+					if action.GetVerb() != "list" && action.GetVerb() != "get" {
+						t.Fatalf("unlisted history caused API mutation: %v", action)
+					}
+				}
+			})
+		}
 	}
 }
 
@@ -241,18 +247,26 @@ func TestUnlistedStatusRevisionLookup(t *testing.T) {
 			}
 			control := &defaultStatefulSetControl{csAppsV1: kube.AppsV1()}
 			got, err := control.ListRevisions(set)
-			if state == "get-error" {
+			switch state {
+			case "get-error":
 				if err != lookupErr {
 					t.Fatalf("lookup error was not propagated: %v", err)
 				}
-			} else if err != nil {
-				t.Fatal(err)
-			} else if state == "missing" {
-				if len(got) != 0 {
-					t.Fatalf("missing revision returned: %v", got)
+			case "orphan":
+				if err == nil {
+					t.Fatalf("unprovenanced orphan status revision must be rejected, got %v", got)
 				}
-			} else if len(got) != 1 || !reflect.DeepEqual(got[0], revision) {
-				t.Fatalf("referenced history not preserved: %v", got)
+			default:
+				if err != nil {
+					t.Fatal(err)
+				}
+				if state == "missing" {
+					if len(got) != 0 {
+						t.Fatalf("missing revision returned: %v", got)
+					}
+				} else if len(got) != 1 || !reflect.DeepEqual(got[0], revision) {
+					t.Fatalf("referenced history not preserved: %v", got)
+				}
 			}
 			gets := 0
 			for _, action := range kube.Actions() {

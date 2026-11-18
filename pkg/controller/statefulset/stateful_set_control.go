@@ -224,7 +224,8 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*k
 			return nil, err
 		}
 	}
-	// Status references can outlive both selector and migration labels.
+	// Status references can outlive selector and migration labels only when already
+	// owned by this StatefulSet; foreign-owned or unprovenanced orphans must block.
 	for _, name := range []string{set.Status.CurrentRevision, set.Status.UpdateRevision} {
 		if name == "" {
 			continue
@@ -239,6 +240,9 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*k
 		}
 		if err != nil {
 			return nil, err
+		}
+		if metav1.GetControllerOfNoCopy(revision) == nil {
+			return nil, fmt.Errorf("status revision %s is an orphan without matching selector or migration label", revision.Name)
 		}
 		if err := appendUsable(*revision); err != nil {
 			return nil, err
