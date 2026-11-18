@@ -83,9 +83,23 @@ type defaultStatefulSetControl struct {
 	recorder      record.EventRecorder
 }
 
+var builtinStatefulSetKind = kubeapps.SchemeGroupVersion.WithKind("StatefulSet")
+
 func isOrphanOrOwnedBy(revision *kubeapps.ControllerRevision, parent metav1.Object) bool {
 	owner := metav1.GetControllerOfNoCopy(revision)
 	return owner == nil || owner.UID == parent.GetUID()
+}
+
+// A marked builtin-owned revision is a reason to wait for GC only before status is initialized, never to trust its data.
+func isBuiltinStatefulSetUpgradeRevision(revision *kubeapps.ControllerRevision, parent metav1.Object) bool {
+	owner := metav1.GetControllerOfNoCopy(revision)
+	if owner == nil {
+		return false
+	}
+	if owner.APIVersion != builtinStatefulSetKind.GroupVersion().String() || owner.Kind != builtinStatefulSetKind.Kind || owner.Name != parent.GetName() {
+		return false
+	}
+	return revision.Labels[helper.UpgradeToAdvancedStatefulSetAnn] == parent.GetName()
 }
 
 // Bound Pod operations per reconcile, not the size of a valid StatefulSet.
@@ -184,10 +198,11 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*k
 	}
 	res := []*kubeapps.ControllerRevision{}
 	seen := map[string]struct{}{}
+	statusUninitialized := set.Status.CurrentRevision == "" && set.Status.UpdateRevision == ""
 	appendUsable := func(item kubeapps.ControllerRevision) error {
 		referenced := item.Name == set.Status.CurrentRevision || item.Name == set.Status.UpdateRevision
 		if !isOrphanOrOwnedBy(&item, set) {
-			if referenced {
+			if referenced || (statusUninitialized && isBuiltinStatefulSetUpgradeRevision(&item, set)) {
 				return fmt.Errorf("revision %s is still owned by another controller; wait for orphaning", item.Name)
 			}
 			return nil

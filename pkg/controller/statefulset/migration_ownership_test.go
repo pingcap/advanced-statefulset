@@ -330,3 +330,41 @@ func TestUnreferencedForeignUpgradeRevisionIgnored(t *testing.T) {
 		t.Fatalf("foreign revision was mutated: got %+v, want %+v", gotForeign, foreign)
 	}
 }
+
+func TestMigrationBeforeStatusInitializedWaitsWithoutCreatingRevision(t *testing.T) {
+	set := newStatefulSet(1)
+	set.UID = "asts-uid"
+	set.Status.CurrentRevision = ""
+	set.Status.UpdateRevision = ""
+
+	builtinRev := newRevisionOrDie(set, 1)
+	markRevisionForUpgrade(set, builtinRev)
+	builtinRev.OwnerReferences[0].APIVersion = kubeapps.SchemeGroupVersion.String()
+	builtinRev.OwnerReferences[0].UID = "builtin-sts-uid"
+
+	pod := newStatefulSetPod(set, 0)
+	pod.Status.Phase = v1.PodRunning
+	pod.Status.Conditions = []v1.PodCondition{{Type: v1.PodReady, Status: v1.ConditionTrue}}
+	setPodRevision(pod, builtinRev.Name)
+
+	controller, control := newFakeStatefulSetController(set, builtinRev)
+	defer controller.queue.ShutDown()
+	if err := control.setsIndexer.Add(set); err != nil {
+		t.Fatal(err)
+	}
+	if err := control.podsIndexer.Add(pod); err != nil {
+		t.Fatal(err)
+	}
+	if err := controller.sync(set.Namespace + "/" + set.Name); err == nil {
+		t.Fatal("migration before status initialization must wait for orphaning instead of creating a new revision")
+	}
+	for _, action := range controller.kubeClient.(*fake.Clientset).Actions() {
+		if action.GetVerb() != "list" && action.GetVerb() != "get" {
+			t.Fatalf("migration wait caused API mutation: %v", action)
+		}
+	}
+	gotPod, err := control.podsLister.Pods(set.Namespace).Get(pod.Name)
+	if err != nil || !reflect.DeepEqual(gotPod, pod) {
+		t.Fatalf("existing Pod changed: %v", err)
+	}
+}
