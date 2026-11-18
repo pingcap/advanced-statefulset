@@ -198,11 +198,11 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*k
 	}
 	res := []*kubeapps.ControllerRevision{}
 	seen := map[string]struct{}{}
-	statusUninitialized := set.Status.CurrentRevision == "" && set.Status.UpdateRevision == ""
+	trustedMigration := set.Annotations[helper.UpgradeFromStatefulSetUIDAnn] != ""
 	appendUsable := func(item kubeapps.ControllerRevision) error {
 		referenced := item.Name == set.Status.CurrentRevision || item.Name == set.Status.UpdateRevision
 		if !isOrphanOrOwnedBy(&item, set) {
-			if referenced || (statusUninitialized && isBuiltinStatefulSetUpgradeRevision(&item, set)) {
+			if referenced || (trustedMigration && isBuiltinStatefulSetUpgradeRevision(&item, set)) {
 				return fmt.Errorf("revision %s is still owned by another controller; wait for orphaning", item.Name)
 			}
 			return nil

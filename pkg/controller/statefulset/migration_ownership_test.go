@@ -290,50 +290,62 @@ func TestUnlistedStatusRevisionLookup(t *testing.T) {
 }
 
 func TestUnreferencedForeignUpgradeRevisionIgnored(t *testing.T) {
-	set := newStatefulSet(1)
-	set.UID = "asts-uid"
-	owned := newRevisionOrDie(set, 1)
-	set.Status.CurrentRevision = owned.Name
-	set.Status.UpdateRevision = owned.Name
+	for _, state := range []string{"initialized", "new-asts"} {
+		t.Run(state, func(t *testing.T) {
+			set := newStatefulSet(1)
+			set.UID = "asts-uid"
+			objects := []runtime.Object{set}
+			if state == "initialized" {
+				owned := newRevisionOrDie(set, 1)
+				set.Status.CurrentRevision = owned.Name
+				set.Status.UpdateRevision = owned.Name
+				objects = append(objects, owned)
+			}
 
-	foreignSet := set.DeepCopy()
-	foreignSet.Spec.Template.Spec.Containers[0].Image = "attacker-image"
-	foreign := newRevisionOrDie(foreignSet, 1)
-	foreign.Name = set.Name + "-attacker"
-	foreign.Labels = map[string]string{
-		helper.UpgradeToAdvancedStatefulSetAnn: set.Name,
-	}
-	isController := true
-	foreign.OwnerReferences = []metav1.OwnerReference{
-		{
-			APIVersion: kubeapps.SchemeGroupVersion.String(),
-			Kind:       "StatefulSet",
-			Name:       set.Name,
-			UID:        "builtin-sts-uid",
-			Controller: &isController,
-		},
-	}
+			foreignSet := set.DeepCopy()
+			foreignSet.Spec.Template.Spec.Containers[0].Image = "attacker-image"
+			foreign := newRevisionOrDie(foreignSet, 1)
+			foreign.Name = set.Name + "-attacker"
+			foreign.Labels = map[string]string{
+				helper.UpgradeToAdvancedStatefulSetAnn: set.Name,
+			}
+			isController := true
+			foreign.OwnerReferences = []metav1.OwnerReference{
+				{
+					APIVersion: kubeapps.SchemeGroupVersion.String(),
+					Kind:       "StatefulSet",
+					Name:       set.Name,
+					UID:        "builtin-sts-uid",
+					Controller: &isController,
+				},
+			}
+			objects = append(objects, foreign)
 
-	controller, control := newFakeStatefulSetController(set, owned, foreign)
-	defer controller.queue.ShutDown()
-	if err := control.setsIndexer.Add(set); err != nil {
-		t.Fatal(err)
-	}
-	if err := controller.sync(set.Namespace + "/" + set.Name); err != nil {
-		t.Fatalf("unreferenced foreign upgrade revision must not block sync: %v", err)
-	}
-	gotForeign, err := controller.kubeClient.AppsV1().ControllerRevisions(set.Namespace).Get(context.Background(), foreign.Name, metav1.GetOptions{})
-	if err != nil {
-		t.Fatalf("foreign revision was deleted or missing: %v", err)
-	}
-	if !reflect.DeepEqual(gotForeign, foreign) {
-		t.Fatalf("foreign revision was mutated: got %+v, want %+v", gotForeign, foreign)
+			controller, control := newFakeStatefulSetController(objects...)
+			defer controller.queue.ShutDown()
+			if err := control.setsIndexer.Add(set); err != nil {
+				t.Fatal(err)
+			}
+			if err := controller.sync(set.Namespace + "/" + set.Name); err != nil {
+				t.Fatalf("unreferenced foreign upgrade revision must not block sync: %v", err)
+			}
+			gotForeign, err := controller.kubeClient.AppsV1().ControllerRevisions(set.Namespace).Get(context.Background(), foreign.Name, metav1.GetOptions{})
+			if err != nil {
+				t.Fatalf("foreign revision was deleted or missing: %v", err)
+			}
+			if !reflect.DeepEqual(gotForeign, foreign) {
+				t.Fatalf("foreign revision was mutated: got %+v, want %+v", gotForeign, foreign)
+			}
+		})
 	}
 }
 
 func TestMigrationBeforeStatusInitializedWaitsWithoutCreatingRevision(t *testing.T) {
 	set := newStatefulSet(1)
 	set.UID = "asts-uid"
+	set.Annotations = map[string]string{
+		helper.UpgradeFromStatefulSetUIDAnn: "builtin-sts-uid",
+	}
 	set.Status.CurrentRevision = ""
 	set.Status.UpdateRevision = ""
 
