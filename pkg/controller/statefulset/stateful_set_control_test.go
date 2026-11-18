@@ -689,6 +689,7 @@ func TestStatefulSetControlListRevisionsWaitsForBuiltinOwner(t *testing.T) {
 	revision := newRevisionOrDie(set, 1)
 	revision.OwnerReferences[0].APIVersion = kubeapps.SchemeGroupVersion.String()
 	revision.OwnerReferences[0].UID = "native-sts-uid"
+	set.Status.CurrentRevision = revision.Name
 	markRevisionForUpgrade(set, revision)
 	kubeClient := fake.NewSimpleClientset(revision)
 	ssc := defaultStatefulSetControl{csAppsV1: kubeClient.AppsV1()}
@@ -708,6 +709,7 @@ func TestStatefulSetControlRollbackWaitsForBuiltinOwner(t *testing.T) {
 	newerRevision := newRevisionOrDie(newerSet, 2)
 	newerRevision.OwnerReferences[0].APIVersion = kubeapps.SchemeGroupVersion.String()
 	newerRevision.OwnerReferences[0].UID = "native-sts-uid"
+	set.Status.CurrentRevision = newerRevision.Name
 	markRevisionForUpgrade(set, newerRevision)
 	kubeClient := fake.NewSimpleClientset(rollbackRevision, newerRevision)
 	ssc := defaultStatefulSetControl{csAppsV1: kubeClient.AppsV1()}
