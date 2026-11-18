@@ -290,16 +290,21 @@ func TestUnlistedStatusRevisionLookup(t *testing.T) {
 }
 
 func TestUnreferencedForeignUpgradeRevisionIgnored(t *testing.T) {
-	for _, state := range []string{"initialized", "new-asts"} {
+	for _, state := range []string{"initialized", "migrated-with-source-uid", "new-asts", "migrating-different-source-uid"} {
 		t.Run(state, func(t *testing.T) {
 			set := newStatefulSet(1)
 			set.UID = "asts-uid"
 			objects := []runtime.Object{set}
-			if state == "initialized" {
+			if state == "initialized" || state == "migrated-with-source-uid" {
 				owned := newRevisionOrDie(set, 1)
 				set.Status.CurrentRevision = owned.Name
 				set.Status.UpdateRevision = owned.Name
 				objects = append(objects, owned)
+			}
+			if state == "migrated-with-source-uid" || state == "migrating-different-source-uid" {
+				set.Annotations = map[string]string{
+					helper.UpgradeFromStatefulSetUIDAnn: "source-uid",
+				}
 			}
 
 			foreignSet := set.DeepCopy()

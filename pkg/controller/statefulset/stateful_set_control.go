@@ -90,13 +90,17 @@ func isOrphanOrOwnedBy(revision *kubeapps.ControllerRevision, parent metav1.Obje
 	return owner == nil || owner.UID == parent.GetUID()
 }
 
-// A marked builtin-owned revision is a reason to wait for GC only before status is initialized, never to trust its data.
-func isBuiltinStatefulSetUpgradeRevision(revision *kubeapps.ControllerRevision, parent metav1.Object) bool {
+// A marked builtin-owned revision is a reason to wait for GC only before status is initialized
+// for the recorded source StatefulSet UID, never to trust its data.
+func isBuiltinStatefulSetUpgradeRevision(revision *kubeapps.ControllerRevision, parent metav1.Object, sourceUID types.UID) bool {
+	if sourceUID == "" {
+		return false
+	}
 	owner := metav1.GetControllerOfNoCopy(revision)
 	if owner == nil {
 		return false
 	}
-	if owner.APIVersion != builtinStatefulSetKind.GroupVersion().String() || owner.Kind != builtinStatefulSetKind.Kind || owner.Name != parent.GetName() {
+	if owner.APIVersion != builtinStatefulSetKind.GroupVersion().String() || owner.Kind != builtinStatefulSetKind.Kind || owner.Name != parent.GetName() || owner.UID != sourceUID {
 		return false
 	}
 	return revision.Labels[helper.UpgradeToAdvancedStatefulSetAnn] == parent.GetName()
@@ -198,11 +202,12 @@ func (ssc *defaultStatefulSetControl) ListRevisions(set *apps.StatefulSet) ([]*k
 	}
 	res := []*kubeapps.ControllerRevision{}
 	seen := map[string]struct{}{}
-	trustedMigration := set.Annotations[helper.UpgradeFromStatefulSetUIDAnn] != ""
+	statusUninitialized := set.Status.CurrentRevision == "" && set.Status.UpdateRevision == ""
+	sourceUID := types.UID(set.Annotations[helper.UpgradeFromStatefulSetUIDAnn])
 	appendUsable := func(item kubeapps.ControllerRevision) error {
 		referenced := item.Name == set.Status.CurrentRevision || item.Name == set.Status.UpdateRevision
 		if !isOrphanOrOwnedBy(&item, set) {
-			if referenced || (trustedMigration && isBuiltinStatefulSetUpgradeRevision(&item, set)) {
+			if referenced || (statusUninitialized && isBuiltinStatefulSetUpgradeRevision(&item, set, sourceUID)) {
 				return fmt.Errorf("revision %s is still owned by another controller; wait for orphaning", item.Name)
 			}
 			return nil
